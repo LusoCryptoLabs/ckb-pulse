@@ -23,7 +23,8 @@ const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k)
 const MEDAL = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 1h3.2l1.3 4.2-3.1 1.2zM14.5 1h-3.2L10 5.2l3.1 1.2z" fill="#e0533d"/><circle cx="10" cy="12.6" r="6.2" fill="#f3c23a" stroke="#a8740c" stroke-width="1.2"/><path d="M10 9.2l1.05 2.1 2.3.33-1.67 1.62.4 2.3L10 14.47l-2.08 1.08.4-2.3-1.67-1.62 2.3-.33z" fill="#fff4cc"/></svg>'
 
 // ================= words =================
-let LANG = WORDS[store.get('lang')] ? store.get('lang') : (navigator.language || '').toLowerCase().startsWith('pt') ? 'pt' : 'en'
+const browserLang = (navigator.language || '').toLowerCase()
+let LANG = WORDS[store.get('lang')] ? store.get('lang') : browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('pt') ? 'pt' : 'en'
 const t = (k, v) => String(WORDS[LANG][k] ?? WORDS.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v?.[x] ?? '')
 const fam = (k) => KIND_FAMILY[k] || 'code'
 const kcol = (k) => FAMILY[fam(k)]
@@ -861,7 +862,7 @@ function connect() {
 
 // ================= language and the welcome card =================
 function applyLang() {
-  document.documentElement.lang = LANG
+  document.documentElement.lang = t('locale')
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t)
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
   $('q').placeholder = innerWidth <= 860 ? t('search') : innerWidth < 1200 ? t('searchShort') : t('search')
