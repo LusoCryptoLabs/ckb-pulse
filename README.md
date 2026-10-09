@@ -24,3 +24,12 @@ GITHUB_TOKEN=... node server.mjs      # PORT (8080), DATA_DIR (./data)
 Node 20 or later, no dependencies. `GITHUB_TOKEN` only needs read access to public repositories (a fine-grained token with no repository permissions works). State is saved to `DATA_DIR/state.json` every minute and on discovery.
 
 - `GET /` the page, `GET /api/state` the current state, `GET /api/stream` new events as Server-Sent Events, `GET /health`.
+
+## Deploy
+
+On the Compartmentalizer PaaS (see the `deploy` skill): the app builds from this repository's `main`, with `GITHUB_TOKEN` in its env and its state on the platform volume at `/app/data`.
+
+- Test: app `pulse-lab`, https://pulse-lab.compartmentalizer.lusocryptolabs.com
+- Production: https://pulse.cellula.id, once the test version has been looked at on a phone (`*.cellula.id` already points at the VPS).
+
+Ship with `POST /apps/{id}/build` (a `redeploy` only restarts the old container). After a build the live stream reconnects by itself; the state survives on the volume.
