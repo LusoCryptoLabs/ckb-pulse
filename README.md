@@ -16,7 +16,8 @@ Node 20 or later, no dependencies. `PORT` defaults to 8080, `DATA_DIR` to `./dat
 
 ## What it follows
 
-- The organisations in `config.mjs`, polled every minute with ETags.
+- The organisations and accounts in `config.mjs`, polled every minute with ETags. An account's repositories are read one by one, since its own feed only lists what that account did.
+- GitHub delays its events API by 30 seconds to several hours, so neither can this page be faster.
 - Builders: public repositories that depend on CKB libraries or carry CKB topics, found by search every 6 hours.
 - Only public repositories. Owners with no human activity in 30 days are hidden. Bots do not count as activity.
 
