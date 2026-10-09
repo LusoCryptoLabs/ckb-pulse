@@ -1,0 +1,43 @@
+// What counts as CKB ecosystem activity, and how often to look.
+
+// Organisations whose public events are read every minute (checked 2026-10-09: all have recent public events
+// except sporeprotocol, cryptape and utxostack, which exist but were quiet).
+export const ORGS = [
+  'nervosnetwork', 'ckb-devrel', 'Nervos-Community-Catalyst', 'nervina-labs', 'magickbase', 'ckb-js',
+  'sporeprotocol', 'cryptape', 'utxostack',
+]
+
+// Builders: repositories outside those organisations that depend on CKB libraries or carry CKB topics.
+// Code search is precise (a dependency in a manifest); topic search catches repos that declare themselves.
+export const CODE_SEARCHES = [
+  '"@ckb-ccc/core" filename:package.json',
+  '"@ckb-ccc/connector-react" filename:package.json',
+  '"@spore-sdk/core" filename:package.json',
+  '"@rgbpp-sdk/ckb" filename:package.json',
+  '"@ckb-lumos/lumos" filename:package.json',
+  '"ckb-std" filename:Cargo.toml',
+  '"ckb-sdk" filename:Cargo.toml',
+]
+export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-network', 'topic:nervos-ckb', 'topic:ckb-blockchain', 'topic:spore-protocol', 'topic:rgbpp', 'topic:fiber-network']
+
+// Keyword tags. Every repo here is already CKB context, so "fiber" and "dob" are safe inside it; on their own
+// across GitHub they are mostly noise (React Fiber, Go Fiber, "dob" as date of birth), measured 2026-10-09.
+export const TAGS = {
+  ckb: /\bckb\b/i,
+  fiber: /\bfiber\b|\bfnn\b/i,
+  'dob/spore': /\bdob\d*\b|\bspore\b|\bcluster\b/i,
+  'rgb++': /rgb\+\+|rgbpp|\butxostack\b/i,
+  ccc: /\bccc\b/i,
+  nervos: /nervos/i,
+}
+
+export const POLL = {
+  orgsEverySec: 60, // GitHub asks for X-Poll-Interval 60 on org events
+  buildersCycleMin: 10, // every builder repo is checked once per cycle, spread evenly
+  discoverEveryHours: 6,
+  keepDays: 30,
+  maxEvents: 12000,
+}
+
+// Events that are noise on a public pulse: bots and automated reviewers, except releases
+export const isNoiseActor = (login) => /\[bot\]$/i.test(login) || login === 'Copilot'

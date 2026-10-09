@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CKB Pulse</title>
+<meta name="description" content="Live GitHub activity across the CKB ecosystem: every push, pull request, issue and release lights up a cell.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="live" id="live" title="connecting"></span>
+    <h1>CKB Pulse</h1>
+    <p class="sub">Live GitHub activity across the CKB ecosystem</p>
+  </div>
+  <div class="stats" id="stats">
+    <div><b id="s-hour">-</b><span>last hour</span></div>
+    <div><b id="s-day">-</b><span>last 24 h</span></div>
+    <div><b id="s-active">-</b><span>active repos (24 h)</span></div>
+    <div><b id="s-builders">-</b><span>builders tracked</span></div>
+  </div>
+</header>
+<nav class="tags" id="tags" aria-label="Filter by keyword"></nav>
+<main class="layout">
+  <section class="grid-wrap" aria-label="Repositories">
+    <div class="legend" id="legend"></div>
+    <div id="groups"></div>
+    <p class="note" id="note"></p>
+  </section>
+  <aside class="feed-wrap" aria-label="Live feed">
+    <h2>Live feed</h2>
+    <ol class="feed" id="feed" aria-live="polite"></ol>
+  </aside>
+</main>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<footer class="foot">Public GitHub events from the CKB organisations and from repositories that depend on CKB libraries. Updated every minute.</footer>
+<script src="app.js"></script>
+</body>
+</html>

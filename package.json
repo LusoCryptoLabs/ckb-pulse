@@ -1,0 +1,9 @@
+{
+  "name": "ckb-pulse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Live GitHub activity across the CKB ecosystem",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=20" }
+}
