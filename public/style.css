@@ -27,7 +27,8 @@ a { color: inherit; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--mut); margin-bottom: 10px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 .group { margin-bottom: 14px; }
-.group h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--mut); display: flex; justify-content: space-between; }
+.group h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--mut); display: flex; justify-content: space-between; gap: 12px; }
+.group h3 span { text-align: right; }
 .group h3 a { text-decoration: none; }
 .group h3 span { font-weight: 400; }
 .cells { display: flex; flex-wrap: wrap; gap: 4px; }
