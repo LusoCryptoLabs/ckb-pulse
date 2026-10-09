@@ -70,7 +70,9 @@ function repoEntry(full, meta) {
 }
 async function ensureMeta(full, force) {
   const r = repoEntry(full)
-  if (!force && r.metaAt && r.ownerType && Date.now() - r.metaAt < 24 * 3600e3) return r
+  // a private repository can turn public at any time: look again within the hour instead of the day
+  const ttl = r.private === false ? 24 * 3600e3 : 3600e3
+  if (!force && r.metaAt && r.ownerType && Date.now() - r.metaAt < ttl) return r
   const res = await gh(`/repos/${full}`)
   return repoEntry(full, res.body || { description: '', private: true })
 }
@@ -151,7 +153,7 @@ async function normalise(e) {
     case 'WatchEvent': kind = 'star'; break
     default: return null
   }
-  const r = await ensureMeta(repo)
+  const r = await ensureMeta(repo, e.type === 'PublicEvent')
   if (r.private !== false) return null
   return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: bot && kind !== 'release', ...(commits ? { commits } : {}) }
 }
@@ -189,6 +191,16 @@ function trim() {
 // ---------- loops ----------
 async function pollOwners(backfill) {
   for (const o of OWNERS) {
+    if (o.user) {
+      // a person's feed only lists what that account did (and not what it did while a repository was private):
+      // work in its repositories comes from each repository's own feed
+      for (const full of (state.orgRepos || []).filter((f) => ownerOf(f).toLowerCase() === o.n.toLowerCase())) {
+        try {
+          const r = await gh(`/repos/${full}/events?per_page=${backfill ? 100 : 30}`, { conditional: !backfill })
+          if (r.changed && Array.isArray(r.body)) await intake(r.body, full)
+        } catch (err) { console.warn('repo', full, err.message) }
+      }
+    }
     for (let page = 1; page <= (backfill ? 3 : 1); page++) {
       try {
         const url = o.user ? `/users/${o.n}/events/public?per_page=100&page=${page}` : `/orgs/${o.n}/events?per_page=100&page=${page}`
@@ -325,6 +337,7 @@ async function backfillCommits() {
   if (found + guessed) { save(); console.log(`commits counted for ${found} stored pushes, ${guessed} set to one`) }
 }
 async function discoverLoop() {
+  try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) }
   await verifyEventRepos()
   await fillOwnerTypes()
   await backfillCommits()
