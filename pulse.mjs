@@ -12,6 +12,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const OWNERS = [...ORGS.map((n) => ({ n, user: false })), ...USERS.map((n) => ({ n, user: true }))]
 const ownerSet = new Set(OWNERS.map((o) => o.n.toLowerCase()))
 const ownerOf = (full) => full.split('/')[0]
+const DAY = 864e5
+const MONTH = 30 * DAY
+const NEW_DAYS = 7 // a project or an organisation counts as new for this long
 // 2: every repository carries the visibility GitHub reported. The token can see private repositories (code search
 // with it returned two private LusoCryptoLabs repos on 2026-10-09), so nothing is shown unless private === false.
 // 3: builders rediscovered with manifestOk (a copied package.json no longer makes a repository a builder)
@@ -19,7 +22,7 @@ const STATE_VERSION = 3
 
 export const bus = new EventEmitter()
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -40,28 +43,46 @@ export function load() {
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
 
 // ---------- repositories ----------
 const isPublic = (full) => state.repos[full]?.private === false
+// the followed owners keep their own group; any other organisation gets one as soon as it is found; people go to builders
+function groupFor(owner, type) {
+  const o = OWNERS.find((x) => x.n.toLowerCase() === owner.toLowerCase())
+  return o ? o.n : type === 'Organization' ? owner : 'builders'
+}
 function repoEntry(full, meta) {
   const owner = ownerOf(full)
-  const r = state.repos[full] || (state.repos[full] = { name: full, owner, group: ownerSet.has(owner.toLowerCase()) ? owner : 'builders' })
+  const r = state.repos[full] || (state.repos[full] = { name: full, owner })
   if (meta) {
     Object.assign(r, { desc: meta.description || '', topics: meta.topics || [], stars: meta.stargazers_count ?? r.stars ?? 0, lang: meta.language || '', pushedAt: meta.pushed_at, metaAt: Date.now() })
+    if (meta.owner?.type) r.ownerType = meta.owner.type
+    if (meta.created_at) r.createdAt = meta.created_at
     // only an explicit "false" from GitHub makes a repository public here
     r.private = meta.private === false ? false : true
   }
+  r.group = groupFor(owner, r.ownerType)
   return r
 }
-async function ensureMeta(full) {
+async function ensureMeta(full, force) {
   const r = repoEntry(full)
-  if (r.metaAt && Date.now() - r.metaAt < 24 * 3600e3) return r
+  if (!force && r.metaAt && r.ownerType && Date.now() - r.metaAt < 24 * 3600e3) return r
   const res = await gh(`/repos/${full}`)
   return repoEntry(full, res.body || { description: '', private: true })
+}
+// the events API stopped sending commit counts with a push (it keeps before and head): compare the two once
+async function commitCount(repo, p) {
+  if (typeof p.distinct_size === 'number') return p.distinct_size
+  if (typeof p.size === 'number') return p.size
+  if (!p.before || !p.head || /^0+$/.test(p.before)) return 1
+  return once(`cc:${repo}@${p.before}..${p.head}`, async () => {
+    const r = await gh(`/repos/${repo}/compare/${p.before}...${p.head}?per_page=1`)
+    return Math.max(1, r.body?.total_commits ?? 1)
+  })
 }
 function tagsFor(repo, text) {
   const hay = `${repo.name} ${repo.desc || ''} ${(repo.topics || []).join(' ')} ${text || ''}`
@@ -78,7 +99,7 @@ async function normalise(e) {
   const p = e.payload || {}
   // automation stays as quiet sparks on the grid; it costs no extra lookups and never enters the feed
   const bot = isNoiseActor(actor)
-  let kind = null, title = '', url = `https://github.com/${repo}`, ref = ''
+  let kind = null, title = '', url = `https://github.com/${repo}`, ref = '', commits = 0
   switch (e.type) {
     case 'PushEvent': {
       ref = (p.ref || '').replace('refs/heads/', '')
@@ -88,6 +109,7 @@ async function normalise(e) {
         url = `https://github.com/${repo}/commit/${p.head}`
         title = bot ? ref : await once(`c:${repo}@${p.head}`, async () => { const r = await gh(`/repos/${repo}/commits/${p.head}`); return r.body ? r.body.commit.message.split('\n')[0] : '' })
       }
+      if (!bot) commits = await commitCount(repo, p)
       break
     }
     case 'PullRequestEvent': {
@@ -131,7 +153,7 @@ async function normalise(e) {
   }
   const r = await ensureMeta(repo)
   if (r.private !== false) return null
-  return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: bot && kind !== 'release' }
+  return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: bot && kind !== 'release', ...(commits ? { commits } : {}) }
 }
 
 // ---------- intake ----------
@@ -273,8 +295,39 @@ async function verifyEventRepos() {
   for (const full of todo) { try { await ensureMeta(full) } catch (err) { console.warn('verify', full, err.message) } }
   if (todo.length) console.log(`visibility checked for ${todo.length} repositories in the stored events`)
 }
+// repositories stored before the owner type was recorded: fetch their metadata again, once
+async function fillOwnerTypes() {
+  const todo = [...new Set([...state.builders, ...state.events.map((e) => e.repo)])].filter((full) => state.repos[full] && !state.repos[full].ownerType)
+  for (const full of todo) { try { await ensureMeta(full, true) } catch (err) { console.warn('owner type', full, err.message) } }
+  if (todo.length) { save(); console.log(`owner type recorded for ${todo.length} repositories`) }
+  typesReady = true
+}
+// pushes stored before commits were counted: find them again in the repository's event list (GitHub keeps 300 events
+// or 90 days) and compare; a push GitHub no longer lists counts as one commit, the least it can be
+async function backfillCommits() {
+  const need = new Map()
+  for (const e of state.events) if (e.kind === 'push' && !e.bot && e.commits == null) { if (!need.has(e.repo)) need.set(e.repo, new Map()); need.get(e.repo).set(e.id, e) }
+  let found = 0, guessed = 0
+  for (const [repo, list] of need) {
+    try {
+      for (let page = 1; page <= 3 && list.size; page++) {
+        const r = await gh(`/repos/${repo}/events?per_page=100&page=${page}`)
+        for (const raw of r.body || []) {
+          const e = list.get(raw.id)
+          if (!e || raw.type !== 'PushEvent') continue
+          e.commits = await commitCount(repo, raw.payload || {}); list.delete(raw.id); found++
+        }
+        if (!r.body || r.body.length < 100) break
+      }
+    } catch (err) { console.warn('commits', repo, err.message) }
+    for (const e of list.values()) { e.commits = 1; guessed++ }
+  }
+  if (found + guessed) { save(); console.log(`commits counted for ${found} stored pushes, ${guessed} set to one`) }
+}
 async function discoverLoop() {
   await verifyEventRepos()
+  await fillOwnerTypes()
+  await backfillCommits()
   for (;;) {
     if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
@@ -290,12 +343,52 @@ export function start() {
 }
 
 // ---------- what the page needs ----------
+// public repositories of the followed owners and the current builders, and only while their owner has people at work:
+// an organisation or a builder with no human event in 30 days leaves the page and comes back with the next one
+function followedNow(now) {
+  const builders = new Set(state.builders)
+  const from = new Date(now - MONTH).toISOString()
+  const active = new Set()
+  for (const e of state.events) if (!e.bot && e.at >= from && isPublic(e.repo)) active.add(ownerOf(e.repo).toLowerCase())
+  return (full) => { const o = ownerOf(full).toLowerCase(); return isPublic(full) && (ownerSet.has(o) || builders.has(full)) && active.has(o) }
+}
+// the first time a group shows up; the ones present when this started count as old. Nothing is marked until every
+// stored repository has its owner type, or the organisations sorted out of builders would all look new
+let typesReady = false
+function markGroups(groups, now) {
+  if (!typesReady) return
+  const seeding = !state.groupsSeen
+  if (seeding) state.groupsSeen = {}
+  for (const g of groups) if (!(g in state.groupsSeen)) state.groupsSeen[g] = seeding ? 0 : now
+}
+// the most active projects, people and organisations over the last day, week and month (people only, automation left out)
+function leaders(ev, now) {
+  const out = {}
+  for (const [key, ms] of [['day', DAY], ['week', 7 * DAY], ['month', MONTH]]) {
+    const from = new Date(now - ms).toISOString()
+    const m = { repos: new Map(), commits: new Map(), pushes: new Map(), people: new Map(), peopleCommits: new Map(), orgs: new Map() }
+    const add = (map, k, n = 1) => map.set(k, (map.get(k) || 0) + n)
+    const avatar = new Map()
+    for (const e of ev) {
+      if (e.bot || e.at < from) continue
+      add(m.repos, e.repo); add(m.people, e.actor)
+      if (e.avatar) avatar.set(e.actor, e.avatar)
+      if (e.kind === 'push') { add(m.pushes, e.repo); add(m.commits, e.repo, e.commits || 1); add(m.peopleCommits, e.actor, e.commits || 1) }
+      const g = state.repos[e.repo]?.group
+      if (g && g !== 'builders') add(m.orgs, g)
+    }
+    const top = (map) => [...map].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5)
+    out[key] = {
+      repos: top(m.repos), commits: top(m.commits), pushes: top(m.pushes), orgs: top(m.orgs),
+      people: top(m.people).map(([l, n]) => [l, n, avatar.get(l) || '']), peopleCommits: top(m.peopleCommits).map(([l, n]) => [l, n, avatar.get(l) || '']),
+    }
+  }
+  return out
+}
 export function snapshot() {
   const now = Date.now()
   const h1 = new Date(now - 3600e3).toISOString(), d1 = new Date(now - 864e5).toISOString()
-  // only public repositories that are followed now: owners' repositories and the current builders
-  const builders = new Set(state.builders)
-  const followed = (full) => isPublic(full) && (ownerSet.has(ownerOf(full).toLowerCase()) || builders.has(full))
+  const followed = followedNow(now)
   const ev = state.events.filter((e) => followed(e.repo))
   const human = ev.filter((e) => !e.bot)
   const humanDay = human.filter((e) => e.at >= d1)
@@ -314,20 +407,25 @@ export function snapshot() {
     return {
       name: full, group: r.group, desc: r.desc || '', stars: r.stars || 0, n: a ? a.n : 0, n24: a ? a.n24 : 0, b24: a ? a.b24 : 0,
       lastAt: a?.last ? a.last.at : null, lastKind: a?.last ? a.last.kind : null, lastBotAt: a?.lastBot ? a.lastBot.at : null, pushedAt: r.pushedAt || null, tags: tagsFor(r, ''),
+      createdAt: r.createdAt || null, isNew: !!r.createdAt && now - Date.parse(r.createdAt) < NEW_DAYS * DAY,
     }
   })
+  const groupNames = [...new Set(repos.map((r) => r.group))]
+  markGroups(groupNames, now)
+  const groups = groupNames.map((g) => ({ name: g, repos: repos.filter((r) => r.group === g).length, isNew: g !== 'builders' && !!state.groupsSeen && now - (state.groupsSeen[g] ?? now) < NEW_DAYS * DAY && g in state.groupsSeen }))
   return {
     now: new Date(now).toISOString(), keepDays: POLL.keepDays, owners: OWNERS.map((o) => o.n),
     stats: {
       hour: human.filter((e) => e.at >= h1).length, day: humanDay.length, bots24: ev.filter((e) => e.bot && e.at >= d1).length,
-      activeRepos24: repos.filter((r) => r.n24).length, tracked: repos.length, builders: state.builders.filter(isPublic).length,
+      activeRepos24: repos.filter((r) => r.n24).length, tracked: repos.length, builders: repos.filter((r) => r.group === 'builders').length,
       perTag: count(humanDay, 'tags'), perKind: count(humanDay, 'kind'),
     },
-    repos,
+    repos, groups,
+    leaders: leaders(ev, now),
     events: human.slice(-150).reverse(),
     // the last 24 hours, oldest first, for the replay and the timeline
     day: ev.filter((e) => e.at >= d1).map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: (e.title || '').slice(0, 90), bot: !!e.bot })),
-    // the last 7 days in compact rows for the 3D page: [unix seconds, kind, repo index, actor index, bot, title]
+    // the last 7 days in compact rows for the 3D page: [unix seconds, kind, repo index, actor index, bot, title, commits]
     history: compactHistory(ev.filter((e) => e.at >= new Date(now - 7 * 864e5).toISOString()), repos),
     limits: { core: limits.core, search: limits.search },
   }
@@ -340,15 +438,14 @@ function compactHistory(list, repos) {
   for (const e of list) {
     if (!actorIdx.has(e.actor)) { actorIdx.set(e.actor, actors.length); actors.push([e.actor, e.avatar || '']) }
     else if (e.avatar && !actors[actorIdx.get(e.actor)][1]) actors[actorIdx.get(e.actor)][1] = e.avatar
-    rows.push([Math.floor(Date.parse(e.at) / 1000), KIND_LIST.indexOf(e.kind), repoIdx.has(e.repo) ? repoIdx.get(e.repo) : -1, actorIdx.get(e.actor), e.bot ? 1 : 0, e.bot ? '' : (e.title || '').slice(0, 80)])
+    rows.push([Math.floor(Date.parse(e.at) / 1000), KIND_LIST.indexOf(e.kind), repoIdx.has(e.repo) ? repoIdx.get(e.repo) : -1, actorIdx.get(e.actor), e.bot ? 1 : 0, e.bot ? '' : (e.title || '').slice(0, 80), e.commits || 0])
   }
   return { kinds: KIND_LIST, actors, rows }
 }
 
 // one repository in detail, from what is already stored (no GitHub call): daily activity, people, latest events
 export function repoDetail(name) {
-  const builders = new Set(state.builders)
-  if (!isPublic(name) || !(ownerSet.has(ownerOf(name).toLowerCase()) || builders.has(name))) return null
+  if (!followedNow(Date.now())(name)) return null
   const r = state.repos[name]
   const list = state.events.filter((e) => e.repo === name)
   const days = 30, start = Date.now() - days * 864e5
@@ -357,12 +454,12 @@ export function repoDetail(name) {
   for (const e of list) {
     const i = Math.floor((Date.parse(e.at) - start) / 864e5)
     if (i >= 0 && i < days) (e.bot ? bots : people)[i]++
-    if (!e.bot) { const w = who.get(e.actor) || { login: e.actor, avatar: e.avatar || '', n: 0 }; w.n++; if (e.avatar) w.avatar = e.avatar; who.set(e.actor, w) }
+    if (!e.bot) { const w = who.get(e.actor) || { login: e.actor, avatar: e.avatar || '', n: 0, commits: 0 }; w.n++; if (e.kind === 'push') w.commits += e.commits || 1; if (e.avatar) w.avatar = e.avatar; who.set(e.actor, w) }
   }
   return {
-    name, url: `https://github.com/${name}`, group: r.group, desc: r.desc || '', stars: r.stars || 0, lang: r.lang || '', topics: r.topics || [], pushedAt: r.pushedAt || null,
+    name, url: `https://github.com/${name}`, group: r.group, desc: r.desc || '', stars: r.stars || 0, lang: r.lang || '', topics: r.topics || [], pushedAt: r.pushedAt || null, createdAt: r.createdAt || null,
     daily: { days, people, bots },
     contributors: [...who.values()].sort((a, b) => b.n - a.n).slice(0, 12),
-    events: list.filter((e) => !e.bot).slice(-40).reverse().map((e) => ({ at: e.at, kind: e.kind, actor: e.actor, avatar: e.avatar || '', title: e.title, url: e.url, ref: e.ref })),
+    events: list.filter((e) => !e.bot).slice(-40).reverse().map((e) => ({ at: e.at, kind: e.kind, actor: e.actor, avatar: e.avatar || '', title: e.title, url: e.url, ref: e.ref, commits: e.commits || 0 })),
   }
 }
