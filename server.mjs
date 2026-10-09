@@ -4,12 +4,30 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
+import crypto from 'node:crypto'
 import { start, snapshot, repoDetail, propose, proposal, bus } from './pulse.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' }
 const clients = new Set()
+
+// one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
+// so a page left open can tell that a new version went out (the same scheme as cellula.id)
+function buildId() {
+  const h = crypto.createHash('sha256')
+  const walk = (dir) => {
+    for (const n of fs.readdirSync(dir).sort()) {
+      const f = path.join(dir, n)
+      if (fs.statSync(f).isDirectory()) walk(f)
+      else { h.update(path.relative(ROOT, f).replace(/\\/g, '/')); h.update(fs.readFileSync(f)) }
+    }
+  }
+  walk(ROOT)
+  return h.digest('hex').slice(0, 12)
+}
+const BUILD = buildId()
+const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD)
 
 // JSON, gzipped when the browser accepts it (the state with 7 days of history is a few hundred kB raw)
 function sendJson(req, res, obj) {
@@ -25,6 +43,8 @@ setInterval(() => { for (const c of clients) c.write(': ping\n\n') }, 25e3).unre
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x')
   if (url.pathname === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok') }
+  if (url.pathname === '/' || url.pathname === '/index.html') { res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }); return res.end(INDEX) }
+  if (url.pathname === '/version.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ v: BUILD })) }
   if (url.pathname === '/api/state') return sendJson(req, res, snapshot())
   if (url.pathname === '/api/repo') {
     const d = repoDetail(url.searchParams.get('name') || '')
