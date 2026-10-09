@@ -12,7 +12,7 @@ button, select, input { font: inherit; color: inherit; }
 .glass, .top .kpis div, .chips button, .side, .drawer, .now, .timeline, .search input, .icon, .tip { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 
 /* top */
-.top { top: 0; left: 0; right: 0; display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: start; padding: 14px 16px; pointer-events: none; }
+.top { z-index: 8; top: 0; left: 0; right: 0; display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: start; padding: 14px 16px; pointer-events: none; }
 .top > * { pointer-events: auto; }
 .brand { display: flex; gap: 10px; align-items: center; }
 .brand h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }

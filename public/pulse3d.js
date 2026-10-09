@@ -50,13 +50,14 @@ function actorOf(login, avatar) {
   if (avatar && !actors[i][1]) actors[i][1] = avatar
   return i
 }
-const avatarUrl = (i) => { const a = actors[i]?.[1]; return a ? a + (a.includes('?') ? '&' : '?') + 's=96' : `https://github.com/${actors[i]?.[0]}.png?size=96` }
+// avatars.githubusercontent.com answers by login with CORS open, so the image can become a WebGL texture (github.com/<login>.png redirects first)
+const avatarUrl = (i) => { const a = actors[i]?.[1]; return a ? a + (a.includes('?') ? '&' : '?') + 's=96' : `https://avatars.githubusercontent.com/${encodeURIComponent(actors[i]?.[0] || '')}?s=96` }
 
 // ================= scene =================
 const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: 'high-performance' })
 renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2))
 renderer.setSize(innerWidth, innerHeight)
-renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMapping = THREE.NeutralToneMapping // keeps hues saturated; ACES washed the cells into pastel
 $('stage').appendChild(renderer.domElement)
 const labelRenderer = new CSS2DRenderer()
 labelRenderer.setSize(innerWidth, innerHeight)
@@ -71,8 +72,8 @@ const controls = new OrbitControls(camera, renderer.domElement)
 Object.assign(controls, { enableDamping: true, dampingFactor: 0.07, autoRotate: !REDUCED, autoRotateSpeed: 0.3, maxPolarAngle: 1.33, minDistance: 5, enablePan: true, screenSpacePanning: false })
 controls.addEventListener('start', () => { T.lastUser = Date.now(); controls.autoRotate = false })
 
-scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.7))
-const sun = new THREE.DirectionalLight('#ffffff', 1.4)
+scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.45))
+const sun = new THREE.DirectionalLight('#ffffff', 0.85)
 sun.position.set(30, 60, 20)
 scene.add(sun)
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshStandardMaterial({ color: '#080b06', roughness: 1 }))
@@ -84,7 +85,7 @@ scene.add(grid)
 
 const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), MOBILE ? 0.7 : 0.9, 0.55, 0.55)
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), MOBILE ? 0.85 : 1.05, 0.6, 0.42)
 composer.addPass(bloom)
 composer.addPass(new OutputPass())
 let useBloom = true
@@ -151,7 +152,7 @@ function buildCells() {
   const geo = new RoundedBoxGeometry(1, 1, 1, 2, 0.14)
   geo.translate(0, 0.5, 0)
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0.1 })
-  mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += vColor * 0.6;') }
+  mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += vColor.rgb * 0.95;') }
   mesh = new THREE.InstancedMesh(geo, mat, repos.length + 64)
   mesh.count = repos.length
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
@@ -346,7 +347,7 @@ function stepPeople(dt) {
 const comets = []
 const rings = []
 const waves = [] // delayed glow bumps
-const TRAIL = 18
+const TRAIL = 26
 function comet(w) {
   const c = cell[w.r]
   if (!c) return
@@ -358,11 +359,11 @@ function comet(w) {
   const mid = start.clone().lerp(end, 0.5); mid.y += 4 + start.distanceTo(end) * 0.18
   if (REDUCED || comets.length > (MOBILE ? 14 : 30)) { hit(w, color); return }
   const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
-  head.scale.set(1.1, 1.1, 1)
+  head.scale.set(1.8, 1.8, 1)
   const pos = new Float32Array(TRAIL * 3), col = new Float32Array(TRAIL * 3)
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  const trail = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.55, map: glowTex, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
+  const trail = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.95, map: glowTex, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
   for (let i = 0; i < TRAIL; i++) { pos.set([start.x, start.y, start.z], i * 3) }
   scene.add(head); scene.add(trail)
   comets.push({ w, head, trail, start, mid, end, color, t: 0, dur: 1.1 + Math.random() * 0.4 })
@@ -462,6 +463,26 @@ function stepHover() {
   tip.style.left = `${Math.min(innerWidth - w - 8, ptrPx.x + 14)}px`
   tip.style.top = `${ptrPx.y + h + 24 > innerHeight ? ptrPx.y - h - 12 : ptrPx.y + 18}px`
 }
+// the HUD covers the top, the bottom and (on wide screens) the right: centre the scene in what is left
+function hud() {
+  const right = !MOBILE && (!$('side').classList.contains('closed') || !$('drawer').hidden) ? 400 : 0
+  return { top: MOBILE ? 150 : 112, bottom: MOBILE ? 215 : 186, right }
+}
+function updateView() {
+  const { top, bottom, right } = hud()
+  camera.setViewOffset(innerWidth, innerHeight, right / 2, (bottom - top) / 2, innerWidth, innerHeight)
+}
+function fitDistance() {
+  const { top, bottom, right } = hud()
+  const v = THREE.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect)
+  const tw = Math.tan(h) * (innerWidth - right - 24) / innerWidth, tv = Math.tan(v) * (innerHeight - top - bottom) / innerHeight
+  const r = layoutR + 3
+  return Math.max(r / tw, (r * 0.66) / tv)
+}
+const ELEV = 0.66 // about 38 degrees above the ground
+new MutationObserver(updateView).observe($('side'), { attributes: true, attributeFilter: ['class'] })
+new MutationObserver(updateView).observe($('drawer'), { attributes: true, attributeFilter: ['hidden'] })
+
 // camera flight to a cell
 let flight = null
 function flyTo(x, z, dist = 14) {
@@ -484,7 +505,7 @@ function stepFlight(dt) {
 // drawer: a repository
 async function openRepo(i) {
   const r = repos[i]; if (!r) return
-  const c = cell[i]; if (c) flyTo(c.x, c.z)
+  const c = cell[i]; if (c) flyTo(c.x, c.z, 26)
   $('drawer').hidden = false
   $('drawer-body').innerHTML = `<h2>${esc(r.name)}</h2><p class="sub">Loading…</p>`
   try {
@@ -498,7 +519,7 @@ async function openRepo(i) {
 <p class="sub">${esc(d.group === 'builders' ? 'Builder' : d.group)}${d.lang ? ` · ${esc(d.lang)}` : ''} · ★ ${d.stars}${d.pushedAt ? ` · last push ${ago(Date.parse(d.pushedAt))}` : ''}</p>
 ${d.desc ? `<p class="desc">${esc(d.desc)}</p>` : ''}<div class="pills">${d.topics.slice(0, 10).map((t) => `<span>${esc(t)}</span>`).join('')}</div>
 <h3>Last 30 days (people, automation)</h3><svg viewBox="0 0 300 60" preserveAspectRatio="none">${bars}</svg>
-${d.contributors.length ? `<h3>People</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(p.avatar ? p.avatar + (p.avatar.includes('?') ? '&' : '?') + 's=48' : `https://github.com/${p.login}.png?size=48`)}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
+${d.contributors.length ? `<h3>People</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(p.avatar ? p.avatar + (p.avatar.includes('?') ? '&' : '?') + 's=48' : `https://avatars.githubusercontent.com/${encodeURIComponent(p.login)}?s=48`)}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
 <h3>Latest</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${kcol(e.kind)}"></i> <b>${esc(e.actor)}</b> ${verb(e.kind)}${e.title ? `: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || '<li>No activity by people in the last 30 days.</li>'}</ol>`
   } catch { $('drawer-body').innerHTML = `<h2><a href="https://github.com/${esc(r.name)}" target="_blank" rel="noopener">${esc(r.name)}</a></h2><p class="sub">Details are not available right now.</p>` }
 }
@@ -689,7 +710,7 @@ function frame(now) {
   if (acc > 2) { if (frames / acc < 28) slow++; else slow = 0; if (slow >= 2 && useBloom) { useBloom = false; renderer.setPixelRatio(1) } acc = 0; frames = 0 }
 }
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix()
+  camera.aspect = innerWidth / innerHeight; updateView(); camera.updateProjectionMatrix()
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight)
   bloom.resolution.set(innerWidth / 2, innerHeight / 2)
   drawBars(); drawHead()
@@ -707,11 +728,12 @@ async function load() {
   const urls = new Map(S.events.map((e) => [`${e.repo}|${Date.parse(e.at)}`, e.url]))
   for (const w of rows) { const u = urls.get(`${repos[w.r]?.name}|${w.t}`); if (u) w.url = u }
   buildCells()
-  const dist = layoutR * (innerWidth < innerHeight ? 3.0 : 1.75)
-  camera.position.set(0, dist * 1.25, dist * 1.6)
+  updateView()
+  const dist = fitDistance()
+  camera.position.set(0, dist * 1.4 * Math.sin(ELEV), dist * 1.4 * Math.cos(ELEV))
   controls.target.set(0, 0, 0)
-  controls.maxDistance = layoutR * 5
-  flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: new THREE.Vector3(0, dist * 0.62, dist * 0.92), t: new THREE.Vector3() }, t: 0 }
+  controls.maxDistance = dist * 2.5
+  flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: new THREE.Vector3(0, dist * Math.sin(ELEV), dist * Math.cos(ELEV)), t: new THREE.Vector3() }, t: 0 }
   goLive()
   drawBars(); drawHead()
 }
