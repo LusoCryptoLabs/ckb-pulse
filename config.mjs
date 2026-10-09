@@ -2,6 +2,9 @@
 
 // Organisations whose public events are read every minute (checked 2026-10-09: all have recent public events
 // except sporeprotocol, cryptape and utxostack, which exist but were quiet).
+// People and teams followed like organisations, through their public feed and public repositories only
+export const USERS = ['LusoCryptoLabs']
+
 export const ORGS = [
   'nervosnetwork', 'ckb-devrel', 'Nervos-Community-Catalyst', 'nervina-labs', 'magickbase', 'ckb-js',
   'sporeprotocol', 'cryptape', 'utxostack',
@@ -39,5 +42,5 @@ export const POLL = {
   maxEvents: 12000,
 }
 
-// Events that are noise on a public pulse: bots and automated reviewers, except releases
+// Automation: kept as quiet sparks on the grid, never in the feed or the main counters (releases excepted)
 export const isNoiseActor = (login) => /\[bot\]$/i.test(login) || login === 'Copilot'
