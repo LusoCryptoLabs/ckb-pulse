@@ -75,7 +75,8 @@ function chart(people, bots, x = 720, y = 150, w = 420, h = 380) {
   })
   return out
 }
-const kpis = (list, y = 246) => { let x = 64; return list.map(([n, label]) => { const s = text(x, y, 62, '#cbf34d', n, 'font-weight="800"') + text(x, y + 36, 22, '#9aa38e', label); x += Math.max(150, ems(String(n)) * 62 + 40, ems(label) * 22 + 30); return s }).join('') }
+// bold Inter digits are about 0.65 em wide, wider than the estimate used for words
+const kpis = (list, y = 246) => { let x = 64; return list.map(([n, label]) => { const s = text(x, y, 62, '#cbf34d', n, 'font-weight="800"') + text(x, y + 36, 22, '#9aa38e', label); x += Math.max(160, String(n).length * 0.68 * 62 + 56, ems(label) * 22 + 36); return s }).join('') }
 let faces = 0
 async function face(login, url, cx, cy, r) {
   const img = await avatar(login, url), id = `f${++faces}`
