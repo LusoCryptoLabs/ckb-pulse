@@ -371,6 +371,53 @@ $('add-form').addEventListener('submit', async (e) => {
   if (j.status === 'added') { $('add-login').value = ''; refresh() }
 })
 
+// ================= share =================
+// a link to what is on screen: its preview is a picture the server draws (/og/*.png) and the page opens on the same thing
+const SHARE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 10v5.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const withParams = (path, params) => { const u = new URL(path, location.href); for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v); u.searchParams.set('lang', LANG); return u.toString() }
+let shareMenu = null
+function closeShare() { shareMenu?.remove(); shareMenu = null }
+function openShare(anchor, { params, image, title }) {
+  if (shareMenu && shareMenu.previousElementSibling === anchor) { closeShare(); return }
+  closeShare()
+  const url = withParams(location.pathname, params), img = withParams(image, {}), enc = encodeURIComponent
+  const m = document.createElement('div')
+  m.className = 'share-menu'
+  m.innerHTML = (navigator.share ? `<button type="button" data-act="native">${esc(t('sh.native'))}</button>` : '') +
+    `<button type="button" data-act="copy">${esc(t('sh.copy'))}</button>` +
+    `<a href="https://x.com/intent/post?text=${enc(title)}&url=${enc(url)}" target="_blank" rel="noopener">X</a>` +
+    `<a href="https://t.me/share/url?url=${enc(url)}&text=${enc(title)}" target="_blank" rel="noopener">Telegram</a>` +
+    `<a href="https://wa.me/?text=${enc(`${title} ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>` +
+    `<a href="${esc(img)}" download="ckb-pulse.png">${esc(t('sh.image'))}</a>`
+  anchor.after(m)
+  m.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]')
+    if (!b) { setTimeout(closeShare, 100); return }
+    if (b.dataset.act === 'native') { try { await navigator.share({ title, url }) } catch {} closeShare() }
+    if (b.dataset.act === 'copy') { try { await navigator.clipboard.writeText(url); b.textContent = t('sh.copied') } catch { window.prompt(t('sh.copy'), url) } setTimeout(closeShare, 1000) }
+  })
+  shareMenu = m
+}
+addEventListener('pointerdown', (e) => { if (shareMenu && !e.target.closest('.share-menu, .share-btn')) closeShare() })
+$('hl-share').addEventListener('click', () => { const h = hlKey(); openShare($('hl-share'), { params: { h }, image: `og/highlights.png?p=${h}`, title: `CKB Pulse · ${t('mode.' + h)}` }) })
+$('drawer-body').addEventListener('click', (e) => {
+  const b = e.target.closest('.share-btn'); if (!b) return
+  if (b.dataset.shareRepo) openShare(b, { params: { repo: b.dataset.shareRepo }, image: `og/repo.png?name=${encodeURIComponent(b.dataset.shareRepo)}`, title: t('og.repo', { name: short(b.dataset.shareRepo) }) })
+  if (b.dataset.sharePerson) openShare(b, { params: { person: b.dataset.sharePerson }, image: `og/person.png?login=${encodeURIComponent(b.dataset.sharePerson)}`, title: t('og.person', { login: b.dataset.sharePerson }) })
+})
+// a shared link opens on what was shared
+function openFromLink() {
+  const q = new URLSearchParams(location.search)
+  const repo = q.get('repo'), person = q.get('person'), h = q.get('h')
+  if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; openRepo(i) } }
+  else if (person && actorIdx.has(person)) { T.chosen = true; openPerson(actorIdx.get(person)) }
+  else if (['day', 'week', 'month'].includes(h)) {
+    hlPeriod = h
+    document.querySelector('.tabs [data-tab="top"]').click()
+    if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
+  }
+}
+
 // ================= a new version =================
 // the page carries the id of its build; /version.json answers with the current one, every 90 s and whenever the tab
 // comes back. A screen nobody has touched for 15 minutes reloads by itself, so a page left on a wall stays current.
@@ -698,7 +745,7 @@ async function openRepo(i) {
   const c = cell[i]; if (c) flyTo(c.x, c.z, 26)
   $('drawer').hidden = false
   $('drawer-body').innerHTML = `<h2>${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
-  const gh = (url) => `<a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>`
+  const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a><button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>`
   const fresh = stateRepo(r.name)?.isNew ? `<span class="badge new">${esc(t('new.repo'))}</span>` : ''
   try {
     const res = await fetch(`api/repo?name=${encodeURIComponent(r.name)}`)
@@ -726,7 +773,7 @@ function openPerson(a) {
   $('drawer').hidden = false
   $('drawer-body').innerHTML = `<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2>${esc(login)}</h2>
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}</p></div></div>
-${badgesFor(login, ['people', 'peopleCommits'])}<a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>
+${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a><button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>
 <h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></li>`).join('')}</ol>`
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
 }
@@ -1007,6 +1054,7 @@ async function load() {
   goLive()
   drawBars(); drawHead(); renderHighlights(); placeBadges()
   if (quiet()) T.autoAt = performance.now() + 3500 // after the opening flight
+  openFromLink()
 }
 // every few minutes: projects that joined or left, new organisations, fresh highlights
 async function refresh() {

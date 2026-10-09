@@ -171,6 +171,14 @@ body.drawer-open .side { visibility: hidden; }
 .drawer .where li small { display: inline; margin-left: 6px; }
 .drawer .where li b { color: var(--lime); }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.drawer .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.share-row { margin: 8px 0 2px; }
+.share-btn { display: inline-flex; align-items: center; gap: 7px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.share-btn:hover { border-color: var(--lime); }
+.share-btn svg { width: 16px; height: 16px; }
+.share-menu { display: flex; flex-direction: column; margin-top: 8px; width: 100%; max-width: 280px; background: var(--glass2); border: 1px solid rgba(203, 243, 77, 0.3); border-radius: 12px; padding: 4px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
+.share-menu a, .share-menu button { display: block; text-align: left; padding: 9px 12px; border-radius: 8px; background: none; border: 0; color: var(--fg); text-decoration: none; font-size: 14px; cursor: pointer; }
+.share-menu a:hover, .share-menu button:hover { background: rgba(203, 243, 77, 0.12); }
 .badge, .badge3d { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #241a00; background: linear-gradient(#ffe7a0, #f3b733); border-radius: 999px; padding: 3px 9px 3px 5px; white-space: nowrap; }
 .badge svg, .badge3d svg { width: 15px; height: 15px; flex: none; }
 .badge.new { background: #ff6b8b; color: #fff; padding-left: 9px; }

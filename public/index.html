@@ -7,6 +7,7 @@
 <meta name="description" content="Watch people build CKB, live: every project is a block that lights up when someone works on it.">
 <meta name="theme-color" content="#07090a">
 <meta name="build" content="__BUILD__">
+<!--og-->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="pulse3d.css">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
@@ -57,6 +58,7 @@
   <ol class="feed" id="feed" data-pane="feed"></ol>
   <div class="top-pane" id="top" data-pane="top" hidden>
     <div class="seg small" id="hl-period" role="group"><button type="button" data-h="day" data-t="h.day"></button><button type="button" data-h="week" data-t="h.week"></button><button type="button" data-h="month" data-t="h.month"></button></div>
+    <div class="share-row"><button type="button" class="share-btn" id="hl-share"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 10v5.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-t="sh.highlights"></span></button></div>
     <div id="hl"></div>
     <p class="hint" data-t="h.note"></p>
   </div>
