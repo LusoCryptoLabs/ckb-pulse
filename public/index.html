@@ -10,6 +10,8 @@
 <!--og-->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="pulse3d.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
 <script>
   // the page is drawn in 3D: without WebGL 2 it says so instead of failing quietly
@@ -45,6 +47,7 @@
   <div class="f-row"><span class="f-lbl only-sheet" data-t="f.kind"></span><div class="seg" id="fams" role="group" data-t-label="f.kind"></div></div>
   <div class="f-row"><span class="f-lbl only-sheet" data-t="topic"></span><select id="topic" data-t-label="topic"></select></div>
   <div class="f-row"><button type="button" class="switch" id="bots" aria-pressed="true"><i></i><span data-t="bots"></span><b id="bots-n"></b></button></div>
+  <div class="f-row" id="mine-row" hidden><button type="button" class="switch" id="mine" aria-pressed="false"><i></i><span data-t="f.mine"></span></button></div>
   <button type="button" class="done only-sheet" id="filters-done" data-t="done"></button>
 </section>
 
@@ -52,7 +55,7 @@
   <div class="tabs" role="tablist">
     <button type="button" role="tab" aria-selected="true" data-tab="feed" data-t="tab.feed"></button>
     <button type="button" role="tab" aria-selected="false" data-tab="top" data-t="tab.top"></button>
-    <button type="button" role="tab" aria-selected="false" data-tab="add" data-t="tab.add"></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="add"><span data-t="tab.new"></span><b class="dot" id="news-dot" hidden></b></button>
     <button type="button" class="collapse" id="btn-side" data-t-label="side.toggle">›</button>
   </div>
   <ol class="feed" id="feed" data-pane="feed"></ol>
@@ -63,7 +66,11 @@
     <p class="hint" data-t="h.note"></p>
   </div>
   <div class="add-pane" data-pane="add" hidden>
-    <h3 data-t="a.title"></h3>
+    <h3 data-t="n.list"></h3>
+    <p class="hint lead" data-t="n.lead"></p>
+    <ol class="news" id="news"></ol>
+    <div class="notify"><button type="button" class="switch" id="notify-news" aria-pressed="false"><i></i><span data-t="p.notify"></span></button><p class="hint" id="notify-state"></p></div>
+    <h3 class="suggest" data-t="a.title"></h3>
     <p data-t="a.lead"></p>
     <form id="add-form" autocomplete="off"><input id="add-login" maxlength="80" autocapitalize="off" spellcheck="false" data-t-label="a.field"><button type="submit" data-t="a.go"></button></form>
     <div id="add-result" aria-live="polite"></div>
@@ -121,7 +128,10 @@
   <p lang="zh-CN">这个页面以 3D 绘制，当前浏览器无法显示。请使用最新版的 Chrome、Edge、Firefox 或 Safari。</p>
 </div>
 
-<div class="hud update" id="update" role="status" hidden><span class="updot" aria-hidden="true"></span><span data-t="u.msg"></span><button type="button" id="update-go" data-t="u.go"></button><button type="button" id="update-x" class="x" data-t-label="close">×</button></div>
+<div class="hud toasts" id="toasts">
+  <div class="toast" id="update" role="status" hidden><span class="updot" aria-hidden="true"></span><span data-t="u.msg"></span><button type="button" id="update-go" class="go" data-t="u.go"></button><button type="button" id="update-x" class="x" data-t-label="close">×</button></div>
+  <div class="toast news-toast" id="news-toast" role="status" hidden></div>
+</div>
 
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <p class="sr-only" id="sr" aria-live="polite"></p>

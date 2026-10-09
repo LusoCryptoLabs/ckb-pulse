@@ -51,7 +51,7 @@ let repos = [] // from the server, plus repos first seen live
 let rows = [] // {t, k, r, a, b, title, c}
 let actors = [] // [login, avatar]
 const actorIdx = new Map()
-const filt = { tag: null, fam: null, bots: true }
+const filt = { tag: null, fam: null, bots: true, mine: false }
 // three ways to look: live, the last 24 hours, the last 7 days. A period plays from its start to now (mode replay),
 // holds the full picture (done), then plays again; dragging the timeline pauses anywhere in the week
 const PERIOD = { live: { span: DAY }, day: { span: DAY, ms: 90000 }, week: { span: 7 * DAY, ms: 120000 } }
@@ -202,7 +202,7 @@ const W = { n: [], b: [], last: [], bits: [], people: new Map(), day: 0, bots: 0
 function computeWindow() {
   const t1 = T.t, t0 = t1 - span(), scale = T.period === 'week' ? 0.3 : 1
   W.n = new Array(repos.length).fill(0); W.b = new Array(repos.length).fill(0); W.last = new Array(repos.length).fill(null); W.bits = new Array(repos.length).fill(0)
-  W.people = new Map(); W.day = 0; W.bots = 0; W.fams = {}
+  W.people = new Map(); W.day = 0; W.bots = 0; W.fams = {}; W.mine = new Array(repos.length).fill(0)
   for (const w of rows) {
     if (w.t > t1) break
     if (w.t < t0 || w.r < 0) continue
@@ -210,6 +210,7 @@ function computeWindow() {
     const f = fam(w.k)
     W.n[w.r]++; W.last[w.r] = w.k; W.day++; W.bits[w.r] |= 1 << FAMS.indexOf(f)
     W.people.set(w.a, (W.people.get(w.a) || 0) + 1)
+    if (followsPerson(actors[w.a]?.[0])) W.mine[w.r] = 1
     W.fams[f] = (W.fams[f] || 0) + 1
   }
   repos.forEach((r, i) => {
@@ -222,14 +223,15 @@ function computeWindow() {
   applyFilter()
   kpis(); filterCounts(); people()
 }
-function matches(ri, k) {
+function matches(ri, k, a) {
   if (ri < 0) return false
   if (filt.tag && !(repos[ri].tags || []).includes(filt.tag)) return false
+  if (filt.mine && !followsRepo(repos[ri].name) && !(a != null ? followsPerson(actors[a]?.[0]) : W.mine[ri])) return false
   if (filt.fam && k) return fam(k) === filt.fam
   if (filt.fam) return !!(W.bits[ri] & (1 << FAMS.indexOf(filt.fam)))
   return true
 }
-const filtering = () => !!(filt.tag || filt.fam)
+const filtering = () => !!(filt.tag || filt.fam || filt.mine)
 function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }) }
 
 // ================= numbers =================
@@ -264,7 +266,11 @@ function syncFilters() {
   for (const b of $('fams').querySelectorAll('button')) b.setAttribute('aria-pressed', String((b.dataset.fam || null) === filt.fam))
   $('topic').classList.toggle('on', !!filt.tag)
   $('bots').setAttribute('aria-pressed', String(filt.bots))
-  const n = (filt.fam ? 1 : 0) + (filt.tag ? 1 : 0) + (filt.bots ? 0 : 1)
+  $('mine').setAttribute('aria-pressed', String(filt.mine))
+  const mineWas = $('mine-row').hidden
+  $('mine-row').hidden = !follows.repos.size && !follows.people.size && !filt.mine
+  if (mineWas !== $('mine-row').hidden) updateLayout()
+  const n = (filt.fam ? 1 : 0) + (filt.tag ? 1 : 0) + (filt.bots ? 0 : 1) + (filt.mine ? 1 : 0)
   $('filt-n').hidden = !n; $('filt-n').textContent = n
 }
 function filterCounts() {
@@ -279,6 +285,7 @@ $('fams').addEventListener('click', (e) => {
 })
 $('topic').addEventListener('change', () => { filt.tag = $('topic').value || null; syncFilters(); applyFilter(); feed() })
 $('bots').addEventListener('click', () => { filt.bots = !filt.bots; syncFilters() })
+$('mine').addEventListener('click', () => { filt.mine = !filt.mine; syncFilters(); applyFilter(); feed() })
 function openFilters(on) {
   $('filters').classList.toggle('open', on)
   $('btn-filters').setAttribute('aria-expanded', String(on))
@@ -293,7 +300,7 @@ function feed() {
   for (let i = rows.length - 1; i >= 0 && list.length < 60; i--) {
     const w = rows[i]
     if (w.t > T.t || w.b || w.r < 0) continue
-    if (filtering() && !matches(w.r, w.k)) continue
+    if (filtering() && !matches(w.r, w.k, w.a)) continue
     list.push(w)
   }
   $('feed').innerHTML = list.map((w) => feedItem(w, false)).join('')
@@ -416,6 +423,95 @@ function openFromLink() {
     document.querySelector('.tabs [data-tab="top"]').click()
     if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
   }
+}
+
+// ================= follow, on this device =================
+// no account: what is followed lives in this browser; with notices allowed, the server is told so it can send them
+const follows = (() => { try { const j = JSON.parse(store.get('follows') || '{}'); return { repos: new Set(j.repos || []), people: new Set(j.people || []), news: !!j.news } } catch { return { repos: new Set(), people: new Set(), news: false } } })()
+const saveFollows = () => store.set('follows', JSON.stringify({ repos: [...follows.repos], people: [...follows.people], news: follows.news }))
+function followsRepo(name) { return follows.repos.has(String(name || '').toLowerCase()) }
+function followsPerson(login) { return follows.people.has(String(login || '').toLowerCase()) }
+const followLabel = (on) => (on ? '★ ' : '☆ ') + t(on ? 'f.following' : 'f.follow')
+function followBtn(kind, id) { const on = kind === 'repo' ? followsRepo(id) : followsPerson(id); return `<button type="button" class="follow${on ? ' on' : ''}" data-follow-${kind}="${esc(id)}" aria-pressed="${on}">${esc(followLabel(on))}</button>` }
+function toggleFollow(kind, id) {
+  const set = kind === 'repo' ? follows.repos : follows.people, k = String(id).toLowerCase()
+  const on = !set.has(k)
+  if (on) set.add(k); else set.delete(k)
+  saveFollows()
+  for (const b of document.querySelectorAll(`[data-follow-${kind}]`)) if (b.getAttribute(`data-follow-${kind}`).toLowerCase() === k) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); b.textContent = followLabel(on) }
+  syncFilters(); placeBadges(); computeWindow(); feed()
+  syncFollows(on) // following asks for notices once, on this very tap
+}
+addEventListener('click', (e) => {
+  const b = e.target.closest('[data-follow-repo], [data-follow-person]'); if (!b) return
+  if (b.dataset.followRepo) toggleFollow('repo', b.dataset.followRepo); else toggleFollow('person', b.dataset.followPerson)
+})
+
+// notices: a service worker shows what the server pushes; on iPhone only once the page is on the Home Screen
+const pushOk = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+const keyBytes = (b64) => { const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (b64.length % 4)) % 4)); return Uint8Array.from(s, (c) => c.charCodeAt(0)) }
+async function pushSub(ask) {
+  if (!pushOk || Notification.permission === 'denied') return null
+  if (Notification.permission === 'default') { if (!ask) return null; if ((await Notification.requestPermission()) !== 'granted') return null }
+  const reg = await navigator.serviceWorker.register('sw.js')
+  await navigator.serviceWorker.ready
+  let sub = await reg.pushManager.getSubscription()
+  if (!sub) { const { key } = await (await fetch('api/push/key')).json(); sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) }) }
+  return sub
+}
+async function syncFollows(ask) {
+  try {
+    const sub = await pushSub(ask)
+    if (sub) await fetch('api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sub: sub.toJSON(), repos: [...follows.repos], people: [...follows.people], news: follows.news, lang: LANG }) })
+  } catch (err) { console.warn('notices', err) }
+  notifyState()
+}
+function notifyState() {
+  $('notify-news').setAttribute('aria-pressed', String(follows.news))
+  $('notify-state').textContent = !pushOk ? t(isIOS && !standalone ? 'p.ios' : 'p.none') : Notification.permission === 'denied' ? t('p.denied') : Notification.permission === 'granted' && (follows.news || follows.repos.size || follows.people.size) ? t('p.on') : ''
+}
+$('notify-news').addEventListener('click', () => { follows.news = !follows.news; saveFollows(); syncFollows(follows.news) })
+
+// ================= new projects =================
+// the server finds CKB projects created in the last 14 days; each is announced once to the open pages, here as a notice
+const seenNews = (() => { try { return new Set(JSON.parse(store.get('seenNews') || '[]')) } catch { return new Set() } })()
+const markSeen = (name) => { seenNews.add(name); store.set('seenNews', JSON.stringify([...seenNews].slice(-200))) }
+function renderNews() {
+  const list = S?.news || []
+  $('news').innerHTML = list.slice(0, 20).map((n) => `<li><div class="n-head"><b>${esc(short(n.name))}</b><small>${esc(gname(n.group))} · ${esc(t('n.created', { ago: ago(Date.parse(n.createdAt)) }))}</small></div>${n.desc ? `<p>${esc(n.desc)}</p>` : ''}<div class="n-act"><button type="button" data-see="${esc(n.name)}">${esc(t('n.see'))}</button>${followBtn('repo', n.name)}</div></li>`).join('') || `<li class="none">${esc(t('n.none'))}</li>`
+  $('news-dot').hidden = !list.some((n) => !seenNews.has(n.name) && Date.now() - Date.parse(n.createdAt) < 3 * DAY)
+}
+function seeProject(name) {
+  const i = repos.findIndex((r) => r.name === name)
+  if (i >= 0) openRepo(i); else window.open(`https://github.com/${name}`, '_blank', 'noopener')
+}
+$('news').addEventListener('click', (e) => { const b = e.target.closest('[data-see]'); if (b) { markSeen(b.dataset.see); seeProject(b.dataset.see); renderNews() } })
+function showNewsToast(n) {
+  const el = $('news-toast')
+  el.innerHTML = `<span class="tag">${esc(t('new.repo'))}</span><span class="what">${esc(t('n.title'))}: <b>${esc(short(n.name))}</b></span><button type="button" class="go" data-see="${esc(n.name)}">${esc(t('n.see'))}</button>${followBtn('repo', n.name)}<button type="button" class="x" aria-label="${esc(t('close'))}">×</button>`
+  el.hidden = false
+  markSeen(n.name)
+}
+$('news-toast').addEventListener('click', (e) => {
+  const see = e.target.closest('[data-see]')
+  if (see) { seeProject(see.dataset.see); $('news-toast').hidden = true }
+  if (e.target.closest('.x')) $('news-toast').hidden = true
+  renderNews()
+})
+let newsWaiting = null
+function newsToastOnLoad() {
+  // a project announced in the last day that this device has not seen yet
+  const n = (S?.news || []).find((x) => x.announcedAt && Date.now() - x.announcedAt < DAY && !seenNews.has(x.name))
+  if (!n) return
+  if (introOpen) newsWaiting = n; else showNewsToast(n)
+}
+async function onNews(n) {
+  if (!S) return
+  if (!(S.news || []).some((x) => x.name === n.name)) S.news = [n, ...(S.news || [])]
+  if (!repos.some((r) => r.name === n.name)) await refresh()
+  renderNews()
+  if (introOpen) newsWaiting = n; else showNewsToast(n)
 }
 
 // ================= a new version =================
@@ -547,6 +643,8 @@ function placeBadges() {
   for (const [name, p] of repoWins) pin(name, MEDAL + esc(t(`b.repos.${p}`)), 'badge3d', 1000 + ['day', 'week', 'month'].indexOf(p))
   const fresh = (S?.repos || []).filter((r) => r.isNew && !repoWins.has(r.name)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6)
   for (const r of fresh) pin(r.name, esc(t('new.repo')), 'new3d', 50)
+  // what this device follows wears a star
+  for (const r of repos.filter((x) => followsRepo(x.name) && !repoWins.has(x.name)).slice(0, 40)) pin(r.name, '★', 'star3d', 700)
 }
 // names, medals and tags never sit on top of each other or under a panel: the more important one stays
 const overlap = (a, b, m = 0) => a.left < b.right + m && a.right + m > b.left && a.top < b.bottom + m && a.bottom + m > b.top
@@ -640,7 +738,7 @@ function stepFx(dt, now) {
 function fire(w) {
   if (w.r < 0) return
   if (w.b) { spark(w); return }
-  if (filtering() && !matches(w.r, w.k)) return
+  if (filtering() && !matches(w.r, w.k, w.a)) return
   comet(w)
 }
 
@@ -696,7 +794,10 @@ function hud() {
   return { top, bottom, right }
 }
 function updateLayout() {
-  document.documentElement.style.setProperty('--top', `${Math.round(box('.top').bottom + 6)}px`)
+  const root = document.documentElement.style
+  root.setProperty('--top', `${Math.round(box('.top').bottom + 6)}px`)
+  // notices sit under whatever is there: the filter bar on wide screens (one or two rows), the header elsewhere
+  root.setProperty('--below', `${Math.round((innerWidth >= 1340 ? box('#filters').bottom : box('.top').bottom) + 8)}px`)
   updateView()
 }
 function updateView() {
@@ -745,7 +846,7 @@ async function openRepo(i) {
   const c = cell[i]; if (c) flyTo(c.x, c.z, 26)
   $('drawer').hidden = false
   $('drawer-body').innerHTML = `<h2>${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
-  const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a><button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>`
+  const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>${followBtn('repo', r.name)}<button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>`
   const fresh = stateRepo(r.name)?.isNew ? `<span class="badge new">${esc(t('new.repo'))}</span>` : ''
   try {
     const res = await fetch(`api/repo?name=${encodeURIComponent(r.name)}`)
@@ -773,7 +874,7 @@ function openPerson(a) {
   $('drawer').hidden = false
   $('drawer-body').innerHTML = `<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2>${esc(login)}</h2>
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}</p></div></div>
-${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a><button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>
+${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>
 <h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></li>`).join('')}</ol>`
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
 }
@@ -940,7 +1041,7 @@ function onLive(e) {
   fire(w)
   if (!w.b) {
     setNow(fmtClock(w.t), t('recent', { line: line(w), ago: ago(w.t) }))
-    if (!filtering() || matches(w.r, w.k)) $('feed').insertAdjacentHTML('afterbegin', feedItem(w, true))
+    if (!filtering() || matches(w.r, w.k, w.a)) $('feed').insertAdjacentHTML('afterbegin', feedItem(w, true))
     while ($('feed').children.length > 80) $('feed').lastElementChild.remove()
   }
 }
@@ -950,6 +1051,7 @@ function connect() {
   const es = new EventSource('api/stream')
   es.onopen = () => { online = true; liveDot() }
   es.onmessage = (m) => { try { onLive(JSON.parse(m.data)) } catch (err) { console.error(err) } }
+  es.addEventListener('news', (m) => { try { onNews(JSON.parse(m.data)) } catch (err) { console.error(err) } })
   es.onerror = () => { online = false; liveDot() }
 }
 
@@ -962,7 +1064,7 @@ function applyLang() {
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
   $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automatic'))}</span>`
   for (const o of groupLabels) labelText(o.element)
-  buildFilters(); liveDot(); setPlay(T.mode === 'replay')
+  buildFilters(); liveDot(); setPlay(T.mode === 'replay'); renderNews(); notifyState()
   if (!repos.length) { $('ticker').textContent = t('connecting'); updateLayout(); return }
   computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges()
   if (T.mode === 'live') setNow(fmtClock(Date.now()), liveText()); else setNow(T.mode === 'done' ? fmtClock(T.t) : fmtDay(T.t), null)
@@ -979,6 +1081,7 @@ function closeIntro() {
   if (!introOpen) return
   introOpen = false; $('intro').hidden = true; store.set('seen', '1')
   introFrom?.focus?.()
+  if (newsWaiting) { showNewsToast(newsWaiting); newsWaiting = null }
   // a quiet hour would greet a newcomer with a still scene: start the day's replay almost at once
   if (T.mode === 'live' && quiet() && !T.chosen) T.autoAt = performance.now() + 1200
 }
@@ -1055,6 +1158,8 @@ async function load() {
   drawBars(); drawHead(); renderHighlights(); placeBadges()
   if (quiet()) T.autoAt = performance.now() + 3500 // after the opening flight
   openFromLink()
+  renderNews(); newsToastOnLoad()
+  if (pushOk && Notification.permission === 'granted') syncFollows(false)
 }
 // every few minutes: projects that joined or left, new organisations, fresh highlights
 async function refresh() {
