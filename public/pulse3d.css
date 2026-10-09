@@ -155,4 +155,10 @@ button, select, input { font: inherit; color: inherit; }
   .timeline { left: 8px; right: 8px; bottom: 8px; height: 104px; padding: 6px 8px; }
   .tl-legend { display: none; }
 }
+@media (max-width: 360px) {
+  .search input { width: 112px; }
+  .icon { min-width: 34px; height: 34px; padding: 0 7px; }
+  .kpis { gap: 4px; } .kpis div { padding: 4px 3px; } .kpis b { font-size: 15px; } .kpis span { font-size: 9.5px; }
+  .brand h1 { font-size: 16px; }
+}
 @media (prefers-reduced-motion: reduce) { .live.on, .feed li.new, .drawer { animation: none; } }
