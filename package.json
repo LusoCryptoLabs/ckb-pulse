@@ -5,6 +5,13 @@
   "type": "module",
   "description": "Live GitHub activity of the CKB ecosystem, drawn in 3D",
   "license": "MIT",
-  "scripts": { "start": "node server.mjs" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
 }

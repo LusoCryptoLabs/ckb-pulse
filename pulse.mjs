@@ -498,9 +498,14 @@ function leaders(ev, now) {
     const from = new Date(now - ms).toISOString()
     const m = { repos: new Map(), commits: new Map(), pushes: new Map(), people: new Map(), peopleCommits: new Map(), orgs: new Map() }
     const add = (map, k, n = 1) => map.set(k, (map.get(k) || 0) + n)
-    const avatar = new Map()
+    const avatar = new Map(), burst = new Map()
     for (const e of ev) {
-      if (e.bot || e.at < from) continue
+      if (e.bot || e.at < from || e.kind === 'branch') continue
+      // a burst must not win a medal: on 2026-10-03 an agent working as one person opened 62 branches and 43 pull
+      // requests in two hours. Per person, per project and per hour at most 10 updates count; opening a branch never does
+      const b = `${e.actor}|${e.repo}|${e.at.slice(0, 13)}`, nb = (burst.get(b) || 0) + 1
+      burst.set(b, nb)
+      if (nb > 10) continue
       add(m.repos, e.repo); add(m.people, e.actor)
       if (e.avatar) avatar.set(e.actor, e.avatar)
       if (e.kind === 'push') { add(m.pushes, e.repo); add(m.commits, e.repo, e.commits || 1); add(m.peopleCommits, e.actor, e.commits || 1) }
@@ -508,12 +513,43 @@ function leaders(ev, now) {
       if (g && g !== 'builders') add(m.orgs, g)
     }
     const top = (map) => [...map].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5)
+    // the period's counts and its activity in columns (hours for a day, days for a week or a month), for the share cards
+    const slots = key === 'day' ? 24 : Math.round(ms / DAY), slot = ms / slots, bars = new Array(slots).fill(0)
+    // the counts on the cards are the page's own: every update by people
+    let updates = 0
+    const who = new Set(), where = new Set()
+    for (const e of ev) { if (e.bot || e.at < from) continue; updates++; who.add(e.actor); where.add(e.repo); const i = Math.floor((Date.parse(e.at) - (now - ms)) / slot); if (i >= 0 && i < slots) bars[i]++ }
     out[key] = {
+      stats: { updates, people: who.size, projects: where.size }, bars,
       repos: top(m.repos), commits: top(m.commits), pushes: top(m.pushes), orgs: top(m.orgs),
       people: top(m.people).map(([l, n]) => [l, n, avatar.get(l) || '']), peopleCommits: top(m.peopleCommits).map(([l, n]) => [l, n, avatar.get(l) || '']),
     }
   }
   return out
+}
+// what the share cards need, without building the whole page state: highlights (kept a minute), a group, a person
+let hlCache = null
+export function highlightsNow() {
+  const now = Date.now()
+  if (hlCache && now - hlCache.at < 60e3) return hlCache.v
+  const followed = followedNow(now)
+  hlCache = { at: now, v: leaders(state.events.filter((e) => followed(e.repo)), now) }
+  return hlCache.v
+}
+export const groupOf = (full) => state.repos[full]?.group || full.split('/')[0]
+export function personDetail(login) {
+  const now = Date.now(), from = new Date(now - 7 * DAY).toISOString(), key = String(login).toLowerCase()
+  const followed = followedNow(now)
+  const list = state.events.filter((e) => !e.bot && e.at >= from && e.actor.toLowerCase() === key && followed(e.repo))
+  if (!list.length) return null
+  const per = new Map(), daily = new Array(7).fill(0)
+  let avatar = ''
+  for (const e of list) {
+    per.set(e.repo, (per.get(e.repo) || 0) + 1)
+    const i = Math.floor((Date.parse(e.at) - (now - 7 * DAY)) / DAY); if (i >= 0 && i < 7) daily[i]++
+    if (e.avatar) avatar = e.avatar
+  }
+  return { login: list[0].actor, avatar, updates: list.length, projects: [...per].sort((a, b) => b[1] - a[1]), daily }
 }
 export function snapshot() {
   const now = Date.now()
