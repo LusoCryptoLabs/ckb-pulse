@@ -65,6 +65,10 @@ export const WORDS = {
     'i.colours': 'What the colours mean', 'i.go': 'Start watching', 'i.what': 'What is CKB?',
     'live.on': 'connected', 'live.off': 'reconnecting',
     'err.load': 'Could not load the data. Trying again in 10 seconds.',
+    'tab.add': 'Suggest', 'a.title': 'Missing someone?', 'a.lead': 'Write the GitHub name of an organisation or a person. If they have public CKB projects with work in the last 30 days, they join the page on their own.',
+    'a.field': 'GitHub name', 'a.go': 'Suggest', 'a.checking': 'Checking on GitHub…', 'a.added': '{login} joined with {projects}. They show on the page as soon as people work on them.',
+    'a.already': '{login} is already followed.', 'a.missing': 'There is no {login} on GitHub.', 'a.invalid': 'That is not a GitHub name.', 'a.none': 'No public CKB project with work in the last 30 days was found for {login}.',
+    'a.limited': 'Too many suggestions from here. Try again in an hour.', 'a.error': 'Something failed. Try again in a moment.',
   },
   pt: {
     locale: 'pt-PT',
@@ -116,6 +120,10 @@ export const WORDS = {
     'i.colours': 'O que querem dizer as cores', 'i.go': 'Começar a ver', 'i.what': 'O que é a CKB?',
     'live.on': 'ligado', 'live.off': 'a religar',
     'err.load': 'Não foi possível carregar os dados. Nova tentativa daqui a 10 segundos.',
+    'tab.add': 'Propor', 'a.title': 'Falta alguém?', 'a.lead': 'Escreva o nome no GitHub de uma organização ou pessoa. Se tiver projetos CKB públicos com trabalho nos últimos 30 dias, entra na página sozinha.',
+    'a.field': 'Nome no GitHub', 'a.go': 'Propor', 'a.checking': 'A verificar no GitHub…', 'a.added': '{login} entrou com {projects}. Aparecem na página assim que alguém trabalhar neles.',
+    'a.already': '{login} já está na lista.', 'a.missing': 'Não existe {login} no GitHub.', 'a.invalid': 'Isso não é um nome do GitHub.', 'a.none': 'Não encontrámos projetos CKB públicos de {login} com trabalho nos últimos 30 dias.',
+    'a.limited': 'Demasiadas propostas daqui. Tente daqui a uma hora.', 'a.error': 'Algo falhou. Tente daqui a pouco.',
   },
   zh: {
     locale: 'zh-CN',
@@ -167,6 +175,10 @@ export const WORDS = {
     'i.colours': '颜色的含义', 'i.go': '开始观看', 'i.what': '什么是 CKB？',
     'live.on': '已连接', 'live.off': '重新连接中',
     'err.load': '无法加载数据。10 秒后重试。',
+    'tab.add': '推荐', 'a.title': '少了谁？', 'a.lead': '输入一个组织或个人的 GitHub 名称。如果他们有公开的 CKB 项目并且最近 30 天有工作，就会自动加入页面。',
+    'a.field': 'GitHub 名称', 'a.go': '推荐', 'a.checking': '正在 GitHub 上检查…', 'a.added': '{login} 已加入，共 {projects}。有人工作时就会显示在页面上。',
+    'a.already': '{login} 已经在列表中。', 'a.missing': 'GitHub 上没有 {login}。', 'a.invalid': '这不是一个 GitHub 名称。', 'a.none': '没有找到 {login} 最近 30 天有工作的公开 CKB 项目。',
+    'a.limited': '这里的推荐太多了，请一小时后再试。', 'a.error': '出错了，请稍后再试。',
   },
 }
 

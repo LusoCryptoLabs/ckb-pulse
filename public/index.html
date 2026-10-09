@@ -50,6 +50,7 @@
   <div class="tabs" role="tablist">
     <button type="button" role="tab" aria-selected="true" data-tab="feed" data-t="tab.feed"></button>
     <button type="button" role="tab" aria-selected="false" data-tab="top" data-t="tab.top"></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="add" data-t="tab.add"></button>
     <button type="button" class="collapse" id="btn-side" data-t-label="side.toggle">›</button>
   </div>
   <ol class="feed" id="feed" data-pane="feed"></ol>
@@ -57,6 +58,12 @@
     <div class="seg small" id="hl-period" role="group"><button type="button" data-h="day" data-t="h.day"></button><button type="button" data-h="week" data-t="h.week"></button><button type="button" data-h="month" data-t="h.month"></button></div>
     <div id="hl"></div>
     <p class="hint" data-t="h.note"></p>
+  </div>
+  <div class="add-pane" data-pane="add" hidden>
+    <h3 data-t="a.title"></h3>
+    <p data-t="a.lead"></p>
+    <form id="add-form" autocomplete="off"><input id="add-login" maxlength="80" autocapitalize="off" spellcheck="false" data-t-label="a.field"><button type="submit" data-t="a.go"></button></form>
+    <div id="add-result" aria-live="polite"></div>
   </div>
 </aside>
 

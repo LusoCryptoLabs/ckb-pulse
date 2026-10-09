@@ -167,7 +167,7 @@ function buildCells() {
   for (const c of clusters) {
     groupCenter.set(c.g, { x: c.cx, z: c.cz, r: half(c) })
     const div = document.createElement('div')
-    div.className = 'lbl'
+    div.className = 'lbl culled' // born hidden: the next cull shows it only where it covers nothing
     div.dataset.g = c.g; div.dataset.n = c.list.length
     labelText(div)
     const o = new CSS2DObject(div)
@@ -348,6 +348,29 @@ function badgesFor(name, cats, extra = '') {
   return out.length ? `<div class="badges">${out.join('')}</div>` : ''
 }
 
+// ================= suggest an organisation or a person =================
+// the server checks GitHub (CKB topics, names, or a CKB dependency, and work in the last 30 days) and adds them on its own
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms))
+$('add-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const login = $('add-login').value.trim(), out = $('add-result'), btn = $('add-form').querySelector('button')
+  if (!login) return
+  btn.disabled = true
+  out.className = 'checking'; out.textContent = t('a.checking')
+  let j = null
+  try {
+    const res = await fetch('api/propose', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login }) })
+    j = await res.json()
+    for (let i = 0; j.status === 'checking' && i < 120; i++) { await sleepMs(1500); j = await (await fetch(`api/propose?id=${encodeURIComponent(j.id)}`, { cache: 'no-store' })).json() }
+  } catch { j = { status: 'error' } }
+  const who = j.login || login
+  const msg = { added: t('a.added', { login: who, projects: cnt('prj', j.repos?.length || 0) }), already: t('a.already', { login: who }), missing: t('a.missing', { login: who }), invalid: t('a.invalid'), none: t('a.none', { login: who }), limited: t('a.limited') }[j.status] || t('a.error')
+  out.className = j.status === 'added' || j.status === 'already' ? 'ok' : 'no'
+  out.innerHTML = esc(msg) + (j.status === 'added' && j.repos?.length ? `<ul>${j.repos.map((r) => `<li>${esc(short(r))}</li>`).join('')}</ul>` : '')
+  btn.disabled = false
+  if (j.status === 'added') { $('add-login').value = ''; refresh() }
+})
+
 // ================= the strip above the timeline =================
 function setNow(clock, text) {
   $('mode').textContent = t(T.mode === 'paused' ? 'mode.paused' : 'mode.' + T.period)
@@ -417,7 +440,7 @@ function personBadge(s) {
   const p = personWins.get(s.userData.login)
   if (s.userData.badge && s.userData.badge.userData.p !== p) { s.remove(s.userData.badge); personBadges.delete(s.userData.badge); s.userData.badge = null }
   if (!p || s.userData.badge) return
-  const div = document.createElement('div'); div.className = 'badge3d'; div.innerHTML = MEDAL + esc(t(`b.people.${p}`))
+  const div = document.createElement('div'); div.className = 'badge3d culled'; div.innerHTML = MEDAL + esc(t(`b.people.${p}`))
   const o = new CSS2DObject(div); o.position.set(0, 0.78, 0); o.userData = { p, prio: 900 + ['day', 'week', 'month'].indexOf(p) }
   s.add(o); s.userData.badge = o; personBadges.add(o)
 }
@@ -449,7 +472,7 @@ function placeBadges() {
   const repoWins = best('repos')
   const pin = (name, html, cls, prio) => {
     const i = repos.findIndex((r) => r.name === name); if (i < 0 || !cell[i]) return
-    const div = document.createElement('div'); div.className = cls; div.innerHTML = html
+    const div = document.createElement('div'); div.className = cls + ' culled'; div.innerHTML = html
     const o = new CSS2DObject(div); o.userData = { cell: i, prio }
     scene.add(o); sceneBadges.push(o)
   }
@@ -459,8 +482,10 @@ function placeBadges() {
 }
 // names, medals and tags never sit on top of each other or under a panel: the more important one stays
 const overlap = (a, b, m = 0) => a.left < b.right + m && a.right + m > b.left && a.top < b.bottom + m && a.bottom + m > b.top
-function cull() {
-  const panels = [...document.querySelectorAll('.hud, .intro')].filter((el) => { if (el.hidden) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden' }).map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height)
+let panels = [], panelsAt = 0
+function cull(now) {
+  // the panels move rarely: measure them a few times a second; the labels move with the blocks, so every frame
+  if (now - panelsAt > 250) { panelsAt = now; panels = [...document.querySelectorAll('.hud, .intro')].filter((el) => { if (el.hidden) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden' }).map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height) }
   const items = [...groupLabels, ...sceneBadges, ...personBadges].filter((o) => o.element.isConnected && o.element.style.display !== 'none')
   items.sort((a, b) => b.userData.prio - a.userData.prio)
   const placed = []
@@ -897,8 +922,7 @@ applyLang()
 if (!store.get('seen')) openIntro()
 
 // ================= frame =================
-let last = performance.now(), slow = 0, frames = 0, acc = 0, lastCull = 0
-const camWas = new THREE.Vector3()
+let last = performance.now(), slow = 0, frames = 0, acc = 0
 function frame(now) {
   requestAnimationFrame(frame)
   const dt = Math.min(0.1, (now - last) / 1000); last = now
@@ -927,10 +951,8 @@ function frame(now) {
   for (const o of sceneBadges) { const c = cell[o.userData.cell]; if (c) o.position.set(c.x, c.h + 0.55, c.z) }
   if (useBloom) composer.render(); else renderer.render(scene, camera)
   labelRenderer.render(scene, camera)
-  // every frame while the camera moves, so a label never slides under a panel; a few times a second otherwise
-  const moving = camWas.distanceToSquared(camera.position) > 1e-6
-  camWas.copy(camera.position)
-  if (moving || now - lastCull > 200) { lastCull = now; cull() }
+  // every frame: medals ride on blocks that grow during a replay, so a label can reach another one between two checks
+  cull(now)
   // slow device: drop the bloom
   acc += dt; frames++
   if (acc > 2) { if (frames / acc < 28) slow++; else slow = 0; if (slow >= 2 && useBloom) { useBloom = false; renderer.setPixelRatio(1) } acc = 0; frames = 0 }
