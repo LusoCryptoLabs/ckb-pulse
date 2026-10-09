@@ -23,6 +23,16 @@ export const CODE_SEARCHES = [
 ]
 export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-network', 'topic:nervos-ckb', 'topic:ckb-blockchain', 'topic:spore-protocol', 'topic:rgbpp', 'topic:fiber-network']
 
+// Owners never shown, whatever discovery or a suggestion finds (GitHub logins, any case)
+export const BLOCKED = []
+
+// Vetting an owner nobody listed (found among the people at work, or suggested on the page): it joins when it has a
+// public repository pushed in the last 30 days that is plainly CKB work, by topic, by name or description, or (for
+// suggestions) by a CKB dependency found with code search. "fiber" and "ccc" alone are too common elsewhere.
+export const VET_TOPICS = ['ckb', 'nervos', 'nervos-network', 'nervos-ckb', 'ckb-blockchain', 'spore', 'spore-protocol', 'rgbpp', 'fiber-network', 'ckb-fiber']
+export const VET_TEXT = /\bckb|nervos|rgb\+\+|rgbpp|spore protocol|spore-sdk/i
+export const VET = { activeDays: 30, maxRepos: 20, perIpPerHour: 5, allPerHour: 40, recheckDays: 7, crawlPerCycle: 60 }
+
 // Keyword tags. Every repo here is already CKB context, so "fiber" and "dob" are safe inside it; on their own
 // across GitHub they are mostly noise (React Fiber, Go Fiber, "dob" as date of birth), measured 2026-10-09.
 export const TAGS = {

@@ -4,7 +4,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
-import { start, snapshot, repoDetail, bus } from './pulse.mjs'
+import { start, snapshot, repoDetail, propose, proposal, bus } from './pulse.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
@@ -30,6 +30,23 @@ const server = http.createServer((req, res) => {
     const d = repoDetail(url.searchParams.get('name') || '')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }
     return sendJson(req, res, d)
+  }
+  // a suggested organisation or person: POST {"login"} starts a check, GET ?id= reads how it went
+  if (url.pathname === '/api/propose' && req.method === 'POST') {
+    let body = ''
+    req.on('data', (c) => { body += c; if (body.length > 1024) req.destroy() })
+    req.on('end', () => {
+      let login = ''
+      try { login = JSON.parse(body).login } catch {}
+      const ip = req.headers['x-real-ip'] || req.socket.remoteAddress || ''
+      sendJson(req, res, propose(login, ip))
+    })
+    return
+  }
+  if (url.pathname === '/api/propose') {
+    const j = proposal(url.searchParams.get('id') || '')
+    if (!j) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"status":"unknown"}') }
+    return sendJson(req, res, j)
   }
   if (url.pathname === '/api/stream') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })

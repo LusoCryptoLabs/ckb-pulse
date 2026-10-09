@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
-import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, isNoiseActor } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, isNoiseActor } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -12,6 +12,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const OWNERS = [...ORGS.map((n) => ({ n, user: false })), ...USERS.map((n) => ({ n, user: true }))]
 const ownerSet = new Set(OWNERS.map((o) => o.n.toLowerCase()))
 const ownerOf = (full) => full.split('/')[0]
+const blocked = new Set(BLOCKED.map((b) => b.toLowerCase()))
 const DAY = 864e5
 const MONTH = 30 * DAY
 const NEW_DAYS = 7 // a project or an organisation counts as new for this long
@@ -22,7 +23,7 @@ const STATE_VERSION = 3
 
 export const bus = new EventEmitter()
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -43,7 +44,7 @@ export function load() {
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -219,9 +220,11 @@ async function ownerLoop() {
   await pollOwners(true)
   for (;;) { await sleep(POLL.orgsEverySec * 1000); await pollOwners(false) }
 }
+const extraRepos = () => Object.values(state.extra || {}).flatMap((o) => o.repos)
+const pollSet = () => [...new Set([...state.builders, ...extraRepos()])].filter((f) => !blocked.has(ownerOf(f).toLowerCase()))
 async function builderLoop() {
   for (;;) {
-    const list = state.builders.slice()
+    const list = pollSet()
     if (!list.length) { await sleep(30e3); continue }
     const gap = (POLL.buildersCycleMin * 60e3) / list.length
     for (const full of list) {
@@ -289,7 +292,7 @@ export async function discover() {
   const keep = []
   const recent = Date.now() - 180 * 864e5
   for (const [full, meta] of found) {
-    if (ownerSet.has(ownerOf(full).toLowerCase())) continue
+    if (ownerSet.has(ownerOf(full).toLowerCase()) || blocked.has(ownerOf(full).toLowerCase())) continue
     let m = meta
     if (!m) { const r = await gh(`/repos/${full}`); m = r.body }
     if (!m || m.private !== false || m.fork || m.archived) continue
@@ -336,14 +339,128 @@ async function backfillCommits() {
   }
   if (found + guessed) { save(); console.log(`commits counted for ${found} stored pushes, ${guessed} set to one`) }
 }
+// ---------- owners nobody listed: the people at work, and suggestions from the page ----------
+const vetRepo = (m) => (m.topics || []).some((x) => VET_TOPICS.includes(x)) || VET_TEXT.test(`${m.name} ${m.description || ''}`)
+async function codeHits(login, type) {
+  const scope = type === 'Organization' ? 'org' : 'user'
+  for (const q of CODE_SEARCHES) {
+    const r = await gh(`/search/code?q=${encodeURIComponent(`${q} ${scope}:${login}`)}&per_page=20`, { search: true })
+    await sleep(6500) // code search allows 10 requests a minute
+    const items = (r.body?.items || []).filter((it) => it.repository && manifestOk(it.path))
+    if (items.length) return items.map((it) => it.repository.full_name)
+  }
+  return []
+}
+// does this owner have public CKB work from the last 30 days? deep adds the code search, used for suggestions
+export async function vetOwner(login, { deep = false } = {}) {
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(login)) return { ok: false, reason: 'invalid' }
+  if (blocked.has(login.toLowerCase())) return { ok: false, reason: 'none', login }
+  const u = await gh(`/users/${login}`)
+  if (!u.body) return { ok: false, reason: 'missing', login }
+  const name = u.body.login, type = u.body.type
+  if (ownerSet.has(name.toLowerCase())) return { ok: true, already: true, login: name, type, repos: [] }
+  const res = await gh(`/users/${name}/repos?type=owner&sort=pushed&per_page=100`)
+  const since = Date.now() - VET.activeDays * DAY
+  const live = (res.body || []).filter((m) => m.private === false && !m.fork && !m.archived && Date.parse(m.pushed_at) > since)
+  let hits = live.filter(vetRepo).map((m) => m.full_name)
+  if (deep && !hits.length && live.length) {
+    const found = new Set(await codeHits(name, type))
+    hits = live.filter((m) => found.has(m.full_name)).map((m) => m.full_name)
+  }
+  hits = hits.slice(0, VET.maxRepos)
+  for (const m of live) if (hits.includes(m.full_name)) repoEntry(m.full_name, m)
+  if (!hits.length) return { ok: false, reason: 'none', login: name, type }
+  const known = new Set(pollSet())
+  return { ok: true, already: hits.every((f) => known.has(f)), login: name, type, repos: hits }
+}
+async function addOwner(v, source) {
+  const key = v.login.toLowerCase(), prev = state.extra[key]
+  const fresh = v.repos.filter((f) => !pollSet().includes(f))
+  state.extra[key] = { login: v.login, type: v.type, source: prev?.source || source, addedAt: prev?.addedAt || Date.now(), repos: [...new Set([...(prev?.repos || []), ...v.repos])] }
+  // their recent events now, so the page shows them on its next refresh instead of after a whole polling cycle
+  for (const full of fresh) {
+    try { const r = await gh(`/repos/${full}/events?per_page=100`); if (Array.isArray(r.body)) await intake(r.body, full) } catch (err) { console.warn('repo', full, err.message) }
+  }
+  save()
+  console.log(`${source}: ${v.login} added with ${fresh.length} repositories`)
+  return fresh
+}
+// people at work in the followed repositories often keep CKB projects of their own: look at each at most once a week
+async function crawlPeople() {
+  const followed = followedNow(Date.now())
+  const from = new Date(Date.now() - MONTH).toISOString()
+  const people = [...new Set(state.events.filter((e) => !e.bot && e.at >= from && followed(e.repo)).map((e) => e.actor))]
+  let looked = 0, added = 0
+  for (const login of people) {
+    const key = login.toLowerCase()
+    if (ownerSet.has(key) || blocked.has(key) || Date.now() - (state.checked[key] || 0) < VET.recheckDays * DAY) continue
+    if (looked++ >= VET.crawlPerCycle) break
+    state.checked[key] = Date.now()
+    try { const v = await vetOwner(login); if (v.ok && !v.already && (await addOwner(v, 'found')).length) added++ } catch (err) { console.warn('crawl', login, err.message) }
+  }
+  save()
+  if (looked) console.log(`crawl: looked at ${looked} people, ${added} added`)
+}
+// suggestions from the page: a few per visitor and per hour, checked one at a time
+const jobs = new Map()
+const asked = new Map() // ip -> times
+let askedAll = []
+let line = Promise.resolve()
+export function propose(raw, ip) {
+  const login = String(raw || '').trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?github\.com\//i, '').split(/[/?#\s]/)[0]
+  const now = Date.now()
+  const mine = (asked.get(ip) || []).filter((x) => now - x < 3600e3)
+  askedAll = askedAll.filter((x) => now - x < 3600e3)
+  if (mine.length >= VET.perIpPerHour || askedAll.length >= VET.allPerHour) return { status: 'limited' }
+  mine.push(now); asked.set(ip, mine); askedAll.push(now)
+  const job = { id: Math.random().toString(36).slice(2, 12), status: 'checking', login }
+  jobs.set(job.id, job)
+  setTimeout(() => jobs.delete(job.id), 3600e3).unref()
+  line = line.then(async () => {
+    try {
+      const v = await vetOwner(login, { deep: true })
+      if (!v.ok) Object.assign(job, { status: v.reason, login: v.login || login })
+      else if (v.already) Object.assign(job, { status: 'already', login: v.login })
+      else { const fresh = await addOwner(v, 'suggested'); Object.assign(job, { status: fresh.length ? 'added' : 'already', login: v.login, repos: fresh }) }
+    } catch (err) { job.status = 'error'; console.warn('suggestion', login, err.message) }
+  })
+  return job
+}
+export const proposal = (id) => jobs.get(id) || null
+
+// an organisation's feed keeps only its last 300 events, bots included, so on a busy week it reaches back a few days
+// (measured 2026-10-09: nervosnetwork/fiber had 7 human events on 2 October on GitHub and 1 here). Once a day every
+// followed repository's own list fills the gaps for the last 8 days.
+async function fillWeek() {
+  const since = Date.now() - 8 * DAY
+  const list = [...new Set([...(state.orgRepos || []), ...pollSet()])]
+  const before = state.events.length
+  for (const full of list) {
+    for (let page = 1; page <= 3; page++) {
+      try {
+        const r = await gh(`/repos/${full}/events?per_page=100&page=${page}`)
+        if (!Array.isArray(r.body) || !r.body.length) break
+        await intake(r.body, full)
+        if (r.body.length < 100 || Date.parse(r.body[r.body.length - 1].created_at) < since) break
+      } catch (err) { console.warn('fill', full, err.message); break }
+    }
+  }
+  state.filledAt = Date.now()
+  save()
+  console.log(`week filled from ${list.length} repositories: ${state.events.length - before} events added`)
+}
+
 async function discoverLoop() {
   try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) }
   await verifyEventRepos()
   await fillOwnerTypes()
   await backfillCommits()
+  if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
   for (;;) {
     if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
+    if (Date.now() - (state.crawledAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await crawlPeople(); state.crawledAt = Date.now() } catch (err) { console.warn('crawl', err.message) } }
+    if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
     await sleep(15 * 60e3)
   }
 }
@@ -359,11 +476,11 @@ export function start() {
 // public repositories of the followed owners and the current builders, and only while their owner has people at work:
 // an organisation or a builder with no human event in 30 days leaves the page and comes back with the next one
 function followedNow(now) {
-  const builders = new Set(state.builders)
+  const builders = new Set(pollSet())
   const from = new Date(now - MONTH).toISOString()
   const active = new Set()
   for (const e of state.events) if (!e.bot && e.at >= from && isPublic(e.repo)) active.add(ownerOf(e.repo).toLowerCase())
-  return (full) => { const o = ownerOf(full).toLowerCase(); return isPublic(full) && (ownerSet.has(o) || builders.has(full)) && active.has(o) }
+  return (full) => { const o = ownerOf(full).toLowerCase(); return isPublic(full) && !blocked.has(o) && (ownerSet.has(o) || builders.has(full)) && active.has(o) }
 }
 // the first time a group shows up; the ones present when this started count as old. Nothing is marked until every
 // stored repository has its owner type, or the organisations sorted out of builders would all look new
@@ -413,7 +530,7 @@ export function snapshot() {
     p.n++; if (e.at >= d1) p.n24++
     if (!p.last || e.at > p.last.at) p.last = e
   }
-  const all = [...new Set([...Object.keys(per), ...(state.orgRepos || []), ...state.builders])].filter(followed)
+  const all = [...new Set([...Object.keys(per), ...(state.orgRepos || []), ...pollSet()])].filter(followed)
   const repos = all.map((full) => {
     const r = state.repos[full]
     const a = per[full]
