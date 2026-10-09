@@ -40,7 +40,8 @@ const server = http.createServer((req, res) => {
   }
   const f = path.join(ROOT, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname))
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found') }
-  res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream', 'cache-control': 'public, max-age=300' })
+  // the page's own files change together on every deploy: always ask again; three.js only changes with a new folder
+  res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream', 'cache-control': url.pathname.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache' })
   fs.createReadStream(f).pipe(res)
 })
 server.listen(PORT, () => console.log(`ckb-pulse on :${PORT}`))
