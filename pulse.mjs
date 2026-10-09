@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
-import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, isNoiseActor } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -23,7 +23,7 @@ const STATE_VERSION = 3
 
 export const bus = new EventEmitter()
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -39,12 +39,14 @@ export function load() {
     }
     state.events.sort((a, b) => a.at.localeCompare(b.at))
     for (const e of state.events) ids.add(e.id)
+    // builders found before the ckb-context rule: discover again once, so topic-only false friends drop out
+    if (state.ctxRule !== 1) { state.discoveredAt = 0; state.ctxRule = 1 }
     console.log(`loaded ${state.events.length} events, ${Object.keys(state.repos).length} repos, ${state.builders.length} builders`)
   } catch (err) { console.error('could not read state:', err.message) }
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -276,7 +278,7 @@ export async function discover() {
       const r = await gh(`/search/code?q=${encodeURIComponent(q)}&per_page=100&page=${page}`, { search: true })
       await sleep(6500) // code search allows 10 requests a minute
       const items = r.body?.items || []
-      for (const it of items) if (it.repository && manifestOk(it.path)) found.set(it.repository.full_name, null)
+      for (const it of items) if (it.repository && manifestOk(it.path)) found.set(it.repository.full_name, { meta: null, code: true })
       if (items.length < 100) break
     }
   }
@@ -285,17 +287,19 @@ export async function discover() {
       const r = await gh(`/search/repositories?q=${encodeURIComponent(q)}&per_page=100&page=${page}&sort=updated`, { search: true })
       await sleep(2200)
       const items = r.body?.items || []
-      for (const it of items) found.set(it.full_name, it)
+      for (const it of items) { const f = found.get(it.full_name); found.set(it.full_name, { meta: it, code: !!f?.code, topics: [...(f?.topics || []), q] }) }
       if (items.length < 100) break
     }
   }
   const keep = []
   const recent = Date.now() - 180 * 864e5
-  for (const [full, meta] of found) {
+  for (const [full, hit] of found) {
     if (ownerSet.has(ownerOf(full).toLowerCase()) || blocked.has(ownerOf(full).toLowerCase())) continue
-    let m = meta
+    let m = hit.meta
     if (!m) { const r = await gh(`/repos/${full}`); m = r.body }
     if (!m || m.private !== false || m.fork || m.archived) continue
+    // found only through the plain ckb topic: it must also look like chain work
+    if (!hit.code && (hit.topics || []).every((q) => q === 'topic:ckb') && !ckbContext(m)) continue
     repoEntry(full, m)
     if (new Date(m.pushed_at) > recent) keep.push(full)
   }
@@ -340,7 +344,19 @@ async function backfillCommits() {
   if (found + guessed) { save(); console.log(`commits counted for ${found} stored pushes, ${guessed} set to one`) }
 }
 // ---------- owners nobody listed: the people at work, and suggestions from the page ----------
-const vetRepo = (m) => (m.topics || []).some((x) => VET_TOPICS.includes(x)) || VET_TEXT.test(`${m.name} ${m.description || ''}`)
+// a repository is chain work when it says so beyond the bare word ckb
+function ckbContext(m) {
+  const text = `${m.name} ${m.description || ''} ${(m.topics || []).join(' ')}`
+  return CKB_CONTEXT.test(text) && !CKB_NOT.test(text)
+}
+function vetRepo(m) {
+  const topics = (m.topics || []).filter((x) => VET_TOPICS.includes(x))
+  const named = VET_TEXT.test(`${m.name} ${m.description || ''}`)
+  if (!topics.length && !named) return false
+  // only the word ckb (as a topic or in the name): ask for more
+  const onlyCkb = topics.every((x) => x === 'ckb') && !/nervos|rgb\+\+|rgbpp|spore/i.test(`${m.name} ${m.description || ''}`)
+  return onlyCkb ? ckbContext(m) : true
+}
 async function codeHits(login, type) {
   const scope = type === 'Organization' ? 'org' : 'user'
   for (const q of CODE_SEARCHES) {
@@ -465,6 +481,37 @@ async function discoverLoop() {
   }
 }
 
+// ---------- new projects ----------
+// a followed public repository created in the last 14 days is news; each one is announced once, to the open pages and
+// to the browsers that asked for new projects. The ones present when this started are listed but not announced.
+const NEWS_DAYS = 14
+export function news(now = Date.now()) {
+  const followed = followedNow(now)
+  const out = []
+  for (const full of new Set([...(state.orgRepos || []), ...pollSet(), ...state.events.map((e) => e.repo)])) {
+    const r = state.repos[full]
+    if (!r?.createdAt || now - Date.parse(r.createdAt) > NEWS_DAYS * DAY || !followed(full)) continue
+    // announced as a CKB project only when it reads as one (or comes from a followed organisation)
+    if (!ownerSet.has(ownerOf(full).toLowerCase()) && !ckbContext({ name: full, description: r.desc, topics: r.topics })) continue
+    const at = state.announced?.[full]
+    out.push({ name: full, group: r.group, desc: r.desc || '', lang: r.lang || '', createdAt: r.createdAt, announcedAt: at > 1 ? at : null })
+  }
+  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+function announceNews() {
+  if (!typesReady) return
+  const list = news(), seeding = !state.announced
+  if (seeding) state.announced = {}
+  for (const n of list) {
+    if (state.announced[n.name]) continue
+    // the ones already there when this started are marked 1: known, never announced
+    state.announced[n.name] = seeding ? 1 : Date.now()
+    if (!seeding) { bus.emit('news', { ...n, announcedAt: state.announced[n.name] }); console.log(`news: ${n.name}`) }
+  }
+  for (const [k, at] of Object.entries(state.announced)) if (at > 1 && Date.now() - at > 60 * DAY) delete state.announced[k]
+}
+setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
+
 export function start() {
   load()
   ownerLoop().catch((e) => console.error('owner loop died', e))
@@ -588,6 +635,7 @@ export function snapshot() {
     },
     repos, groups,
     leaders: leaders(ev, now),
+    news: news(now),
     events: human.slice(-150).reverse(),
     // the last 24 hours, oldest first, for the replay and the timeline
     day: ev.filter((e) => e.at >= d1).map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: (e.title || '').slice(0, 90), bot: !!e.bot })),

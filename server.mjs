@@ -6,11 +6,12 @@ import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
 import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus } from './pulse.mjs'
-import { highlightsCard, repoCard, personCard, words } from './cards.mjs'
+import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.mjs'
+import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' }
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json' }
 const clients = new Set()
 
 // one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
@@ -84,13 +85,29 @@ function sendJson(req, res, obj) {
   res.end(gz ? zlib.gzipSync(body) : body)
 }
 
-bus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of clients) c.write(msg) })
+bus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of clients) c.write(msg); notifyEvent(e) })
+// a new project goes to every open page as its own kind of message, and to the browsers that asked for new projects
+bus.on('news', (n) => { const msg = `event: news\ndata: ${JSON.stringify(n)}\n\n`; for (const c of clients) c.write(msg); notifyNews(n) })
+initPush(process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data'))
+// the app icon, drawn once: four cells, two lit
+const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
+const icons = {}
+const icon = (size) => icons[size] || (icons[size] = rasterise(ICON_SVG.replace('viewBox', `width="${size}" height="${size}" viewBox`), size))
+function readJson(req, max, done) {
+  let body = ''
+  req.on('data', (c) => { body += c; if (body.length > max) req.destroy() })
+  req.on('end', () => { let j = null; try { j = JSON.parse(body) } catch {} done(j) })
+}
 setInterval(() => { for (const c of clients) c.write(': ping\n\n') }, 25e3).unref()
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x')
   if (url.pathname === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok') }
   if (url.pathname === '/' || url.pathname === '/index.html') { res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }); return res.end(page(req, url)) }
+  if (url.pathname === '/icon-192.png' || url.pathname === '/icon-512.png') { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); return res.end(icon(url.pathname.includes('512') ? 512 : 192)) }
+  if (url.pathname === '/api/push/key') return sendJson(req, res, { key: publicKey() })
+  if (url.pathname === '/api/push' && req.method === 'POST') return readJson(req, 16384, (j) => sendJson(req, res, subscribe(j)))
+  if (url.pathname === '/api/push/off' && req.method === 'POST') return readJson(req, 4096, (j) => sendJson(req, res, unsubscribe(j)))
   if (url.pathname.startsWith('/og/')) { shareCard(req, res, url).catch((err) => { console.warn('card', err.message); if (!res.headersSent) res.writeHead(500); res.end() }); return }
   if (url.pathname === '/version.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ v: BUILD })) }
   if (url.pathname === '/api/state') return sendJson(req, res, snapshot())

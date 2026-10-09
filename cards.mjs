@@ -92,8 +92,8 @@ function pills(list, x, y, maxW) {
   }
   return out
 }
-export function rasterise(svg) {
-  return new Resvg(svg, { fitTo: { mode: 'width', value: W }, font: { loadSystemFonts: true, defaultFontFamily: 'Inter' } }).render().asPng()
+export function rasterise(svg, width = W) {
+  return new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: true, defaultFontFamily: 'Inter' } }).render().asPng()
 }
 
 // the highlights of a period: counts, the project, the person and the organisation of the period, the activity
@@ -106,7 +106,7 @@ export async function highlightsCard({ leaders, period, lang, host, groupOf }) {
     let out = MEDAL(82, y - 8) + text(112, y - 18, 19, '#9aa38e', label)
     if (who) { out += await face(who.login, who.avatar, 130, y + 22, 18); out += text(160, y + 32, 30, '#eef3e2', clip(value, 30, 520), 'font-weight="700"') }
     else out += text(112, y + 24, 30, '#eef3e2', clip(value, 30, 560), 'font-weight="700"')
-    y += 76
+    y += 80
     return out
   }
   const repo = L.repos[0], person = L.people[0], org = L.orgs[0]

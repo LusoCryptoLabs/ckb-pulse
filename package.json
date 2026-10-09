@@ -12,6 +12,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@resvg/resvg-js": "^2.6.2"
+    "@resvg/resvg-js": "^2.6.2",
+    "web-push": "^3.6.7"
   }
 }
