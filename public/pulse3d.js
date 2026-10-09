@@ -142,6 +142,7 @@ function buildCells() {
   }
   layoutR = R + Math.max(...ring.map(half), 2)
   for (const c of clusters) {
+    if (MOBILE && c.list.length < 5) continue // small groups would pile their labels on a phone
     const div = document.createElement('div')
     div.className = 'lbl'
     div.textContent = c.g === 'builders' ? `Builders · ${c.list.length}` : `${c.g} · ${c.list.length}`
@@ -476,7 +477,8 @@ function fitDistance() {
   const { top, bottom, right } = hud()
   const v = THREE.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect)
   const tw = Math.tan(h) * (innerWidth - right - 24) / innerWidth, tv = Math.tan(v) * (innerHeight - top - bottom) / innerHeight
-  const r = layoutR + 3
+  // on a phone the whole ring would be tiny: frame the centre and let a pinch or a drag show the rest
+  const r = (layoutR + 3) * (MOBILE ? 0.55 : 1)
   return Math.max(r / tw, (r * 0.66) / tv)
 }
 const ELEV = 0.66 // about 38 degrees above the ground
