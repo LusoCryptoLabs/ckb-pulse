@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>CKB Pulse</title>
-<meta name="description" content="Live GitHub activity across the CKB ecosystem in 3D: every push, pull request, issue and release lights up its repository.">
+<meta name="description" content="Watch people build CKB, live: every project is a block that lights up when someone works on it.">
 <meta name="theme-color" content="#07090a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="pulse3d.css">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
 <script>
-  // no WebGL 2: the light 2D page
-  (() => { try { if (!document.createElement('canvas').getContext('webgl2')) location.replace('lite.html') } catch { location.replace('lite.html') } })()
+  // the page is drawn in 3D: without WebGL 2 it says so instead of failing quietly
+  (() => { let ok = false; try { ok = !!document.createElement('canvas').getContext('webgl2') } catch {} if (!ok) document.documentElement.classList.add('nogl') })()
 </script>
 </head>
 <body>
@@ -19,53 +19,66 @@
 
 <header class="hud top">
   <div class="brand">
-    <span class="live" id="live" title="connecting"></span>
-    <div><h1>CKB Pulse</h1><p>GitHub activity across the CKB ecosystem</p></div>
+    <span class="live" id="live"></span>
+    <div><h1>CKB Pulse</h1><p data-t="tagline"></p></div>
   </div>
   <div class="kpis">
-    <div><b id="k-hour">0</b><span>last hour</span></div>
-    <div><b id="k-day">0</b><span>last 24 h</span></div>
-    <div><b id="k-active">0</b><span>active repos</span></div>
-    <div><b id="k-people">0</b><span>people</span></div>
+    <div><b id="k-day">0</b><span data-t="k.updates"></span></div>
+    <div><b id="k-people">0</b><span data-t="k.people"></span></div>
+    <div><b id="k-active">0</b><span data-t="k.projects"></span></div>
+    <p class="kcap" id="k-cap"></p>
   </div>
   <div class="tools">
-    <div class="search"><input id="q" type="search" placeholder="Find a repo or a person" autocomplete="off" aria-label="Find a repository or a person"><ul id="results" role="listbox" hidden></ul></div>
-    <button type="button" class="icon" id="btn-full" title="Full screen" aria-label="Full screen">⛶</button>
-    <a class="icon" href="lite.html" title="Light 2D version" aria-label="Light 2D version">2D</a>
+    <div class="search" id="search"><input id="q" type="search" autocomplete="off" data-t-label="search"><ul id="results" role="listbox" hidden></ul></div>
+    <button type="button" class="icon only-narrow" id="btn-search" data-t-label="searchShort"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button type="button" class="icon filt-btn" id="btn-filters" aria-expanded="false" aria-controls="filters" data-t-label="filters"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M8.5 15h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="lbl-txt" data-t="filters"></span><b id="filt-n" hidden></b></button>
+    <button type="button" class="icon" id="btn-home" data-t-label="home"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10a5.5 5.5 0 1 0 1.8-4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 3.5v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" class="icon help" id="btn-help" data-t-label="help">?</button>
+    <button type="button" class="icon full" id="btn-full" data-t-label="full"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 </header>
 
-<nav class="hud chips" id="chips" aria-label="Filters"></nav>
+<section class="hud filters" id="filters" data-t-label="filters">
+  <h2 class="only-sheet" data-t="filters"></h2>
+  <div class="f-row"><span class="f-lbl only-sheet" data-t="f.kind"></span><div class="seg" id="fams" role="group" data-t-label="f.kind"></div></div>
+  <div class="f-row"><span class="f-lbl only-sheet" data-t="topic"></span><select id="topic" data-t-label="topic"></select></div>
+  <div class="f-row"><button type="button" class="switch" id="bots" aria-pressed="true"><i></i><span data-t="bots"></span><b id="bots-n"></b></button></div>
+  <button type="button" class="done only-sheet" id="filters-done" data-t="done"></button>
+</section>
 
 <aside class="hud side" id="side">
   <div class="tabs" role="tablist">
-    <button type="button" role="tab" aria-selected="true" data-tab="feed">Activity</button>
-    <button type="button" role="tab" aria-selected="false" data-tab="top">Top</button>
-    <button type="button" class="collapse" id="btn-side" aria-label="Hide panel">›</button>
+    <button type="button" role="tab" aria-selected="true" data-tab="feed" data-t="tab.feed"></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="top" data-t="tab.top"></button>
+    <button type="button" class="collapse" id="btn-side" data-t-label="side.toggle">›</button>
   </div>
   <ol class="feed" id="feed" data-pane="feed"></ol>
   <div class="top-pane" id="top" data-pane="top" hidden>
-    <h3>Most active repos</h3><ol id="top-repos"></ol>
-    <h3>Most active people</h3><ol id="top-people"></ol>
-    <p class="hint" id="top-window"></p>
+    <div class="seg small" id="hl-period" role="group"><button type="button" data-h="day" data-t="h.day"></button><button type="button" data-h="week" data-t="h.week"></button><button type="button" data-h="month" data-t="h.month"></button></div>
+    <div id="hl"></div>
+    <p class="hint" data-t="h.note"></p>
   </div>
 </aside>
 
-<aside class="hud drawer" id="drawer" hidden aria-label="Repository details">
-  <button type="button" class="close" id="drawer-close" aria-label="Close">×</button>
+<aside class="hud drawer" id="drawer" hidden>
+  <button type="button" class="close" id="drawer-close" data-t-label="close">×</button>
   <div id="drawer-body"></div>
 </aside>
 
-<div class="hud now" id="now"><span class="mode" id="mode">LIVE</span><span class="clock" id="clock"></span><span class="ticker" id="ticker">Connecting…</span></div>
+<div class="hud now" id="now"><span class="mode" id="mode"></span><span class="clock" id="clock"></span><span class="ticker" id="ticker"></span></div>
 
 <footer class="hud timeline">
   <div class="tl-controls">
-    <button type="button" id="btn-play" aria-label="Play">▶</button>
-    <button type="button" id="btn-live" class="go-live">LIVE</button>
-    <select id="speed" aria-label="Playback speed"><option value="600">10 min/s</option><option value="3600" selected>1 h/s</option><option value="14400">4 h/s</option></select>
-    <span class="tl-legend"><i class="h"></i>people <i class="b"></i>automation</span>
+    <button type="button" id="btn-play" data-t-label="tl.play">▶</button>
+    <div class="periods" id="periods" role="group" data-t-label="p.group">
+      <button type="button" data-p="live" class="p-live" data-t="p.live"></button>
+      <button type="button" data-p="day" data-t="p.day"></button>
+      <button type="button" data-p="week" data-t="p.week"></button>
+    </div>
+    <span class="tl-hint" data-t="tl.hint"></span>
+    <span class="tl-legend"><i class="h"></i><span data-t="people"></span> <i class="b"></i><span data-t="automatic"></span></span>
   </div>
-  <div class="track" id="track" role="slider" aria-label="Time" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+  <div class="track" id="track" role="slider" tabindex="0" data-t-label="tl.time" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
     <canvas id="bars"></canvas>
     <div class="window" id="window"></div>
     <div class="head" id="head"><span id="head-label"></span></div>
@@ -73,8 +86,32 @@
   </div>
 </footer>
 
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-h" hidden>
+  <div class="card">
+    <div class="langs" role="group" aria-label="Language / Língua"><button type="button" data-lang="en">EN</button><button type="button" data-lang="pt">PT</button></div>
+    <h2 id="intro-h" data-t="i.title"></h2>
+    <p class="lead" data-t="i.lead"></p>
+    <ul class="how">
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="5" y="19" width="7" height="10" rx="1.5" fill="#37401f"/><rect x="13.5" y="7" width="7" height="22" rx="1.5" fill="#cbf34d"/><rect x="22" y="14" width="7" height="15" rx="1.5" fill="#62c9f5"/></svg><span data-t="i.block"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="#1b2215" stroke="#cbf34d" stroke-width="2.5"/><circle cx="17" cy="14" r="4.5" fill="#cbf34d"/><path d="M9.5 26c2.5-5 12.5-5 15 0" stroke="#cbf34d" stroke-width="2.5" fill="none"/></svg><span data-t="i.face"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M3 27Q11 3 25 13" stroke="#f5b14c" stroke-width="2.2" stroke-dasharray="2 3.2" stroke-linecap="round" fill="none"/><circle cx="25.5" cy="13.5" r="4.5" fill="#f5b14c"/></svg><span data-t="i.comet"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="none" stroke="#cbf34d" stroke-width="2" opacity=".35"/><circle cx="17" cy="17" r="8" fill="none" stroke="#cbf34d" stroke-width="2" opacity=".7"/><circle cx="17" cy="17" r="3.5" fill="#eef3e2"/></svg><span data-t="i.hand"></span></li>
+    </ul>
+    <h3 data-t="i.colours"></h3>
+    <div class="legend" id="legend"></div>
+    <button type="button" class="primary" id="intro-go" data-t="i.go"></button>
+    <p class="fine"><a href="https://www.nervos.org" target="_blank" rel="noopener" data-t="i.what"></a></p>
+  </div>
+</div>
+
+<div class="nogl-msg" role="alert">
+  <h1>CKB Pulse</h1>
+  <p lang="en">This page is drawn in 3D and this browser cannot show it. An up-to-date Chrome, Edge, Firefox or Safari can.</p>
+  <p lang="pt">Esta página é desenhada em 3D e este navegador não a consegue mostrar. Um Chrome, Edge, Firefox ou Safari atualizado consegue.</p>
+</div>
+
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <p class="sr-only" id="sr" aria-live="polite"></p>
-<script type="module" src="pulse3d.js"></script>
+<script type="module">if (!document.documentElement.classList.contains('nogl')) import('./pulse3d.js')</script>
 </body>
 </html>

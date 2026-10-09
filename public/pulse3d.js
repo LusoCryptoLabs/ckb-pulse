@@ -1,6 +1,6 @@
-// CKB Pulse in 3D: repositories as columns of light, people as avatars in orbit, each event a comet from
-// the person to the repository. Time runs LIVE, REPLAY (the last 24 h when nothing is happening) or PAUSED
-// (wherever the timeline is dragged). Data: /api/state (7 days of compact history), /api/stream, /api/repo.
+// CKB Pulse in 3D: repositories as blocks of light, people as avatars above them, each update a comet from the person
+// to the project. Three ways to look: live, the last 24 hours, the last 7 days. The camera stays where the viewer puts it.
+// Data: /api/state (7 days of compact history, highlights, groups), /api/stream (live), /api/repo (one project).
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -9,40 +9,55 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
+import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
 
-const KIND = {
-  push: ['pushed', '#cbf34d'], pr_open: ['opened a PR', '#62c9f5'], pr_merged: ['merged a PR', '#a78bfa'], pr_closed: ['closed a PR', '#6b7260'],
-  issue_open: ['opened an issue', '#f5b14c'], issue_closed: ['closed an issue', '#6b7260'], comment: ['commented', '#7aa2f7'], review: ['reviewed', '#7aa2f7'],
-  release: ['released', '#ff6b8b'], repo: ['created a repo', '#ffffff'], star: ['starred', '#ffd166'], fork: ['forked', '#4fd1c5'], branch: ['opened a branch', '#9fb06a'], tag: ['tagged', '#9fb06a'],
-}
-const KIND_FILTERS = [['pr', 'pull requests', ['pr_open', 'pr_merged', 'pr_closed', 'review']], ['push', 'pushes', ['push']], ['issue', 'issues', ['issue_open', 'issue_closed', 'comment']], ['release', 'releases', ['release', 'tag', 'repo']]]
 const DAY = 864e5
 const IDLE_MS = 15000
-const REPLAY_MS = 90000
+const QUIET_MS = 10 * 60e3 // no update by people for this long: the day replays instead of a still scene
+const REFRESH_MS = 10 * 60e3 // new projects, new organisations and the highlights come with a fresh state
 const MOBILE = matchMedia('(max-width: 860px)').matches || matchMedia('(pointer: coarse)').matches
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-const verb = (k) => (KIND[k] || [k])[0]
-const kcol = (k) => (KIND[k] || KIND.push)[1]
-const fmtClock = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-const fmtDay = (t) => new Date(t).toLocaleDateString([], { weekday: 'short' }) + ' ' + fmtClock(t)
-function ago(t) {
-  const s = (Date.now() - t) / 1000
-  if (s < 60) return 'just now'
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`
-  const d = Math.floor(s / 86400); return d === 1 ? 'yesterday' : `${d} days ago`
+const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
+const MEDAL = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 1h3.2l1.3 4.2-3.1 1.2zM14.5 1h-3.2L10 5.2l3.1 1.2z" fill="#e0533d"/><circle cx="10" cy="12.6" r="6.2" fill="#f3c23a" stroke="#a8740c" stroke-width="1.2"/><path d="M10 9.2l1.05 2.1 2.3.33-1.67 1.62.4 2.3L10 14.47l-2.08 1.08.4-2.3-1.67-1.62 2.3-.33z" fill="#fff4cc"/></svg>'
+
+// ================= words =================
+let LANG = WORDS[store.get('lang')] ? store.get('lang') : (navigator.language || '').toLowerCase().startsWith('pt') ? 'pt' : 'en'
+const t = (k, v) => String(WORDS[LANG][k] ?? WORDS.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v?.[x] ?? '')
+const fam = (k) => KIND_FAMILY[k] || 'code'
+const kcol = (k) => FAMILY[fam(k)]
+const FAMS = Object.keys(FAMILY)
+const short = (name) => String(name || '').split('/').pop()
+const gname = (g) => groupName(g, { ...WORDS.en, ...WORDS[LANG] })
+const fmtClock = (x) => new Date(x).toLocaleTimeString(t('locale'), { hour: '2-digit', minute: '2-digit' })
+const fmtDay = (x) => new Date(x).toLocaleDateString(t('locale'), { weekday: 'short' }) + ' ' + fmtClock(x)
+function ago(x) {
+  const s = (Date.now() - x) / 1000
+  if (s < 60) return t('ago.now')
+  if (s < 3600) return t('ago.min', { n: Math.floor(s / 60) })
+  if (s < 86400) return t('ago.h', { n: Math.floor(s / 3600) })
+  const d = Math.floor(s / 86400); return d === 1 ? t('ago.day') : t('ago.days', { n: d })
 }
+const cnt = (base, n) => t(base + (n === 1 ? '.1' : '.n'), { n })
+// the words for the window on screen: the period, and the moment it ends when that is not now
+const shown = (base) => { const wk = T.period === 'week' ? 'week' : 'day'; return T.mode === 'live' || T.mode === 'done' ? t(base + wk) : t(base + wk + 'At', { time: fmtDay(T.t) }) }
+const when = () => shown('when.')
 
 // ================= data =================
 let S = null
 let repos = [] // from the server, plus repos first seen live
-let rows = [] // {t, k, r, a, b, title}
+let rows = [] // {t, k, r, a, b, title, c}
 let actors = [] // [login, avatar]
 const actorIdx = new Map()
-const filt = { tag: null, kind: null, bots: true }
-const T = { mode: 'live', t: Date.now(), playing: false, speed: 3600, lastLive: 0, lastUser: 0, ptr: 0, replay: null }
+const filt = { tag: null, fam: null, bots: true }
+// three ways to look: live, the last 24 hours, the last 7 days. A period plays from its start to now (mode replay),
+// holds the full picture (done), then plays again; dragging the timeline pauses anywhere in the week
+const PERIOD = { live: { span: DAY }, day: { span: DAY, ms: 90000 }, week: { span: 7 * DAY, ms: 120000 } }
+const T = { mode: 'live', period: 'live', t: Date.now(), rate: 1, auto: false, chosen: false, doneAt: 0, autoAt: 0, lastLive: 0, lastUser: 0, ptr: 0, holdTicker: 0 }
+const span = () => PERIOD[T.period].span
+let introOpen = false
+let hlPeriod = null // the highlights period picked by hand; until then it follows the period on screen
 
 function actorOf(login, avatar) {
   if (!actorIdx.has(login)) { actorIdx.set(login, actors.length); actors.push([login, avatar || '']) }
@@ -50,8 +65,10 @@ function actorOf(login, avatar) {
   if (avatar && !actors[i][1]) actors[i][1] = avatar
   return i
 }
-// avatars.githubusercontent.com answers by login with CORS open, so the image can become a WebGL texture (github.com/<login>.png redirects first)
-const avatarUrl = (i) => { const a = actors[i]?.[1]; return a ? a + (a.includes('?') ? '&' : '?') + 's=96' : `https://avatars.githubusercontent.com/${encodeURIComponent(actors[i]?.[0] || '')}?s=96` }
+// avatars.githubusercontent.com answers by login with CORS open, so the image can become a WebGL texture
+const ghAvatar = (login, avatar, s) => avatar ? avatar + (avatar.includes('?') ? '&' : '?') + 's=' + s : `https://avatars.githubusercontent.com/${encodeURIComponent(login || '')}?s=${s}`
+const avatarUrl = (i) => ghAvatar(actors[i]?.[0], actors[i]?.[1], 96)
+const stateRepo = (name) => S?.repos?.find((r) => r.name === name)
 
 // ================= scene =================
 const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: 'high-performance' })
@@ -68,9 +85,10 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color('#07090a')
 scene.fog = new THREE.FogExp2('#07090a', 0.011)
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 600)
+// the view only moves when the viewer moves it (or opens something to look at)
 const controls = new OrbitControls(camera, renderer.domElement)
-Object.assign(controls, { enableDamping: true, dampingFactor: 0.07, autoRotate: !REDUCED, autoRotateSpeed: 0.3, maxPolarAngle: 1.33, minDistance: 5, enablePan: true, screenSpacePanning: false })
-controls.addEventListener('start', () => { T.lastUser = Date.now(); controls.autoRotate = false })
+Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: false, maxPolarAngle: 1.33, minDistance: 5, enablePan: true, screenSpacePanning: false })
+controls.addEventListener('start', () => { T.lastUser = Date.now(); flight = null })
 
 scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.45))
 const sun = new THREE.DirectionalLight('#ffffff', 0.85)
@@ -104,6 +122,7 @@ const PITCH = 1.3
 let mesh = null
 const cell = [] // per repo: {x, z, h, hT, glow, flash: Color, base: Color, dim, dimT, hover, born}
 const groupLabels = []
+const groupCenter = new Map()
 let layoutR = 20
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpC = new THREE.Color()
 const DORMANT = new THREE.Color('#1c2412'), BOTCELL = new THREE.Color('#3b4330')
@@ -116,10 +135,13 @@ function spiral(n) {
   slots.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]) || Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0]))
   return { slots: slots.slice(0, n), w: cols * PITCH, d: rowsN * PITCH }
 }
+const isNewGroup = (g) => !!S?.groups?.find((x) => x.name === g)?.isNew
+function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))} · ${div.dataset.n}${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
 function buildCells() {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose() }
-  for (const l of groupLabels) l.parent.remove(l)
-  groupLabels.length = 0
+  for (const l of groupLabels) l.parent?.remove(l)
+  groupLabels.length = 0; groupCenter.clear(); cell.length = 0
+  if (!repos.length) return
   const groups = new Map()
   repos.forEach((r, i) => { if (!groups.has(r.group)) groups.set(r.group, []); groups.get(r.group).push(i) })
   const weekly = new Array(repos.length).fill(0)
@@ -127,7 +149,7 @@ function buildCells() {
   const clusters = [...groups.entries()].map(([g, list]) => { list.sort((a, b) => weekly[b] - weekly[a] || (repos[b].pushedAt || '').localeCompare(repos[a].pushedAt || '')); return { g, list, ...spiral(list.length) } })
   const center = clusters.find((c) => c.g === 'builders') || clusters.sort((a, b) => b.list.length - a.list.length)[0]
   const ring = clusters.filter((c) => c !== center).sort((a, b) => b.list.length - a.list.length)
-  const place = (c, cx, cz) => { c.cx = cx; c.cz = cz; c.list.forEach((ri, k) => { const [sx, sz] = c.slots[k]; cell[ri] = { ...(cell[ri] || {}), x: cx + sx * PITCH, z: cz + sz * PITCH } }) }
+  const place = (c, cx, cz) => { c.cx = cx; c.cz = cz; c.list.forEach((ri, k) => { const [sx, sz] = c.slots[k]; cell[ri] = { x: cx + sx * PITCH, z: cz + sz * PITCH } }) }
   place(center, 0, 0)
   const half = (c) => Math.hypot(c.w, c.d) / 2
   const R = half(center) + Math.max(...ring.map(half), 2) + 3.5
@@ -135,19 +157,21 @@ function buildCells() {
   let ang = -Math.PI / 2
   const step = (2 * Math.PI) / Math.max(total, 2 * Math.PI * R / 1.6)
   for (const c of ring) {
-    const span = (Math.max(c.w, c.d) + 3) * step
-    ang += span / 2
+    const sp = (Math.max(c.w, c.d) + 3) * step
+    ang += sp / 2
     place(c, Math.cos(ang) * R, Math.sin(ang) * R)
-    ang += span / 2
+    ang += sp / 2
   }
   layoutR = R + Math.max(...ring.map(half), 2)
   for (const c of clusters) {
-    if (MOBILE && c.list.length < 5) continue // small groups would pile their labels on a phone
+    groupCenter.set(c.g, { x: c.cx, z: c.cz, r: half(c) })
     const div = document.createElement('div')
     div.className = 'lbl'
-    div.textContent = c.g === 'builders' ? `Builders · ${c.list.length}` : `${c.g} · ${c.list.length}`
+    div.dataset.g = c.g; div.dataset.n = c.list.length
+    labelText(div)
     const o = new CSS2DObject(div)
     o.position.set(c.cx, 0.2, c.cz + c.d / 2 + 1.1)
+    o.userData.prio = 100 + c.list.length
     scene.add(o); groupLabels.push(o)
   }
   const geo = new RoundedBoxGeometry(1, 1, 1, 2, 0.14)
@@ -160,7 +184,7 @@ function buildCells() {
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array((repos.length + 64) * 3), 3)
   mesh.instanceColor.setUsage(THREE.DynamicDrawUsage)
   scene.add(mesh)
-  repos.forEach((r, i) => { const c = cell[i]; Object.assign(c, { h: c.h ?? 0.01, hT: 0.25, glow: 0, flash: new THREE.Color('#ffffff'), base: DORMANT.clone(), dim: 1, dimT: 1, hover: 0, born: performance.now() + Math.hypot(c.x, c.z) * 18 }) })
+  repos.forEach((r, i) => { Object.assign(cell[i], { h: 0.01, hT: 0.25, glow: 0, flash: new THREE.Color('#ffffff'), base: DORMANT.clone(), dim: 1, dimT: 1, hover: 0, born: performance.now() + Math.hypot(cell[i].x, cell[i].z) * 18 }) })
 }
 function addRepo(r) {
   // a repository first seen live: a new cell on the outer ring
@@ -172,42 +196,42 @@ function addRepo(r) {
   return i
 }
 
-// ================= the window [t - 24 h, t] =================
-const W = { n: [], b: [], last: [], people: new Map(), hour: 0, day: 0, tags: {}, kinds: {} }
+// ================= the window on screen =================
+const W = { n: [], b: [], last: [], bits: [], people: new Map(), day: 0, bots: 0, fams: {} }
 function computeWindow() {
-  const t1 = T.t, t0 = t1 - DAY, h0 = t1 - 3600e3
-  W.n = new Array(repos.length).fill(0); W.b = new Array(repos.length).fill(0); W.last = new Array(repos.length).fill(null)
-  W.people = new Map(); W.hour = 0; W.day = 0; W.tags = {}; W.kinds = {}
+  const t1 = T.t, t0 = t1 - span(), scale = T.period === 'week' ? 0.3 : 1
+  W.n = new Array(repos.length).fill(0); W.b = new Array(repos.length).fill(0); W.last = new Array(repos.length).fill(null); W.bits = new Array(repos.length).fill(0)
+  W.people = new Map(); W.day = 0; W.bots = 0; W.fams = {}
   for (const w of rows) {
     if (w.t > t1) break
     if (w.t < t0 || w.r < 0) continue
-    if (w.b) { W.b[w.r]++; continue }
-    W.n[w.r]++; W.last[w.r] = w.k; W.day++
-    if (w.t >= h0) W.hour++
+    if (w.b) { W.b[w.r]++; W.bots++; continue }
+    const f = fam(w.k)
+    W.n[w.r]++; W.last[w.r] = w.k; W.day++; W.bits[w.r] |= 1 << FAMS.indexOf(f)
     W.people.set(w.a, (W.people.get(w.a) || 0) + 1)
-    for (const tg of repos[w.r].tags || []) W.tags[tg] = (W.tags[tg] || 0) + 1
-    W.kinds[w.k] = (W.kinds[w.k] || 0) + 1
+    W.fams[f] = (W.fams[f] || 0) + 1
   }
   repos.forEach((r, i) => {
     const c = cell[i]
     if (!c) return
-    if (W.n[i]) { c.base.set(kcol(W.last[i])).multiplyScalar(0.55 + Math.min(0.9, 0.12 * W.n[i])); c.hT = 0.45 + 0.85 * Math.log2(1 + W.n[i]) }
+    if (W.n[i]) { const n = W.n[i] * scale; c.base.set(kcol(W.last[i])).multiplyScalar(0.55 + Math.min(0.9, 0.12 * n)); c.hT = 0.45 + 0.85 * Math.log2(1 + n) }
     else if (W.b[i]) { c.base.copy(BOTCELL); c.hT = 0.32 }
     else { c.base.copy(DORMANT); c.hT = 0.22 }
   })
   applyFilter()
-  kpis(); chips(); topLists(); people()
+  kpis(); filterCounts(); people()
 }
 function matches(ri, k) {
   if (ri < 0) return false
   if (filt.tag && !(repos[ri].tags || []).includes(filt.tag)) return false
-  if (filt.kind && k && !KIND_FILTERS.find((f) => f[0] === filt.kind)[2].includes(k)) return false
-  if (filt.kind && !k) return KIND_FILTERS.find((f) => f[0] === filt.kind)[2].includes(W.last[ri])
+  if (filt.fam && k) return fam(k) === filt.fam
+  if (filt.fam) return !!(W.bits[ri] & (1 << FAMS.indexOf(filt.fam)))
   return true
 }
-function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filt.tag && !filt.kind ? 1 : matches(i) ? 1 : 0.12 }) }
+const filtering = () => !!(filt.tag || filt.fam)
+function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }) }
 
-// ================= HUD =================
+// ================= numbers =================
 const tween = new Map()
 function setNum(id, v) {
   const el = $(id), from = +el.dataset.v || 0
@@ -222,49 +246,63 @@ function stepTweens(now) {
   }
 }
 function kpis() {
-  setNum('k-hour', W.hour); setNum('k-day', W.day)
-  setNum('k-active', W.n.filter(Boolean).length); setNum('k-people', W.people.size)
+  setNum('k-day', W.day); setNum('k-people', W.people.size); setNum('k-active', W.n.filter(Boolean).length)
+  $('k-cap').textContent = shown('k.')
 }
-function chips() {
-  const tags = Object.entries(W.tags).sort((a, b) => b[1] - a[1])
-  const kinds = KIND_FILTERS.map(([id, label, ks]) => [id, label, ks.reduce((s, k) => s + (W.kinds[k] || 0), 0), kcol(ks[0])])
-  $('chips').innerHTML = tags.map(([t, n]) => `<button type="button" data-tag="${esc(t)}" aria-pressed="${filt.tag === t}">${esc(t)}<b>${n}</b></button>`).join('') +
-    '<span class="sep"></span>' + kinds.map(([id, label, n, col]) => `<button type="button" data-kind="${id}" aria-pressed="${filt.kind === id}"><i style="background:${col}"></i>${label}<b>${n}</b></button>`).join('') +
-    `<span class="sep"></span><button type="button" data-bots="1" aria-pressed="${filt.bots}"><i style="background:#8b9480"></i>automation</button>`
+
+// ================= filters =================
+// built once per language, so an open topic list is never rebuilt under the finger; the counts update in place
+function buildFilters() {
+  $('fams').innerHTML = `<button type="button" data-fam="">${esc(t('f.all'))}</button>` +
+    FAMS.map((f) => `<button type="button" data-fam="${f}"><i style="background:${FAMILY[f]}"></i>${esc(t('fam.' + f))}<b></b></button>`).join('')
+  $('topic').innerHTML = `<option value="">${esc(t('topic.all'))}</option>` + TAGS.map((g) => `<option value="${esc(g)}">${esc(t('tag.' + g))}</option>`).join('')
+  $('topic').value = filt.tag || ''
+  syncFilters(); filterCounts()
 }
-$('chips').addEventListener('click', (e) => {
+function syncFilters() {
+  for (const b of $('fams').querySelectorAll('button')) b.setAttribute('aria-pressed', String((b.dataset.fam || null) === filt.fam))
+  $('topic').classList.toggle('on', !!filt.tag)
+  $('bots').setAttribute('aria-pressed', String(filt.bots))
+  const n = (filt.fam ? 1 : 0) + (filt.tag ? 1 : 0) + (filt.bots ? 0 : 1)
+  $('filt-n').hidden = !n; $('filt-n').textContent = n
+}
+function filterCounts() {
+  for (const b of $('fams').querySelectorAll('button[data-fam]')) { const x = b.querySelector('b'); if (x) x.textContent = W.fams[b.dataset.fam] || 0 }
+  $('bots-n').textContent = W.bots
+}
+$('fams').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return
-  if (b.dataset.tag) filt.tag = filt.tag === b.dataset.tag ? null : b.dataset.tag
-  if (b.dataset.kind) filt.kind = filt.kind === b.dataset.kind ? null : b.dataset.kind
-  if (b.dataset.bots) filt.bots = !filt.bots
-  applyFilter(); chips(); feed()
+  const f = b.dataset.fam || null
+  filt.fam = filt.fam === f ? null : f
+  syncFilters(); applyFilter(); feed()
 })
-function topLists() {
-  const tr = W.n.map((n, i) => [i, n]).filter((x) => x[1]).sort((a, b) => b[1] - a[1]).slice(0, 8)
-  const tp = [...W.people.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
-  const mr = tr[0]?.[1] || 1, mp = tp[0]?.[1] || 1
-  $('top-repos').innerHTML = tr.map(([i, n]) => `<li data-repo="${i}"><span class="sw" style="background:${kcol(W.last[i])}"></span><span>${esc(repos[i].name)}</span><b>${n}</b><div class="bar"><i style="width:${(n / mr) * 100}%"></i></div></li>`).join('') || '<li>Nothing in this window.</li>'
-  $('top-people').innerHTML = tp.map(([a, n]) => `<li data-person="${a}"><img src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(actors[a][0])}</span><b>${n}</b><div class="bar"><i style="width:${(n / mp) * 100}%"></i></div></li>`).join('')
-  $('top-window').textContent = `24 hours up to ${fmtDay(T.t)}`
+$('topic').addEventListener('change', () => { filt.tag = $('topic').value || null; syncFilters(); applyFilter(); feed() })
+$('bots').addEventListener('click', () => { filt.bots = !filt.bots; syncFilters() })
+function openFilters(on) {
+  $('filters').classList.toggle('open', on)
+  $('btn-filters').setAttribute('aria-expanded', String(on))
+  if (on) closeSearch()
 }
-$('top').addEventListener('click', (e) => {
-  const li = e.target.closest('li'); if (!li) return
-  if (li.dataset.repo) openRepo(+li.dataset.repo)
-  if (li.dataset.person) openPerson(+li.dataset.person)
-})
+$('btn-filters').addEventListener('click', () => openFilters(!$('filters').classList.contains('open')))
+$('filters-done').addEventListener('click', () => openFilters(false))
+
+// ================= side panel: latest and highlights =================
 function feed() {
   const list = []
   for (let i = rows.length - 1; i >= 0 && list.length < 60; i--) {
     const w = rows[i]
     if (w.t > T.t || w.b || w.r < 0) continue
-    if ((filt.tag || filt.kind) && !matches(w.r, w.k)) continue
+    if (filtering() && !matches(w.r, w.k)) continue
     list.push(w)
   }
   $('feed').innerHTML = list.map((w) => feedItem(w, false)).join('')
 }
+// one plain sentence per update: who, what, which project; the GitHub title underneath
 function feedItem(w, isNew) {
+  const r = repos[w.r]
   const title = w.title ? `<div class="title">${w.url ? `<a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a>` : esc(w.title)}</div>` : ''
-  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><i class="k" style="background:${kcol(w.k)}"></i><b>${esc(actors[w.a][0])}</b> ${verb(w.k)} in <span class="repo" data-repo="${w.r}">${esc(repos[w.r].name)}</span></div>${title}<div class="meta">${T.mode === 'live' ? ago(w.t) : fmtDay(w.t)}</div></div></li>`
+  const did = t('v.' + w.k, { repo: `<span class="repo" data-repo="${w.r}">${esc(short(r.name))}</span>` })
+  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" style="background:${kcol(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
 }
 $('feed').addEventListener('click', (e) => { const r = e.target.closest('[data-repo]'); if (r) openRepo(+r.dataset.repo) })
 for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', () => {
@@ -274,23 +312,67 @@ for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListene
 })
 $('btn-side').addEventListener('click', () => $('side').classList.toggle('closed'))
 if (MOBILE) $('side').classList.add('closed')
-function setNow(mode, clock, text) {
-  $('mode').textContent = mode
-  $('now').classList.toggle('replay', mode.startsWith('REPLAY'))
-  $('now').classList.toggle('paused', mode === 'PAUSED' || mode === 'PLAYING')
-  $('clock').textContent = clock
-  if (text != null) { $('ticker').textContent = text; $('sr').textContent = text }
-  $('btn-live').classList.toggle('on', T.mode === 'live')
-}
-const line = (w) => `${actors[w.a][0]} ${verb(w.k)} in ${repos[w.r]?.name}${w.title ? `: ${w.title}` : ''}`
 
-// ================= people in orbit =================
+// the most active projects, people and organisations of the last day, week and month, from the server
+const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['people', 'person'], ['peopleCommits', 'person'], ['orgs', 'org']]
+const hlKey = () => hlPeriod || (T.period === 'week' ? 'week' : 'day')
+let hlShown = null
+function renderHighlights() {
+  const L = S?.leaders; if (!L) return
+  const k = hlShown = hlKey()
+  for (const b of $('hl-period').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.h === k))
+  $('hl').innerHTML = HL_CATS.map(([cat, type]) => {
+    const items = (L[k]?.[cat] || []).filter((x) => x[1] > 0).map(([name, n, av], i) => {
+      const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
+      if (type === 'repo') return `<li data-repo-name="${esc(name)}">${rk}<i class="sw" style="background:${kcol(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></li>`
+      if (type === 'person') return `<li data-login="${esc(name)}" data-avatar="${esc(av || '')}">${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}</span><b>${n}</b></li>`
+      return `<li data-group="${esc(name)}">${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></li>`
+    }).join('')
+    return `<h3>${esc(t('h.' + cat))}</h3><ol class="hl">${items || `<li class="none">${esc(t('h.empty'))}</li>`}</ol>`
+  }).join('')
+}
+$('hl-period').addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (b) { hlPeriod = b.dataset.h; renderHighlights() } })
+$('hl').addEventListener('click', (e) => {
+  const li = e.target.closest('li'); if (!li) return
+  if (li.dataset.repoName) { const i = repos.findIndex((r) => r.name === li.dataset.repoName); if (i >= 0) openRepo(i) }
+  if (li.dataset.login) openPerson(actorOf(li.dataset.login, li.dataset.avatar))
+  if (li.dataset.group) { const c = groupCenter.get(li.dataset.group); if (c) flyTo(c.x, c.z, Math.max(16, c.r * 3.2)) }
+})
+// the medals one project or one person holds, longest period first
+function badgesFor(name, cats, extra = '') {
+  const L = S?.leaders
+  const out = []
+  if (L) for (const p of ['month', 'week', 'day']) for (const c of cats) { const w = L[p]?.[c]?.[0]; if (w && w[0] === name && w[1] > 0) out.push(`<span class="badge">${MEDAL}${esc(t(`b.${c}.${p}`))}</span>`) }
+  if (extra) out.push(extra)
+  return out.length ? `<div class="badges">${out.join('')}</div>` : ''
+}
+
+// ================= the strip above the timeline =================
+function setNow(clock, text) {
+  $('mode').textContent = t(T.mode === 'paused' ? 'mode.paused' : 'mode.' + T.period)
+  $('now').classList.toggle('replay', T.mode === 'replay' || T.mode === 'done')
+  $('now').classList.toggle('paused', T.mode === 'paused')
+  $('clock').textContent = clock
+  if (text != null && performance.now() > T.holdTicker) { $('ticker').textContent = text; $('sr').textContent = text }
+  for (const b of $('periods').querySelectorAll('[data-p]')) b.setAttribute('aria-pressed', String(b.dataset.p === T.period))
+  if (hlKey() !== hlShown) renderHighlights()
+}
+const line = (w) => `${actors[w.a][0]} ${t('v.' + w.k, { repo: short(repos[w.r]?.name) })}${w.title ? `: ${w.title}` : ''}`
+function liveText() {
+  const last = [...rows].reverse().find((w) => !w.b && w.r >= 0)
+  if (!last) return t('waiting')
+  return Date.now() - last.t > QUIET_MS ? t('quiet', { ago: ago(last.t), line: line(last) }) : t('recent', { line: line(last), ago: ago(last.t) })
+}
+
+// ================= people above the scene =================
 const peopleGroup = new THREE.Group()
 scene.add(peopleGroup)
-const sprites = new Map() // actor index -> sprite
-const texCache = new Map()
-function avatarTexture(a) {
-  if (texCache.has(a)) return texCache.get(a)
+const sprites = new Map() // login -> sprite
+const texCache = new Map() // login -> texture
+let personWins = new Map() // login -> the longest period this person leads
+const personBadges = new Set()
+function avatarTexture(login, avatar) {
+  if (texCache.has(login)) return texCache.get(login)
   const c = document.createElement('canvas'); c.width = c.height = 128
   const g = c.getContext('2d')
   const tex = new THREE.CanvasTexture(c)
@@ -298,49 +380,94 @@ function avatarTexture(a) {
   const draw = (img) => {
     g.clearRect(0, 0, 128, 128)
     g.save(); g.beginPath(); g.arc(64, 64, 56, 0, Math.PI * 2); g.clip()
-    if (img) g.drawImage(img, 8, 8, 112, 112); else { g.fillStyle = '#1b2215'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#cbf34d'; g.font = 'bold 52px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((actors[a][0][0] || '?').toUpperCase(), 64, 68) }
+    if (img) g.drawImage(img, 8, 8, 112, 112); else { g.fillStyle = '#1b2215'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#cbf34d'; g.font = 'bold 52px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((login[0] || '?').toUpperCase(), 64, 68) }
     g.restore(); g.lineWidth = 6; g.strokeStyle = '#cbf34d'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.stroke()
     tex.needsUpdate = true
   }
   draw(null)
-  const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => draw(img); img.src = avatarUrl(a)
-  texCache.set(a, tex)
+  const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => draw(img); img.src = ghAvatar(login, avatar, 96)
+  texCache.set(login, tex)
   return tex
 }
-let orbit = 0
+// each person keeps one place on the ring (the golden angle from a hash of the login), so nobody swaps seats as counts change
+function seat(login) { let h = 0; for (const ch of login) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h }
 function people() {
   const top = [...W.people.entries()].sort((x, y) => y[1] - x[1]).slice(0, MOBILE ? 16 : 32)
-  const keep = new Set(top.map(([a]) => a))
-  for (const [a, s] of sprites) if (!keep.has(a)) { s.userData.leaving = true }
+  const keep = new Set(top.map(([a]) => actors[a][0]))
+  for (const [login, s] of sprites) if (!keep.has(login)) s.userData.leaving = true
   const R = layoutR + 4, max = top[0]?.[1] || 1
-  top.forEach(([a, n], i) => {
-    let s = sprites.get(a)
+  for (const [a, n] of top) {
+    const login = actors[a][0]
+    let s = sprites.get(login)
     if (!s) {
-      s = new THREE.Sprite(new THREE.SpriteMaterial({ map: avatarTexture(a), transparent: true, depthWrite: false, opacity: 0 }))
-      s.userData = { a }
-      sprites.set(a, s); peopleGroup.add(s)
+      s = new THREE.Sprite(new THREE.SpriteMaterial({ map: avatarTexture(login, actors[a][1]), transparent: true, depthWrite: false, opacity: 0 }))
+      const h = seat(login)
+      s.userData = { login, ang: (h % 997) * 2.39996, R: R + (h % 3) * 1.8, y: 7 + ((h >> 3) % 3) * 1.6 }
+      sprites.set(login, s); peopleGroup.add(s)
+      tmpP.set(Math.cos(s.userData.ang) * s.userData.R, s.userData.y, Math.sin(s.userData.ang) * s.userData.R); s.position.copy(tmpP)
     }
     s.userData.leaving = false
-    s.userData.ang = (i / top.length) * Math.PI * 2
     s.userData.size = 1.1 + 1.6 * Math.sqrt(n / max)
     s.userData.n = n
-    s.userData.R = R + (i % 2) * 2.2
-    s.userData.y = 7 + (i % 3) * 1.6
-  })
+    personBadge(s)
+  }
+}
+function personBadge(s) {
+  const p = personWins.get(s.userData.login)
+  if (s.userData.badge && s.userData.badge.userData.p !== p) { s.remove(s.userData.badge); personBadges.delete(s.userData.badge); s.userData.badge = null }
+  if (!p || s.userData.badge) return
+  const div = document.createElement('div'); div.className = 'badge3d'; div.innerHTML = MEDAL + esc(t(`b.people.${p}`))
+  const o = new CSS2DObject(div); o.position.set(0, 0.78, 0); o.userData = { p, prio: 900 + ['day', 'week', 'month'].indexOf(p) }
+  s.add(o); s.userData.badge = o; personBadges.add(o)
 }
 function stepPeople(dt) {
-  if (!REDUCED) orbit += dt * 0.04
-  for (const [a, s] of sprites) {
+  const now = performance.now()
+  for (const [login, s] of sprites) {
     const u = s.userData
-    const target = u.leaving ? 0 : 1
-    s.material.opacity += (target - s.material.opacity) * Math.min(1, dt * 3)
-    if (u.leaving && s.material.opacity < 0.02) { peopleGroup.remove(s); s.material.dispose(); sprites.delete(a); continue }
-    const ang = u.ang + orbit
-    tmpP.set(Math.cos(ang) * u.R, u.y + Math.sin(performance.now() / 1400 + u.ang * 3) * 0.25, Math.sin(ang) * u.R)
-    s.position.lerp(tmpP, Math.min(1, dt * 2.5))
+    s.material.opacity += ((u.leaving ? 0 : 1) - s.material.opacity) * Math.min(1, dt * 3)
+    if (u.leaving && s.material.opacity < 0.02) {
+      if (u.badge) { s.remove(u.badge); personBadges.delete(u.badge) }
+      peopleGroup.remove(s); s.material.dispose(); sprites.delete(login); continue
+    }
+    s.position.y = u.y + (REDUCED ? 0 : Math.sin(now / 1400 + u.ang * 3) * 0.25)
     const sz = u.size * (1 + (u.flare || 0) * 0.5)
     s.scale.set(sz, sz, 1)
     u.flare = Math.max(0, (u.flare || 0) - dt * 2)
+  }
+}
+
+// ================= medals and new projects in the scene =================
+const sceneBadges = [] // CSS2D objects that follow a cell
+function placeBadges() {
+  for (const o of sceneBadges) o.parent?.remove(o)
+  sceneBadges.length = 0
+  const L = S?.leaders
+  const best = (cat) => { const m = new Map(); if (L) for (const p of ['day', 'week', 'month']) { const w = L[p]?.[cat]?.[0]; if (w && w[1] > 0) m.set(w[0], p) } return m }
+  personWins = best('people')
+  for (const s of sprites.values()) { if (s.userData.badge) { s.remove(s.userData.badge); personBadges.delete(s.userData.badge); s.userData.badge = null } personBadge(s) }
+  const repoWins = best('repos')
+  const pin = (name, html, cls, prio) => {
+    const i = repos.findIndex((r) => r.name === name); if (i < 0 || !cell[i]) return
+    const div = document.createElement('div'); div.className = cls; div.innerHTML = html
+    const o = new CSS2DObject(div); o.userData = { cell: i, prio }
+    scene.add(o); sceneBadges.push(o)
+  }
+  for (const [name, p] of repoWins) pin(name, MEDAL + esc(t(`b.repos.${p}`)), 'badge3d', 1000 + ['day', 'week', 'month'].indexOf(p))
+  const fresh = (S?.repos || []).filter((r) => r.isNew && !repoWins.has(r.name)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6)
+  for (const r of fresh) pin(r.name, esc(t('new.repo')), 'new3d', 50)
+}
+// names, medals and tags never sit on top of each other or under a panel: the more important one stays
+const overlap = (a, b, m = 0) => a.left < b.right + m && a.right + m > b.left && a.top < b.bottom + m && a.bottom + m > b.top
+function cull() {
+  const panels = [...document.querySelectorAll('.hud, .intro')].filter((el) => { if (el.hidden) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden' }).map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height)
+  const items = [...groupLabels, ...sceneBadges, ...personBadges].filter((o) => o.element.isConnected && o.element.style.display !== 'none')
+  items.sort((a, b) => b.userData.prio - a.userData.prio)
+  const placed = []
+  for (const o of items) {
+    const r = o.element.getBoundingClientRect()
+    const hide = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2 || panels.some((p) => overlap(r, p)) || placed.some((p) => overlap(r, p, 4))
+    o.element.classList.toggle('culled', hide)
+    if (!hide) placed.push(r)
   }
 }
 
@@ -353,7 +480,7 @@ function comet(w) {
   const c = cell[w.r]
   if (!c) return
   const color = new THREE.Color(kcol(w.k))
-  const s = sprites.get(w.a)
+  const s = sprites.get(actors[w.a]?.[0])
   const start = s ? s.position.clone() : new THREE.Vector3(Math.cos(Math.random() * 6.28) * (layoutR + 4), 9, Math.sin(Math.random() * 6.28) * (layoutR + 4))
   if (s) s.userData.flare = 1
   const end = new THREE.Vector3(c.x, Math.max(c.h, 0.4) + 0.2, c.z)
@@ -369,7 +496,7 @@ function comet(w) {
   scene.add(head); scene.add(trail)
   comets.push({ w, head, trail, start, mid, end, color, t: 0, dur: 1.1 + Math.random() * 0.4 })
 }
-const curve = (a, m, b, t, out) => out.set((1 - t) ** 2 * a.x + 2 * (1 - t) * t * m.x + t * t * b.x, (1 - t) ** 2 * a.y + 2 * (1 - t) * t * m.y + t * t * b.y, (1 - t) ** 2 * a.z + 2 * (1 - t) * t * m.z + t * t * b.z)
+const curve = (a, m, b, k, out) => out.set((1 - k) ** 2 * a.x + 2 * (1 - k) * k * m.x + k * k * b.x, (1 - k) ** 2 * a.y + 2 * (1 - k) * k * m.y + k * k * b.y, (1 - k) ** 2 * a.z + 2 * (1 - k) * k * m.z + k * k * b.z)
 function stepComets(dt) {
   for (let i = comets.length - 1; i >= 0; i--) {
     const c = comets[i]
@@ -419,28 +546,28 @@ function stepFx(dt, now) {
 function fire(w) {
   if (w.r < 0) return
   if (w.b) { spark(w); return }
-  if ((filt.tag || filt.kind) && !matches(w.r, w.k)) return
+  if (filtering() && !matches(w.r, w.k)) return
   comet(w)
 }
 
 // ================= interaction =================
 const ray = new THREE.Raycaster()
 const ptr = new THREE.Vector2(), ptrPx = { x: 0, y: 0, in: false }
-let hovered = -1, hoveredPerson = null, down = null
+let hovered = -1, down = null
 renderer.domElement.addEventListener('pointermove', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrPx.x = e.clientX; ptrPx.y = e.clientY; ptrPx.in = true })
 renderer.domElement.addEventListener('pointerleave', () => { ptrPx.in = false; $('tip').hidden = true })
-renderer.domElement.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1) })
+renderer.domElement.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); openFilters(false); closeSearch() })
 renderer.domElement.addEventListener('pointerup', (e) => {
   if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 450) return
   ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
   const pick = pickAt()
-  if (pick.person != null) openPerson(pick.person)
+  if (pick.person) openPerson(actorIdx.get(pick.person))
   else if (pick.cell >= 0) openRepo(pick.cell)
 })
 function pickAt() {
   ray.setFromCamera(ptr, camera)
   const ps = ray.intersectObjects(peopleGroup.children, false)
-  if (ps.length) return { person: ps[0].object.userData.a, cell: -1 }
+  if (ps.length) return { person: ps[0].object.userData.login, cell: -1 }
   const hits = mesh ? ray.intersectObject(mesh, false) : []
   return { person: null, cell: hits.length ? hits[0].instanceId : -1 }
 }
@@ -449,14 +576,14 @@ function stepHover() {
   const p = pickAt()
   const tip = $('tip')
   if (hovered >= 0 && cell[hovered]) cell[hovered].hover = 0
-  hovered = p.cell; hoveredPerson = p.person
-  if (p.person != null) {
-    const n = W.people.get(p.person) || 0
-    tip.innerHTML = `<b>${esc(actors[p.person][0])}</b><span>${n} events in the 24 h up to ${fmtClock(T.t)}</span>`
+  hovered = p.cell
+  if (p.person) {
+    const n = W.people.get(actorIdx.get(p.person)) || 0
+    tip.innerHTML = `<b>${esc(p.person)}</b><span>${esc(t('tip.person', { updates: cnt('upd', n), when: when() }))}</span><em>${esc(t('tip.open'))}</em>`
   } else if (p.cell >= 0) {
     cell[p.cell].hover = 1
-    const r = repos[p.cell]
-    tip.innerHTML = `<b>${esc(r.name)}</b>${r.desc ? `<span>${esc(r.desc)}</span>` : ''}<span>${W.n[p.cell] ? `${W.n[p.cell]} events by people in the 24 h up to ${fmtClock(T.t)}` : 'quiet in this window'}${W.b[p.cell] ? ` · ${W.b[p.cell]} automated` : ''}</span>`
+    const r = repos[p.cell], n = W.n[p.cell], b = W.b[p.cell]
+    tip.innerHTML = `<b>${esc(short(r.name))}</b><span class="g">${esc(gname(r.group))}</span>${r.desc ? `<span>${esc(r.desc)}</span>` : ''}<span>${esc(n ? t('tip.repo', { updates: cnt('upd', n), when: when() }) : t('tip.quiet', { when: when() }))}${b ? ` · ${esc(cnt('auto', b))}` : ''}</span><em>${esc(t('tip.open'))}</em>`
   } else { tip.hidden = true; renderer.domElement.style.cursor = ''; return }
   renderer.domElement.style.cursor = 'pointer'
   tip.hidden = false
@@ -464,37 +591,51 @@ function stepHover() {
   tip.style.left = `${Math.min(innerWidth - w - 8, ptrPx.x + 14)}px`
   tip.style.top = `${ptrPx.y + h + 24 > innerHeight ? ptrPx.y - h - 12 : ptrPx.y + 18}px`
 }
-// the HUD covers the top, the bottom and (on wide screens) the right: centre the scene in what is left
+
+// ================= framing =================
+// the panels cover the top, the bottom and (on wide screens) the right: measure them and centre the scene in what is left
+const box = (sel) => document.querySelector(sel).getBoundingClientRect()
 function hud() {
-  const right = !MOBILE && (!$('side').classList.contains('closed') || !$('drawer').hidden) ? 400 : 0
-  return { top: MOBILE ? 150 : 112, bottom: MOBILE ? 215 : 186, right }
+  const top = Math.max(box('.top').bottom, innerWidth >= 1340 ? box('#filters').bottom : 0) + 6
+  const bottom = MOBILE ? 180 + $('now').offsetHeight + 8 : innerHeight - box('#now').top + 8
+  const right = !MOBILE && (!$('side').classList.contains('closed') || !$('drawer').hidden) ? $('side').offsetWidth + 32 : 0
+  return { top, bottom, right }
+}
+function updateLayout() {
+  document.documentElement.style.setProperty('--top', `${Math.round(box('.top').bottom + 6)}px`)
+  updateView()
 }
 function updateView() {
   const { top, bottom, right } = hud()
   camera.setViewOffset(innerWidth, innerHeight, right / 2, (bottom - top) / 2, innerWidth, innerHeight)
+  camera.updateProjectionMatrix()
 }
 function fitDistance() {
   const { top, bottom, right } = hud()
   const v = THREE.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect)
-  const tw = Math.tan(h) * (innerWidth - right - 24) / innerWidth, tv = Math.tan(v) * (innerHeight - top - bottom) / innerHeight
+  const tw = Math.tan(h) * (innerWidth - right - 24) / innerWidth, tv = Math.tan(v) * Math.max(120, innerHeight - top - bottom) / innerHeight
   // on a phone the whole ring would be tiny: frame the centre and let a pinch or a drag show the rest
   const r = (layoutR + 3) * (MOBILE ? 0.55 : 1)
   return Math.max(r / tw, (r * 0.66) / tv)
 }
 const ELEV = 0.66 // about 38 degrees above the ground
+const home = { p: new THREE.Vector3(), t: new THREE.Vector3() }
+function setHome() { const d = fitDistance(); home.p.set(0, d * Math.sin(ELEV), d * Math.cos(ELEV)); home.t.set(0, 0, 0); controls.maxDistance = d * 2.5 }
+function drawerShown() { document.body.classList.toggle('drawer-open', !$('drawer').hidden); updateView() }
 new MutationObserver(updateView).observe($('side'), { attributes: true, attributeFilter: ['class'] })
-new MutationObserver(updateView).observe($('drawer'), { attributes: true, attributeFilter: ['hidden'] })
+new MutationObserver(drawerShown).observe($('drawer'), { attributes: true, attributeFilter: ['hidden'] })
 
-// camera flight to a cell
+// camera flights: to a project, to a group, back home
 let flight = null
 function flyTo(x, z, dist = 14) {
-  const from = { p: camera.position.clone(), t: controls.target.clone() }
-  const to = { t: new THREE.Vector3(x, 0.5, z) }
   const dir = camera.position.clone().sub(controls.target).normalize()
+  const to = { t: new THREE.Vector3(x, 0.5, z) }
   to.p = to.t.clone().add(dir.multiplyScalar(dist)); to.p.y = Math.max(to.p.y, 6)
-  flight = { from, to, t: 0 }
-  controls.autoRotate = false; T.lastUser = Date.now()
+  flight = { from: { p: camera.position.clone(), t: controls.target.clone() }, to, t: 0 }
+  T.lastUser = Date.now()
 }
+function flyHome() { flight = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 } }
+$('btn-home').addEventListener('click', () => { $('drawer').hidden = true; flyHome() })
 function stepFlight(dt) {
   if (!flight) return
   flight.t = Math.min(1, flight.t + dt / 1.2)
@@ -504,12 +645,14 @@ function stepFlight(dt) {
   if (flight.t >= 1) flight = null
 }
 
-// drawer: a repository
+// ================= drawer: a project or a person =================
 async function openRepo(i) {
   const r = repos[i]; if (!r) return
   const c = cell[i]; if (c) flyTo(c.x, c.z, 26)
   $('drawer').hidden = false
-  $('drawer-body').innerHTML = `<h2>${esc(r.name)}</h2><p class="sub">Loading…</p>`
+  $('drawer-body').innerHTML = `<h2>${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
+  const gh = (url) => `<a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>`
+  const fresh = stateRepo(r.name)?.isNew ? `<span class="badge new">${esc(t('new.repo'))}</span>` : ''
   try {
     const res = await fetch(`api/repo?name=${encodeURIComponent(r.name)}`)
     if (!res.ok) throw new Error(res.status)
@@ -517,47 +660,61 @@ async function openRepo(i) {
     const max = Math.max(1, ...d.daily.people.map((v, k) => v + d.daily.bots[k]))
     const bw = 300 / d.daily.days
     const bars = d.daily.people.map((v, k) => { const hb = (d.daily.bots[k] / max) * 56, hp = (v / max) * 56; return `<rect x="${k * bw + 1}" y="${60 - hp - hb}" width="${bw - 2}" height="${hb}" fill="#8b9480" opacity=".6"/><rect x="${k * bw + 1}" y="${60 - hp}" width="${bw - 2}" height="${hp}" fill="#cbf34d" rx="1"/>` }).join('')
-    $('drawer-body').innerHTML = `<h2><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></h2>
-<p class="sub">${esc(d.group === 'builders' ? 'Builder' : d.group)}${d.lang ? ` · ${esc(d.lang)}` : ''} · ★ ${d.stars}${d.pushedAt ? ` · last push ${ago(Date.parse(d.pushedAt))}` : ''}</p>
-${d.desc ? `<p class="desc">${esc(d.desc)}</p>` : ''}<div class="pills">${d.topics.slice(0, 10).map((t) => `<span>${esc(t)}</span>`).join('')}</div>
-<h3>Last 30 days (people, automation)</h3><svg viewBox="0 0 300 60" preserveAspectRatio="none">${bars}</svg>
-${d.contributors.length ? `<h3>People</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(p.avatar ? p.avatar + (p.avatar.includes('?') ? '&' : '?') + 's=48' : `https://avatars.githubusercontent.com/${encodeURIComponent(p.login)}?s=48`)}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
-<h3>Latest</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${kcol(e.kind)}"></i> <b>${esc(e.actor)}</b> ${verb(e.kind)}${e.title ? `: <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || '<li>No activity by people in the last 30 days.</li>'}</ol>`
-  } catch { $('drawer-body').innerHTML = `<h2><a href="https://github.com/${esc(r.name)}" target="_blank" rel="noopener">${esc(r.name)}</a></h2><p class="sub">Details are not available right now.</p>` }
+    const sub = [gname(d.group), d.lang, cnt('star', d.stars), d.pushedAt ? t('d.lastCode', { ago: ago(Date.parse(d.pushedAt)) }) : ''].filter(Boolean).map(esc).join(' · ')
+    $('drawer-body').innerHTML = `<h2>${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
+${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}</p>
+<p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}
+<h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+<p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>
+${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
+<h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kcol(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
+${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`
+  } catch { $('drawer-body').innerHTML = `<h2>${esc(short(r.name))}</h2><p class="owner">${esc(r.name)}</p>${badgesFor(r.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${esc(t('d.error'))}</p>${gh(`https://github.com/${r.name}`)}` }
 }
 function openPerson(a) {
-  const login = actors[a][0]
+  const login = actors[a]?.[0]; if (!login) return
   const per = new Map()
   for (const w of rows) if (w.a === a && !w.b && w.r >= 0) per.set(w.r, (per.get(w.r) || 0) + 1)
   const list = [...per.entries()].sort((x, y) => y[1] - x[1])
   $('drawer').hidden = false
-  $('drawer-body').innerHTML = `<h2><a href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(login)}</a></h2>
-<p class="sub">${list.reduce((s, x) => s + x[1], 0)} events in ${list.length} repositories over 7 days</p>
-<div class="people"><a href="https://github.com/${esc(login)}" target="_blank" rel="noopener"><img src="${esc(avatarUrl(a))}" alt="" style="width:56px;height:56px">GitHub profile</a></div>
-<h3>Where</h3><ol>${list.map(([r, n]) => `<li data-repo="${r}" style="cursor:pointer">${esc(repos[r].name)} <b style="color:var(--lime)">${n}</b></li>`).join('')}</ol>`
-  const s = sprites.get(a); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
+  $('drawer-body').innerHTML = `<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2>${esc(login)}</h2>
+<p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}</p></div></div>
+${badgesFor(login, ['people', 'peopleCommits'])}<a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>
+<h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></li>`).join('')}</ol>`
+  const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
 }
 $('drawer-body').addEventListener('click', (e) => { const li = e.target.closest('[data-repo]'); if (li) openRepo(+li.dataset.repo) })
 $('drawer-close').addEventListener('click', () => { $('drawer').hidden = true })
-addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('drawer').hidden = true; $('results').hidden = true } })
 
-// search: repositories and people
+// ================= search =================
+function closeSearch() { $('search').classList.remove('open'); $('results').hidden = true }
+$('btn-search').addEventListener('click', () => {
+  const on = !$('search').classList.contains('open')
+  $('search').classList.toggle('open', on)
+  if (on) { openFilters(false); $('q').focus() } else closeSearch()
+})
 $('q').addEventListener('input', () => {
   const q = $('q').value.trim().toLowerCase()
   if (q.length < 2) { $('results').hidden = true; return }
   const rs = repos.map((r, i) => [i, r]).filter(([, r]) => r.name.toLowerCase().includes(q)).slice(0, 8)
   const ps = actors.map((p, i) => [i, p]).filter(([, p]) => p[0].toLowerCase().includes(q)).slice(0, 6)
-  $('results').innerHTML = rs.map(([i, r]) => `<li role="option" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kcol(W.last[i]) : '#2b3420'}"></span>${esc(r.name)}<small>${W.n[i] || ''}</small></li>`).join('') +
-    ps.map(([i, p]) => `<li role="option" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt="">${esc(p[0])}<small>${W.people.get(i) || ''}</small></li>`).join('') || '<li>No match</li>'
+  $('results').innerHTML = rs.map(([i, r]) => `<li role="option" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kcol(W.last[i]) : '#2b3420'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></li>`).join('') +
+    ps.map(([i, p]) => `<li role="option" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt=""><span>${esc(p[0])}</span><b>${W.people.get(i) || ''}</b></li>`).join('') || `<li>${esc(t('nothing'))}</li>`
   $('results').hidden = false
 })
 $('results').addEventListener('click', (e) => {
   const li = e.target.closest('li'); if (!li) return
   if (li.dataset.repo) openRepo(+li.dataset.repo)
   if (li.dataset.person) openPerson(+li.dataset.person)
-  $('results').hidden = true; $('q').blur()
+  closeSearch(); $('q').blur()
 })
 $('btn-full').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.() })
+if (!document.fullscreenEnabled) $('btn-full').hidden = true // iPhones have no full screen for pages
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('drawer').hidden = true; closeSearch(); openFilters(false) } })
+addEventListener('pointerdown', (e) => {
+  // a tap outside the open filter panel closes it
+  if ($('filters').classList.contains('open') && !e.target.closest('#filters, #btn-filters')) openFilters(false)
+})
 
 // ================= timeline =================
 const track = $('track'), bars = $('bars')
@@ -574,15 +731,18 @@ function drawBars() {
     g.fillStyle = 'rgba(139,148,128,0.55)'; g.fillRect(i * bw + 0.5, ch - b, Math.max(1, bw - 1), b)
     g.fillStyle = '#cbf34d'; g.fillRect(i * bw + 0.5, ch - b - p, Math.max(1, bw - 1), p)
   }
-  $('days').innerHTML = Array.from({ length: 7 }, (_, d) => `<span>${new Date(start + d * DAY + DAY / 2).toLocaleDateString([], { weekday: 'short' })}</span>`).join('')
+  // seven names in a phone's width: three letters each
+  const wd = (x) => { const s = new Date(x).toLocaleDateString(t('locale'), { weekday: 'short' }).replace('.', ''); return innerWidth < 640 ? s.slice(0, 3) : s }
+  $('days').innerHTML = Array.from({ length: 7 }, (_, d) => `<span>${wd(start + d * DAY + DAY / 2)}</span>`).join('')
 }
 function drawHead() {
   const now = Date.now(), start = now - 7 * DAY
   const x = Math.max(0, Math.min(1, (T.t - start) / (7 * DAY)))
-  const wx = Math.max(0, (T.t - DAY - start) / (7 * DAY))
+  const wx = Math.max(0, (T.t - span() - start) / (7 * DAY))
   $('head').style.left = `${(x * 100).toFixed(3)}%`
   $('window').style.left = `${(wx * 100).toFixed(3)}%`; $('window').style.width = `${((x - wx) * 100).toFixed(3)}%`
-  $('head-label').textContent = T.mode === 'live' ? 'now' : fmtDay(T.t)
+  $('head-label').textContent = T.mode === 'live' || T.mode === 'done' ? t('tl.now') : fmtDay(T.t)
+  $('head-label').style.transform = `translateX(${x > 0.92 ? -100 : x < 0.08 ? 0 : -50}%)`
   track.setAttribute('aria-valuenow', String(Math.round(x * 100)))
 }
 function timeAtX(clientX) { const b = track.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (clientX - b.left) / b.width)); return Date.now() - 7 * DAY + f * 7 * DAY }
@@ -594,32 +754,49 @@ track.addEventListener('keydown', (e) => {
   const step = e.shiftKey ? 6 * 3600e3 : 3600e3
   if (e.key === 'ArrowLeft') pauseAt(T.t - step)
   if (e.key === 'ArrowRight') pauseAt(Math.min(Date.now(), T.t + step))
-  if (e.key === 'End') goLive()
+  if (e.key === 'End') goLive(true)
 })
 function seekPtr() { let lo = 0, hi = rows.length; while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m].t <= T.t) lo = m + 1; else hi = m } T.ptr = lo }
 let lastWindowAt = 0
-function pauseAt(t) {
-  T.mode = 'paused'; T.playing = false; T.replay = null; T.lastUser = Date.now()
-  T.t = Math.min(Date.now(), t)
+function setPlay(on) { $('btn-play').textContent = on ? '❚❚' : '▶'; $('btn-play').setAttribute('aria-label', t(on ? 'tl.pause' : 'tl.play')); $('btn-play').title = t(on ? 'tl.pause' : 'tl.play') }
+function pauseAt(at) {
+  if (T.period === 'live') T.period = 'day'
+  T.mode = 'paused'; T.auto = false; T.chosen = true; T.lastUser = Date.now(); T.holdTicker = 0
+  T.t = Math.min(Date.now(), at)
   seekPtr(); computeWindow(); feed(); drawHead()
-  const last = rows[T.ptr - 1]
-  setNow('PAUSED', fmtDay(T.t), last && !last.b ? line(last) : '')
-  $('btn-play').textContent = '▶'
+  let k = T.ptr - 1
+  while (k >= 0 && (rows[k].b || rows[k].r < 0)) k--
+  setNow(fmtDay(T.t), k >= 0 ? t('recent', { line: line(rows[k]), ago: fmtDay(rows[k].t) }) : '')
+  setPlay(false)
 }
-function goLive() {
-  T.mode = 'live'; T.playing = false; T.replay = null; T.t = Date.now(); T.lastLive = Date.now()
+function goLive(chosen) {
+  T.mode = 'live'; T.period = 'live'; T.auto = false; T.t = Date.now(); T.lastLive = Date.now(); T.holdTicker = 0
+  if (chosen) T.chosen = true
+  $('periods').querySelector('.p-live').classList.remove('ping')
   seekPtr(); computeWindow(); feed(); drawHead()
-  const last = [...rows].reverse().find((w) => !w.b && w.r >= 0)
-  setNow('LIVE', fmtClock(Date.now()), last ? `Last: ${line(last)}, ${ago(last.t)}` : 'Waiting for activity…')
-  $('btn-play').textContent = '▶'
+  setNow(fmtClock(Date.now()), liveText())
+  setPlay(false)
 }
-$('btn-live').addEventListener('click', goLive)
-$('speed').addEventListener('change', () => { T.speed = +$('speed').value })
+// play a period from its start (or from a paused moment) up to now
+function play(period, { auto = false, from = null } = {}) {
+  T.period = period; T.mode = 'replay'; T.auto = auto; T.holdTicker = 0
+  T.rate = REDUCED ? 1e9 : PERIOD[period].span / PERIOD[period].ms
+  T.t = from ?? Date.now() - PERIOD[period].span
+  seekPtr(); computeWindow(); feed(); drawHead()
+  setNow(fmtDay(T.t), from == null ? t(auto ? 'replay.auto' : 'replay.' + period) : null)
+  if (from == null) T.holdTicker = performance.now() + 4500 // say what is playing before the first update takes the line
+  setPlay(true)
+}
+$('periods').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-p]'); if (!b) return
+  T.lastUser = Date.now(); T.chosen = true
+  if (b.dataset.p === 'live') goLive(true); else play(b.dataset.p)
+})
 $('btn-play').addEventListener('click', () => {
-  if (T.mode === 'playing') { pauseAt(T.t); return }
-  if (T.mode === 'live' || T.t >= Date.now() - 60e3) T.t = Date.now() - DAY
-  T.mode = 'playing'; T.playing = true; T.replay = null; seekPtr(); T.lastUser = Date.now()
-  $('btn-play').textContent = '❚❚'
+  T.lastUser = Date.now(); T.chosen = true
+  if (T.mode === 'replay') { pauseAt(T.t); return }
+  if (T.mode === 'paused' && T.t < Date.now() - 60e3) { play(T.period, { from: T.t }); return }
+  play(T.period === 'live' ? 'day' : T.period)
 })
 function advance(to) {
   // fire every event between the old and the new time
@@ -627,64 +804,105 @@ function advance(to) {
   while (T.ptr < rows.length && rows[T.ptr].t <= to) {
     const w = rows[T.ptr++]
     if (n++ < 12) fire(w)
-    if (!w.b && w.r >= 0) setNow($('mode').textContent, fmtDay(w.t), line(w))
+    if (!w.b && w.r >= 0) setNow(fmtDay(w.t), line(w))
   }
   T.t = to
 }
+const quiet = () => { const last = [...rows].reverse().find((w) => !w.b && w.r >= 0); return !last || Date.now() - last.t > QUIET_MS }
 function stepTime(now, dt) {
+  const idle = !REDUCED && !introOpen && !document.hidden && Date.now() - T.lastUser > 8000
   if (T.mode === 'live') {
     T.t = Date.now()
-    if (!REDUCED && Date.now() - T.lastLive > IDLE_MS && Date.now() - T.lastUser > 8000 && !document.hidden && rows.length) {
-      T.mode = 'replay'; T.replay = { start: now }; T.t = Date.now() - DAY; seekPtr()
-    }
+    if (T.autoAt && now > T.autoAt && !introOpen) { T.autoAt = 0; if (quiet() && !T.chosen) play('day', { auto: true }) }
+    // nobody picked live and nothing has happened for a while: show the day rather than a still scene
+    else if (!T.chosen && idle && quiet() && Date.now() - T.lastLive > IDLE_MS && rows.length) play('day', { auto: true })
   } else if (T.mode === 'replay') {
-    const f = Math.min(1, (now - T.replay.start) / REPLAY_MS)
-    advance(Date.now() - DAY + f * DAY)
-    $('mode').textContent = 'REPLAY · LAST 24 H'; $('now').classList.add('replay'); $('clock').textContent = fmtDay(T.t)
-    if (f >= 1) { goLive(); T.lastLive = Date.now() - IDLE_MS + 4000 }
-  } else if (T.mode === 'playing') {
-    const to = Math.min(Date.now(), T.t + dt * T.speed * 1000)
+    const to = Math.min(Date.now(), T.t + dt * 1000 * T.rate)
     advance(to)
-    $('mode').textContent = 'PLAYING'; $('clock').textContent = fmtDay(T.t)
-    if (to >= Date.now() - 1000) goLive()
+    $('clock').textContent = fmtDay(T.t)
+    if (to >= Date.now() - 1000) {
+      T.mode = 'done'; T.doneAt = now; T.t = Date.now()
+      computeWindow(); feed(); drawHead(); setNow(fmtClock(T.t), null); setPlay(false)
+    }
+  } else if (T.mode === 'done') {
+    // hold the whole period on screen for a moment, then play it again
+    if (idle && now - T.doneAt > 12000) play(T.period, { auto: T.auto })
   }
-  if (T.mode !== 'paused' && now - lastWindowAt > 400) { lastWindowAt = now; computeWindow(); drawHead(); if (T.mode !== 'live') feed() }
+  if ((T.mode === 'live' || T.mode === 'replay') && now - lastWindowAt > 400) { lastWindowAt = now; computeWindow(); drawHead(); if (T.mode !== 'live') feed() }
 }
 
 // ================= live =================
 function onLive(e) {
   let ri = repos.findIndex((r) => r.name === e.repo)
   if (ri < 0) ri = addRepo({ name: e.repo, group: e.group, desc: '', tags: e.tags || [], pushedAt: e.at })
-  const w = { t: Date.parse(e.at), k: e.kind, r: ri, a: actorOf(e.actor, e.avatar), b: e.bot ? 1 : 0, title: e.title || '', url: e.url }
+  const w = { t: Date.parse(e.at), k: e.kind, r: ri, a: actorOf(e.actor, e.avatar), b: e.bot ? 1 : 0, title: e.title || '', url: e.url, c: e.commits || 0 }
   rows.push(w); rows.sort((x, y) => x.t - y.t)
   drawBars()
-  if (T.mode === 'replay') goLive()
-  if (T.mode !== 'live') return
+  // an automatic replay gives way to the real thing; a period someone chose stays, and Live lights up instead
+  if ((T.mode === 'replay' || T.mode === 'done') && T.auto) goLive()
+  if (T.mode !== 'live') { if (!w.b) { const b = $('periods').querySelector('.p-live'); b.classList.add('ping'); b.title = t('p.new') } return }
   if (!w.b) T.lastLive = Date.now()
   seekPtr(); computeWindow()
   fire(w)
   if (!w.b) {
-    setNow('LIVE', fmtClock(w.t), line(w))
-    $('feed').insertAdjacentHTML('afterbegin', feedItem(w, true))
+    setNow(fmtClock(w.t), t('recent', { line: line(w), ago: ago(w.t) }))
+    if (!filtering() || matches(w.r, w.k)) $('feed').insertAdjacentHTML('afterbegin', feedItem(w, true))
     while ($('feed').children.length > 80) $('feed').lastElementChild.remove()
   }
 }
+let online = false
+function liveDot() { $('live').classList.toggle('on', online); $('live').title = t(online ? 'live.on' : 'live.off') }
 function connect() {
   const es = new EventSource('api/stream')
-  es.onopen = () => { $('live').classList.add('on'); $('live').title = 'live' }
+  es.onopen = () => { online = true; liveDot() }
   es.onmessage = (m) => { try { onLive(JSON.parse(m.data)) } catch (err) { console.error(err) } }
-  es.onerror = () => { $('live').classList.remove('on'); $('live').title = 'reconnecting' }
+  es.onerror = () => { online = false; liveDot() }
 }
 
+// ================= language and the welcome card =================
+function applyLang() {
+  document.documentElement.lang = LANG
+  for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t)
+  for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
+  $('q').placeholder = innerWidth <= 860 ? t('search') : innerWidth < 1200 ? t('searchShort') : t('search')
+  for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
+  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automatic'))}</span>`
+  for (const o of groupLabels) labelText(o.element)
+  buildFilters(); liveDot(); setPlay(T.mode === 'replay')
+  if (!repos.length) { $('ticker').textContent = t('connecting'); updateLayout(); return }
+  computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges()
+  if (T.mode === 'live') setNow(fmtClock(Date.now()), liveText()); else setNow(T.mode === 'done' ? fmtClock(T.t) : fmtDay(T.t), null)
+  updateLayout()
+}
+for (const b of document.querySelectorAll('[data-lang]')) b.addEventListener('click', () => { LANG = b.dataset.lang; store.set('lang', LANG); applyLang() })
+let introFrom = null
+function openIntro() {
+  introFrom = document.activeElement
+  introOpen = true; $('intro').hidden = false
+  $('intro-go').focus()
+}
+function closeIntro() {
+  if (!introOpen) return
+  introOpen = false; $('intro').hidden = true; store.set('seen', '1')
+  introFrom?.focus?.()
+  // a quiet hour would greet a newcomer with a still scene: start the day's replay almost at once
+  if (T.mode === 'live' && quiet() && !T.chosen) T.autoAt = performance.now() + 1200
+}
+$('btn-help').addEventListener('click', openIntro)
+$('intro-go').addEventListener('click', closeIntro)
+$('intro').addEventListener('click', (e) => { if (e.target === $('intro')) closeIntro() })
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && introOpen) closeIntro() })
+applyLang()
+if (!store.get('seen')) openIntro()
+
 // ================= frame =================
-let last = performance.now(), slow = 0, frames = 0, acc = 0
+let last = performance.now(), slow = 0, frames = 0, acc = 0, lastCull = 0
+const camWas = new THREE.Vector3()
 function frame(now) {
   requestAnimationFrame(frame)
   const dt = Math.min(0.1, (now - last) / 1000); last = now
   stepTime(now, dt); stepFlight(dt); stepPeople(dt); stepComets(dt); stepFx(dt, now); stepTweens(now); stepHover()
-  if (!flight && !controls.autoRotate && !REDUCED && Date.now() - T.lastUser > 9000) controls.autoRotate = true
   controls.update()
-  // cells
   if (mesh) {
     for (let i = 0; i < mesh.count; i++) {
       const c = cell[i]; if (!c) continue
@@ -705,38 +923,56 @@ function frame(now) {
     }
     mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true
   }
+  for (const o of sceneBadges) { const c = cell[o.userData.cell]; if (c) o.position.set(c.x, c.h + 0.55, c.z) }
   if (useBloom) composer.render(); else renderer.render(scene, camera)
   labelRenderer.render(scene, camera)
+  // every frame while the camera moves, so a label never slides under a panel; a few times a second otherwise
+  const moving = camWas.distanceToSquared(camera.position) > 1e-6
+  camWas.copy(camera.position)
+  if (moving || now - lastCull > 200) { lastCull = now; cull() }
   // slow device: drop the bloom
   acc += dt; frames++
   if (acc > 2) { if (frames / acc < 28) slow++; else slow = 0; if (slow >= 2 && useBloom) { useBloom = false; renderer.setPixelRatio(1) } acc = 0; frames = 0 }
 }
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight; updateView(); camera.updateProjectionMatrix()
+  camera.aspect = innerWidth / innerHeight
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight)
   bloom.resolution.set(innerWidth / 2, innerHeight / 2)
+  updateLayout(); setHome()
   drawBars(); drawHead()
 })
 
 // ================= start =================
-async function load() {
-  const res = await fetch('api/state', { cache: 'no-store' })
-  S = await res.json()
+function ingest(N) {
+  S = N
   repos = S.repos.map((r) => ({ name: r.name, group: r.group, desc: r.desc, tags: r.tags || [], pushedAt: r.pushedAt }))
   actors = S.history.actors.map(([l, av]) => [l, av]); actorIdx.clear(); actors.forEach(([l], i) => actorIdx.set(l, i))
-  rows = S.history.rows.map(([t, k, r, a, b, title]) => ({ t: t * 1000, k: S.history.kinds[k], r, a, b, title: title || '' }))
+  rows = S.history.rows.map(([at, k, r, a, b, title, c]) => ({ t: at * 1000, k: S.history.kinds[k], r, a, b, title: title || '', c: c || 0 }))
   rows.sort((x, y) => x.t - y.t)
   // links for the feed come from the latest events with titles and urls
   const urls = new Map(S.events.map((e) => [`${e.repo}|${Date.parse(e.at)}`, e.url]))
   for (const w of rows) { const u = urls.get(`${repos[w.r]?.name}|${w.t}`); if (u) w.url = u }
-  buildCells()
-  updateView()
-  const dist = fitDistance()
-  camera.position.set(0, dist * 1.4 * Math.sin(ELEV), dist * 1.4 * Math.cos(ELEV))
-  controls.target.set(0, 0, 0)
-  controls.maxDistance = dist * 2.5
-  flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: new THREE.Vector3(0, dist * Math.sin(ELEV), dist * Math.cos(ELEV)), t: new THREE.Vector3() }, t: 0 }
-  goLive()
-  drawBars(); drawHead()
 }
-load().then(() => { connect(); requestAnimationFrame(frame) }).catch((err) => { console.error(err); $('ticker').textContent = 'Could not load the data. Retrying in 10 s.'; setTimeout(() => location.reload(), 10000) })
+async function load() {
+  const res = await fetch('api/state', { cache: 'no-store' })
+  ingest(await res.json())
+  buildCells()
+  updateLayout(); setHome()
+  camera.position.copy(home.p).multiplyScalar(1.4); controls.target.set(0, 0, 0)
+  flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 }
+  goLive()
+  drawBars(); drawHead(); renderHighlights(); placeBadges()
+  if (quiet()) T.autoAt = performance.now() + 3500 // after the opening flight
+}
+// every few minutes: projects that joined or left, new organisations, fresh highlights
+async function refresh() {
+  try {
+    const res = await fetch('api/state', { cache: 'no-store' }); if (!res.ok) return
+    const before = repos.map((r) => r.name).join('|')
+    ingest(await res.json())
+    if (repos.map((r) => r.name).join('|') !== before) buildCells()
+    else for (const o of groupLabels) labelText(o.element)
+    seekPtr(); computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges()
+  } catch (err) { console.warn('refresh', err) }
+}
+load().then(() => { connect(); requestAnimationFrame(frame); setInterval(refresh, REFRESH_MS) }).catch((err) => { console.error(err); $('ticker').textContent = t('err.load'); setTimeout(() => location.reload(), 10000) })
