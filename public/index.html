@@ -2,47 +2,79 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>CKB Pulse</title>
-<meta name="description" content="Live GitHub activity across the CKB ecosystem: every push, pull request, issue and release lights up a cell.">
+<meta name="description" content="Live GitHub activity across the CKB ecosystem in 3D: every push, pull request, issue and release lights up its repository.">
+<meta name="theme-color" content="#07090a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pulse3d.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
+<script>
+  // no WebGL 2: the light 2D page
+  (() => { try { if (!document.createElement('canvas').getContext('webgl2')) location.replace('lite.html') } catch { location.replace('lite.html') } })()
+</script>
 </head>
 <body>
-<header class="top">
+<div id="stage" aria-hidden="true"></div>
+
+<header class="hud top">
   <div class="brand">
     <span class="live" id="live" title="connecting"></span>
-    <h1>CKB Pulse</h1>
-    <p class="sub">Live GitHub activity across the CKB ecosystem</p>
+    <div><h1>CKB Pulse</h1><p>GitHub activity across the CKB ecosystem</p></div>
   </div>
-  <div class="stats" id="stats">
-    <div><b id="s-hour">-</b><span>last hour</span></div>
-    <div><b id="s-day">-</b><span>last 24 h</span></div>
-    <div><b id="s-active">-</b><span>active repos (24 h)</span></div>
-    <div><b id="s-builders">-</b><span>builders tracked</span></div>
+  <div class="kpis">
+    <div><b id="k-hour">0</b><span>last hour</span></div>
+    <div><b id="k-day">0</b><span>last 24 h</span></div>
+    <div><b id="k-active">0</b><span>active repos</span></div>
+    <div><b id="k-people">0</b><span>people</span></div>
+  </div>
+  <div class="tools">
+    <div class="search"><input id="q" type="search" placeholder="Find a repo or a person" autocomplete="off" aria-label="Find a repository or a person"><ul id="results" role="listbox" hidden></ul></div>
+    <button type="button" class="icon" id="btn-full" title="Full screen" aria-label="Full screen">⛶</button>
+    <a class="icon" href="lite.html" title="Light 2D version" aria-label="Light 2D version">2D</a>
   </div>
 </header>
-<nav class="tags" id="tags" aria-label="Filter by keyword"></nav>
-<main class="layout">
-  <section class="grid-wrap" aria-label="Repositories">
-    <div class="now" id="now" aria-live="polite">
-      <span class="mode" id="mode">LIVE</span>
-      <span class="clock" id="clock"></span>
-      <span class="ticker" id="ticker">Waiting for activity…</span>
-    </div>
-    <div class="timeline" id="timeline" aria-label="Activity in the last 24 hours"><div class="bars" id="bars"></div><div class="head" id="head"></div></div>
-    <div class="tl-legend"><span><i class="h"></i>people</span><span><i class="b"></i>automation <b id="s-bots">-</b></span><span class="tl-ends"><span>24 h ago</span><span>now</span></span></div>
-    <div class="legend" id="legend"></div>
-    <div id="groups"></div>
-    <p class="note" id="note"></p>
-  </section>
-  <aside class="feed-wrap" aria-label="Live feed">
-    <h2>Latest activity</h2>
-    <ol class="feed" id="feed"></ol>
-  </aside>
-</main>
+
+<nav class="hud chips" id="chips" aria-label="Filters"></nav>
+
+<aside class="hud side" id="side">
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-tab="feed">Activity</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="top">Top</button>
+    <button type="button" class="collapse" id="btn-side" aria-label="Hide panel">›</button>
+  </div>
+  <ol class="feed" id="feed" data-pane="feed"></ol>
+  <div class="top-pane" id="top" data-pane="top" hidden>
+    <h3>Most active repos</h3><ol id="top-repos"></ol>
+    <h3>Most active people</h3><ol id="top-people"></ol>
+    <p class="hint" id="top-window"></p>
+  </div>
+</aside>
+
+<aside class="hud drawer" id="drawer" hidden aria-label="Repository details">
+  <button type="button" class="close" id="drawer-close" aria-label="Close">×</button>
+  <div id="drawer-body"></div>
+</aside>
+
+<div class="hud now" id="now"><span class="mode" id="mode">LIVE</span><span class="clock" id="clock"></span><span class="ticker" id="ticker">Connecting…</span></div>
+
+<footer class="hud timeline">
+  <div class="tl-controls">
+    <button type="button" id="btn-play" aria-label="Play">▶</button>
+    <button type="button" id="btn-live" class="go-live">LIVE</button>
+    <select id="speed" aria-label="Playback speed"><option value="600">10 min/s</option><option value="3600" selected>1 h/s</option><option value="14400">4 h/s</option></select>
+    <span class="tl-legend"><i class="h"></i>people <i class="b"></i>automation</span>
+  </div>
+  <div class="track" id="track" role="slider" aria-label="Time" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+    <canvas id="bars"></canvas>
+    <div class="window" id="window"></div>
+    <div class="head" id="head"><span id="head-label"></span></div>
+    <div class="days" id="days"></div>
+  </div>
+</footer>
+
 <div class="tip" id="tip" role="tooltip" hidden></div>
-<footer class="foot">Public GitHub events from the CKB organisations, LusoCryptoLabs, and public repositories that depend on CKB libraries. Checked every minute. When nothing is happening, the grid replays the last 24 hours, marked REPLAY.</footer>
-<script src="app.js"></script>
+<p class="sr-only" id="sr" aria-live="polite"></p>
+<script type="module" src="pulse3d.js"></script>
 </body>
 </html>

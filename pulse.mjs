@@ -131,7 +131,7 @@ async function normalise(e) {
   }
   const r = await ensureMeta(repo)
   if (r.private !== false) return null
-  return { id: e.id, kind, repo, group: r.group, actor, title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: bot && kind !== 'release' }
+  return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: bot && kind !== 'release' }
 }
 
 // ---------- intake ----------
@@ -327,6 +327,42 @@ export function snapshot() {
     events: human.slice(-150).reverse(),
     // the last 24 hours, oldest first, for the replay and the timeline
     day: ev.filter((e) => e.at >= d1).map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: (e.title || '').slice(0, 90), bot: !!e.bot })),
+    // the last 7 days in compact rows for the 3D page: [unix seconds, kind, repo index, actor index, bot, title]
+    history: compactHistory(ev.filter((e) => e.at >= new Date(now - 7 * 864e5).toISOString()), repos),
     limits: { core: limits.core, search: limits.search },
+  }
+}
+export const KIND_LIST = ['push', 'pr_open', 'pr_merged', 'pr_closed', 'issue_open', 'issue_closed', 'comment', 'review', 'release', 'repo', 'star', 'fork', 'branch', 'tag']
+function compactHistory(list, repos) {
+  const repoIdx = new Map(repos.map((r, i) => [r.name, i]))
+  const actors = [], actorIdx = new Map()
+  const rows = []
+  for (const e of list) {
+    if (!actorIdx.has(e.actor)) { actorIdx.set(e.actor, actors.length); actors.push([e.actor, e.avatar || '']) }
+    else if (e.avatar && !actors[actorIdx.get(e.actor)][1]) actors[actorIdx.get(e.actor)][1] = e.avatar
+    rows.push([Math.floor(Date.parse(e.at) / 1000), KIND_LIST.indexOf(e.kind), repoIdx.has(e.repo) ? repoIdx.get(e.repo) : -1, actorIdx.get(e.actor), e.bot ? 1 : 0, e.bot ? '' : (e.title || '').slice(0, 80)])
+  }
+  return { kinds: KIND_LIST, actors, rows }
+}
+
+// one repository in detail, from what is already stored (no GitHub call): daily activity, people, latest events
+export function repoDetail(name) {
+  const builders = new Set(state.builders)
+  if (!isPublic(name) || !(ownerSet.has(ownerOf(name).toLowerCase()) || builders.has(name))) return null
+  const r = state.repos[name]
+  const list = state.events.filter((e) => e.repo === name)
+  const days = 30, start = Date.now() - days * 864e5
+  const people = new Array(days).fill(0), bots = new Array(days).fill(0)
+  const who = new Map()
+  for (const e of list) {
+    const i = Math.floor((Date.parse(e.at) - start) / 864e5)
+    if (i >= 0 && i < days) (e.bot ? bots : people)[i]++
+    if (!e.bot) { const w = who.get(e.actor) || { login: e.actor, avatar: e.avatar || '', n: 0 }; w.n++; if (e.avatar) w.avatar = e.avatar; who.set(e.actor, w) }
+  }
+  return {
+    name, url: `https://github.com/${name}`, group: r.group, desc: r.desc || '', stars: r.stars || 0, lang: r.lang || '', topics: r.topics || [], pushedAt: r.pushedAt || null,
+    daily: { days, people, bots },
+    contributors: [...who.values()].sort((a, b) => b.n - a.n).slice(0, 12),
+    events: list.filter((e) => !e.bot).slice(-40).reverse().map((e) => ({ at: e.at, kind: e.kind, actor: e.actor, avatar: e.avatar || '', title: e.title, url: e.url, ref: e.ref })),
   }
 }

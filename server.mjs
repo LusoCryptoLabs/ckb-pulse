@@ -3,12 +3,21 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
-import { start, snapshot, bus } from './pulse.mjs'
+import zlib from 'node:zlib'
+import { start, snapshot, repoDetail, bus } from './pulse.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' }
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' }
 const clients = new Set()
+
+// JSON, gzipped when the browser accepts it (the state with 7 days of history is a few hundred kB raw)
+function sendJson(req, res, obj) {
+  const body = Buffer.from(JSON.stringify(obj))
+  const gz = /gzip/.test(req.headers['accept-encoding'] || '')
+  res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...(gz ? { 'content-encoding': 'gzip', vary: 'accept-encoding' } : {}) })
+  res.end(gz ? zlib.gzipSync(body) : body)
+}
 
 bus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of clients) c.write(msg) })
 setInterval(() => { for (const c of clients) c.write(': ping\n\n') }, 25e3).unref()
@@ -16,9 +25,11 @@ setInterval(() => { for (const c of clients) c.write(': ping\n\n') }, 25e3).unre
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x')
   if (url.pathname === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok') }
-  if (url.pathname === '/api/state') {
-    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-    return res.end(JSON.stringify(snapshot()))
+  if (url.pathname === '/api/state') return sendJson(req, res, snapshot())
+  if (url.pathname === '/api/repo') {
+    const d = repoDetail(url.searchParams.get('name') || '')
+    if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }
+    return sendJson(req, res, d)
   }
   if (url.pathname === '/api/stream') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
