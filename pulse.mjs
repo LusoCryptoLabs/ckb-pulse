@@ -14,7 +14,8 @@ const ownerSet = new Set(OWNERS.map((o) => o.n.toLowerCase()))
 const ownerOf = (full) => full.split('/')[0]
 // 2: every repository carries the visibility GitHub reported. The token can see private repositories (code search
 // with it returned two private LusoCryptoLabs repos on 2026-10-09), so nothing is shown unless private === false.
-const STATE_VERSION = 2
+// 3: builders rediscovered with manifestOk (a copied package.json no longer makes a repository a builder)
+const STATE_VERSION = 3
 
 export const bus = new EventEmitter()
 bus.setMaxListeners(1000)
@@ -225,6 +226,11 @@ export async function listOwnerRepos() {
   console.log(`owners: ${out.length} public repositories pushed in the last year`)
 }
 
+// a dependency only counts in the project's own manifest: at the root or a few levels into a monorepo, never in a
+// copy of someone else's (the AppImage catalogue keeps Neuron's package.json under database/Neuron/, measured 2026-10-09)
+const SKIP_DIRS = /(^|\/)(node_modules|vendor|third_party|database|data|fixtures?|test-fixtures|testdata|\.github)\//i
+function manifestOk(p) { return !!p && p.split('/').length <= 3 && !SKIP_DIRS.test(p) }
+
 // builders: public repositories that depend on CKB libraries or carry CKB topics, outside the followed owners
 export async function discover() {
   const found = new Map()
@@ -233,7 +239,7 @@ export async function discover() {
       const r = await gh(`/search/code?q=${encodeURIComponent(q)}&per_page=100&page=${page}`, { search: true })
       await sleep(6500) // code search allows 10 requests a minute
       const items = r.body?.items || []
-      for (const it of items) if (it.repository) found.set(it.repository.full_name, null)
+      for (const it of items) if (it.repository && manifestOk(it.path)) found.set(it.repository.full_name, null)
       if (items.length < 100) break
     }
   }
@@ -287,7 +293,10 @@ export function start() {
 export function snapshot() {
   const now = Date.now()
   const h1 = new Date(now - 3600e3).toISOString(), d1 = new Date(now - 864e5).toISOString()
-  const ev = state.events.filter((e) => isPublic(e.repo))
+  // only public repositories that are followed now: owners' repositories and the current builders
+  const builders = new Set(state.builders)
+  const followed = (full) => isPublic(full) && (ownerSet.has(ownerOf(full).toLowerCase()) || builders.has(full))
+  const ev = state.events.filter((e) => followed(e.repo))
   const human = ev.filter((e) => !e.bot)
   const humanDay = human.filter((e) => e.at >= d1)
   const count = (arr, key) => arr.reduce((m, e) => { for (const k of [].concat(e[key])) m[k] = (m[k] || 0) + 1; return m }, {})
@@ -298,7 +307,7 @@ export function snapshot() {
     p.n++; if (e.at >= d1) p.n24++
     if (!p.last || e.at > p.last.at) p.last = e
   }
-  const all = [...new Set([...Object.keys(per), ...(state.orgRepos || []), ...state.builders])].filter(isPublic)
+  const all = [...new Set([...Object.keys(per), ...(state.orgRepos || []), ...state.builders])].filter(followed)
   const repos = all.map((full) => {
     const r = state.repos[full]
     const a = per[full]
