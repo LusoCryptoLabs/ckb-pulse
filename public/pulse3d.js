@@ -371,6 +371,27 @@ $('add-form').addEventListener('submit', async (e) => {
   if (j.status === 'added') { $('add-login').value = ''; refresh() }
 })
 
+// ================= a new version =================
+// the page carries the id of its build; /version.json answers with the current one, every 90 s and whenever the tab
+// comes back. A screen nobody has touched for 15 minutes reloads by itself, so a page left on a wall stays current.
+const BUILD = document.querySelector('meta[name="build"]')?.content || '__BUILD__'
+let lastInput = Date.now(), updateDismissed = false
+for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, () => { lastInput = Date.now() }, { passive: true })
+async function checkVersion() {
+  if (BUILD === '__BUILD__' || document.visibilityState !== 'visible') return
+  try {
+    const r = await fetch('version.json', { cache: 'no-store' }); if (!r.ok) return
+    const { v } = await r.json()
+    if (typeof v !== 'string' || v === BUILD) return
+    if (Date.now() - lastInput > 15 * 60e3 && !introOpen) { location.reload(); return }
+    if (!updateDismissed) $('update').hidden = false
+  } catch { /* offline: the next round */ }
+}
+setInterval(checkVersion, 90e3)
+document.addEventListener('visibilitychange', checkVersion)
+$('update-go').addEventListener('click', () => location.reload())
+$('update-x').addEventListener('click', () => { $('update').hidden = true; updateDismissed = true })
+
 // ================= the strip above the timeline =================
 function setNow(clock, text) {
   $('mode').textContent = t(T.mode === 'paused' ? 'mode.paused' : 'mode.' + T.period)

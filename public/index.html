@@ -6,6 +6,7 @@
 <title>CKB Pulse</title>
 <meta name="description" content="Watch people build CKB, live: every project is a block that lights up when someone works on it.">
 <meta name="theme-color" content="#07090a">
+<meta name="build" content="__BUILD__">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="pulse3d.css">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
@@ -117,6 +118,8 @@
   <p lang="pt">Esta página é desenhada em 3D e este navegador não a consegue mostrar. Um Chrome, Edge, Firefox ou Safari atualizado consegue.</p>
   <p lang="zh-CN">这个页面以 3D 绘制，当前浏览器无法显示。请使用最新版的 Chrome、Edge、Firefox 或 Safari。</p>
 </div>
+
+<div class="hud update" id="update" role="status" hidden><span class="updot" aria-hidden="true"></span><span data-t="u.msg"></span><button type="button" id="update-go" data-t="u.go"></button><button type="button" id="update-x" class="x" data-t-label="close">×</button></div>
 
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <p class="sr-only" id="sr" aria-live="polite"></p>
