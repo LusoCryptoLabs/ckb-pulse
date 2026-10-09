@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Live GitHub activity across the CKB ecosystem",
+  "description": "Live GitHub activity of the CKB ecosystem, drawn in 3D",
+  "license": "MIT",
   "scripts": { "start": "node server.mjs" },
   "engines": { "node": ">=20" }
 }
