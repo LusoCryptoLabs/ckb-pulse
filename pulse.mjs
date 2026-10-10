@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
+import { loadHistory, refreshHistory, trends, repoMonths } from './history.mjs'
 import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
@@ -25,7 +26,7 @@ export const bus = new EventEmitter()
 // how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
 export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -49,7 +50,7 @@ export function load() {
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, historyAt: state.historyAt }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -228,6 +229,8 @@ async function ownerLoop() {
   for (;;) { await sleep(POLL.orgsEverySec * 1000); await pollOwners(false) }
 }
 const extraRepos = () => Object.values(state.extra || {}).flatMap((o) => o.repos)
+// every public repository known as CKB work, quiet or not: the long history counts those that have since gone quiet too
+const knownRepos = () => [...new Set([...(state.orgRepos || []), ...pollSet()])].filter((f) => isPublic(f))
 const pollSet = () => [...new Set([...state.builders, ...extraRepos()])].filter((f) => !blocked.has(ownerOf(f).toLowerCase()))
 async function builderLoop() {
   for (;;) {
@@ -478,6 +481,7 @@ async function discoverLoop() {
   await backfillCommits()
   if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
   for (;;) {
+    if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
     if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
     if (Date.now() - (state.crawledAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await crawlPeople(); state.crawledAt = Date.now() } catch (err) { console.warn('crawl', err.message) } }
@@ -522,6 +526,7 @@ export { ckbContext, vetRepo, leaders, manifestOk }
 
 export function start() {
   load()
+  loadHistory(DATA)
   ownerLoop().catch((e) => console.error('owner loop died', e))
   builderLoop().catch((e) => console.error('builder loop died', e))
   discoverLoop().catch((e) => console.error('discovery loop died', e))
@@ -644,6 +649,7 @@ export function snapshot() {
     repos, groups,
     leaders: leaders(ev, now),
     news: news(now),
+    trends: trends(knownRepos()),
     events: human.slice(-150).reverse(),
     // the last 24 hours, oldest first, for the replay and the timeline
     day: ev.filter((e) => e.at >= d1).map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: (e.title || '').slice(0, 90), bot: !!e.bot })),
@@ -681,6 +687,7 @@ export function repoDetail(name) {
   return {
     name, url: `https://github.com/${name}`, group: r.group, desc: r.desc || '', stars: r.stars || 0, lang: r.lang || '', topics: r.topics || [], pushedAt: r.pushedAt || null, createdAt: r.createdAt || null,
     daily: { days, people, bots },
+    months: repoMonths(name),
     contributors: [...who.values()].sort((a, b) => b.n - a.n).slice(0, 12),
     events: list.filter((e) => !e.bot).slice(-40).reverse().map((e) => ({ at: e.at, kind: e.kind, actor: e.actor, avatar: e.avatar || '', title: e.title, url: e.url, ref: e.ref, commits: e.commits || 0 })),
   }
