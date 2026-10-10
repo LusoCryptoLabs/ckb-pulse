@@ -20,8 +20,23 @@ export const CODE_SEARCHES = [
   '"@ckb-lumos/lumos" filename:package.json',
   '"ckb-std" filename:Cargo.toml',
   '"ckb-sdk" filename:Cargo.toml',
+  // added 2026-10-10, each measured to find projects (matches then): the other CCC and Lumos packages, JoyID, the old
+  // JS SDK, the JS VM library, Go and Java SDKs, and the Rust crates contracts and their tests use
+  '"@ckb-ccc/ccc" filename:package.json', // 51
+  '"@ckb-ccc/shell" filename:package.json', // 14
+  '"@ckb-ccc/connector" filename:package.json', // 99
+  '"@ckb-lumos/base" filename:package.json', // 165
+  '"@ckb-lumos/helpers" filename:package.json', // 86
+  '"@rgbpp-sdk/btc" filename:package.json', // 11
+  '"@joyid/ckb" filename:package.json', // 36
+  '"@nervosnetwork/ckb-sdk-core" filename:package.json', // 83
+  '"@ckb-js-std/core" filename:package.json', // 68
+  '"ckb-sdk-go" filename:go.mod', // 41
+  '"org.nervos.ckb" filename:pom.xml', // 7
+  '"ckb-types" filename:Cargo.toml', // 525
+  '"ckb-testtool" filename:Cargo.toml', // 189
 ]
-export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-network', 'topic:nervos-ckb', 'topic:ckb-blockchain', 'topic:spore-protocol', 'topic:rgbpp', 'topic:fiber-network']
+export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-network', 'topic:nervos-ckb', 'topic:ckb-blockchain', 'topic:spore-protocol', 'topic:rgbpp', 'topic:fiber-network', 'topic:ckb-contract', 'topic:ckb-script', 'topic:nervos-dao', 'topic:joyid']
 
 // Owners never shown, whatever discovery or a suggestion finds (GitHub logins, any case)
 export const BLOCKED = []

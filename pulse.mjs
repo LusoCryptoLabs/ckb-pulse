@@ -43,8 +43,9 @@ export function load() {
     state.events.sort((a, b) => a.at.localeCompare(b.at))
     for (const e of state.events) ids.add(e.id)
     health.lastEventAt = Date.parse(state.events.at(-1)?.at || 0) || 0
-    // builders found before the ckb-context rule: discover again once, so topic-only false friends drop out
-    if (state.ctxRule !== 1) { state.discoveredAt = 0; state.ctxRule = 1 }
+    // discover again once when the rules change: 1, the ckb-context rule (topic-only false friends drop out);
+    // 2, fourteen more searches (2026-10-10)
+    if (state.ctxRule !== 2) { state.discoveredAt = 0; state.ctxRule = 2 }
     console.log(`loaded ${state.events.length} events, ${Object.keys(state.repos).length} repos, ${state.builders.length} builders`)
   } catch (err) { console.error('could not read state:', err.message) }
 }

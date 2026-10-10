@@ -29,7 +29,7 @@ The rules (what counts as CKB work, manifests, the burst cap), the words in ever
 
 - The organisations and accounts in `config.mjs`, polled every minute with ETags. An account's repositories are read one by one, since its own feed only lists what that account did.
 - GitHub delays its events API by 30 seconds to several hours, so neither can this page be faster.
-- Builders: public repositories that depend on CKB libraries or carry CKB topics, found by search every 6 hours.
+- Builders: public repositories that depend on CKB libraries (CCC, Lumos, Spore, RGB++, JoyID, the JS, Go and Java SDKs, ckb-std, ckb-types, ckb-testtool and others, listed in `config.mjs`) or carry CKB topics, found by search every 6 hours.
 - Only public repositories. Owners with no human activity in 30 days are hidden. Bots do not count as activity.
 - People at work in followed repositories are checked for CKB projects of their own once a week, and anyone can suggest an organisation or a person on the page. Either joins when GitHub shows public CKB work (topics, names, or a CKB dependency) from the last 30 days. `BLOCKED` in `config.mjs` keeps an owner off.
 - Once a day each followed repository's own event list fills the week, since an organisation's feed keeps only its last 300 events.
