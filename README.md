@@ -2,7 +2,7 @@
 
 Live GitHub activity of the CKB ecosystem, drawn in 3D.
 
-Each project is a block that lights up when people work on it. Live, last 24 hours or last 7 days. English, 中文, Português.
+Each project is a block that lights up when people work on it. Live, last 24 hours or last 7 days. English, 中文, Português. The counters at the top open the same picture as lists of projects and people, for keyboards and screen readers.
 
 https://pulse-lab.lusocryptolabs.com
 
@@ -21,7 +21,7 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 npm test
 ```
 
-The rules (what counts as CKB work, manifests, the burst cap), the words in every language, the share cards, and no long dashes. CI runs them on every push.
+The rules (what counts as CKB work, manifests, the burst cap, agents and schedules), the words in every language, the share cards, and no long dashes. CI runs them on every push.
 
 `GET /health` answers 200 while the server lives; `collector.ok` turns false when no organisation feed has answered for 10 minutes.
 
@@ -30,7 +30,8 @@ The rules (what counts as CKB work, manifests, the burst cap), the words in ever
 - The organisations and accounts in `config.mjs`, polled every minute with ETags. An account's repositories are read one by one, since its own feed only lists what that account did.
 - GitHub delays its events API by 30 seconds to several hours, so neither can this page be faster.
 - Builders: public repositories that depend on CKB libraries (CCC, Lumos, Spore, RGB++, JoyID, the JS, Go and Java SDKs, ckb-std, ckb-types, ckb-testtool and others, listed in `config.mjs`) or carry CKB topics, found by search every 6 hours.
-- Only public repositories. Owners with no human activity in 30 days are hidden. Bots do not count as activity.
+- Only public repositories. Owners with no human activity in 30 days are hidden.
+- Automatic work shows as grey sparks and stays out of the counts and medals: bots; what AI agents push, branch and propose on their own branches (`claude/`, `codex/`, `copilot/`, `cursor/`, `devin/`), while merging their work still counts; and a commit title one account pushes to one project on 15 or more days of the last 30.
 - People at work in followed repositories are checked for CKB projects of their own once a week, and anyone can suggest an organisation or a person on the page. Either joins when GitHub shows public CKB work (topics, names, or a CKB dependency) from the last 30 days. `BLOCKED` in `config.mjs` keeps an owner off.
 - Once a day each followed repository's own event list fills the week, since an organisation's feed keeps only its last 300 events.
 
