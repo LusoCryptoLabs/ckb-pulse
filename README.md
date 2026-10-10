@@ -34,6 +34,10 @@ The rules (what counts as CKB work, manifests, the burst cap), the words in ever
 - People at work in followed repositories are checked for CKB projects of their own once a week, and anyone can suggest an organisation or a person on the page. Either joins when GitHub shows public CKB work (topics, names, or a CKB dependency) from the last 30 days. `BLOCKED` in `config.mjs` keeps an owner off.
 - Once a day each followed repository's own event list fills the week, since an organisation's feed keeps only its last 300 events.
 
+## History
+
+The events API reaches back 90 days. Months and years come from GitHub's contributor statistics: commits per week and author for every known CKB repository, quiet ones included, refreshed weekly into `DATA_DIR/history.json`. From them: active developers per month (a commit in the month), new developers (their first commit among these repositories) and commits, two years back; and commits per month for each project.
+
 ## New projects and following
 
 A followed public repository created in the last 14 days is a new project: it is listed under New and announced once to the open pages. "ckb" alone does not make a repository CKB work (it is also Central Kurdish and a Codebase Knowledge Base format): such a repository needs chain words in its name, description or topics.
