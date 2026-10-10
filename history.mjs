@@ -33,7 +33,7 @@ export async function refreshHistory(list, maxAgeDays = 7) {
         for (const w of c.weeks || []) if (w.c > 0) rows.push([w.w, login, w.c])
       }
       H.repos[full] = { at: Date.now(), rows }
-      done++
+      if (++done % 20 === 0) save() // a deploy in the middle keeps what was read
       await sleep(1200)
     }
     due = later
