@@ -4,6 +4,7 @@ import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths } from './history.mjs'
+import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
 import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
@@ -26,7 +27,7 @@ export const bus = new EventEmitter()
 // how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
 export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -51,7 +52,7 @@ export function load() {
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, historyAt: state.historyAt }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, historyAt: state.historyAt, onchainAt: state.onchainAt }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -483,6 +484,7 @@ async function discoverLoop() {
   if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
+    if (Date.now() - (state.onchainAt || 0) > DAY) { try { await refreshOnchain(knownRepos()); await followOnchain(); state.onchainAt = Date.now(); save() } catch (err) { console.warn('onchain', err.message) } }
     if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
     if (Date.now() - (state.crawledAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await crawlPeople(); state.crawledAt = Date.now() } catch (err) { console.warn('crawl', err.message) } }
@@ -525,9 +527,24 @@ setInterval(() => { try { announceNews() } catch (err) { console.warn('news', er
 // the pure rules, for the tests
 export { ckbContext, vetRepo, leaders, manifestOk }
 
+// repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
+async function followOnchain() {
+  const known = new Set(knownRepos().map((f) => f.toLowerCase()))
+  for (const full of onchainRepos()) {
+    const owner = ownerOf(full), key = owner.toLowerCase()
+    if (known.has(full.toLowerCase()) || blocked.has(key)) continue
+    const r = await ensureMeta(full)
+    if (r.private !== false) continue
+    const prev = state.extra[key]
+    if (prev?.repos.includes(full)) continue
+    await addOwner({ login: owner, type: r.ownerType || 'User', repos: [full] }, 'onchain')
+  }
+}
+
 export function start() {
   load()
   loadHistory(DATA)
+  loadOnchain(DATA)
   ownerLoop().catch((e) => console.error('owner loop died', e))
   builderLoop().catch((e) => console.error('builder loop died', e))
   discoverLoop().catch((e) => console.error('discovery loop died', e))
@@ -635,6 +652,7 @@ export function snapshot() {
       name: full, group: r.group, desc: r.desc || '', stars: r.stars || 0, n: a ? a.n : 0, n24: a ? a.n24 : 0, b24: a ? a.b24 : 0,
       lastAt: a?.last ? a.last.at : null, lastKind: a?.last ? a.last.kind : null, lastBotAt: a?.lastBot ? a.lastBot.at : null, pushedAt: r.pushedAt || null, tags: tagsFor(r, ''),
       createdAt: r.createdAt || null, isNew: !!r.createdAt && now - Date.parse(r.createdAt) < NEW_DAYS * DAY,
+      onchain: !!onchainOf(full),
     }
   })
   const groupNames = [...new Set(repos.map((r) => r.group))]
@@ -689,6 +707,7 @@ export function repoDetail(name) {
     name, url: `https://github.com/${name}`, group: r.group, desc: r.desc || '', stars: r.stars || 0, lang: r.lang || '', topics: r.topics || [], pushedAt: r.pushedAt || null, createdAt: r.createdAt || null,
     daily: { days, people, bots },
     months: repoMonths(name),
+    onchain: onchainOf(name),
     contributors: [...who.values()].sort((a, b) => b.n - a.n).slice(0, 12),
     events: list.filter((e) => !e.bot).slice(-40).reverse().map((e) => ({ at: e.at, kind: e.kind, actor: e.actor, avatar: e.avatar || '', title: e.title, url: e.url, ref: e.ref, commits: e.commits || 0 })),
   }
