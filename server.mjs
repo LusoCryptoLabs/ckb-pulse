@@ -9,11 +9,12 @@ import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf,
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
+import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json' }
-const clients = new Set()
+const clients = new Set(), fiberClients = new Set()
 
 // one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
 // so a page left open can tell that a new version went out (the same scheme as cellula.id)
@@ -31,6 +32,7 @@ function buildId() {
 }
 const BUILD = buildId()
 const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD)
+const FIBER = fs.readFileSync(path.join(ROOT, 'fiber.html'), 'utf8').replace('__BUILD__', BUILD)
 
 // share cards: pictures drawn on demand, kept ten minutes per address
 const LANGS = ['en', 'pt', 'zh'], PERIODS = ['day', 'week', 'month']
@@ -102,7 +104,10 @@ function sendJson(req, res, obj) {
 bus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of clients) c.write(msg); notifyEvent(e) })
 // a new project goes to every open page as its own kind of message, and to the browsers that asked for new projects
 bus.on('news', (n) => { const msg = `event: news\ndata: ${JSON.stringify(n)}\n\n`; for (const c of clients) c.write(msg); notifyNews(n) })
-initPush(process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data'))
+// Fiber: the map's changes and every channel opened or closed on chain, to the open Fiber pages
+fiberBus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of fiberClients) c.write(msg) })
+const DATA_DIR = process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data')
+initPush(DATA_DIR)
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
 const icons = {}
@@ -112,7 +117,7 @@ function readJson(req, max, done) {
   req.on('data', (c) => { body += c; if (body.length > max) req.destroy() })
   req.on('end', () => { let j = null; try { j = JSON.parse(body) } catch {} done(j) })
 }
-setInterval(() => { for (const c of clients) c.write(': ping\n\n') }, 25e3).unref()
+setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x')
@@ -121,9 +126,22 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/health') {
     const now = Date.now(), stale = now - (health.lastPollOk || health.startedAt) > 10 * 60e3
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-    return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, build: BUILD }))
+    return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, fiber: fiberHealth(), build: BUILD }))
   }
   if (url.pathname === '/' || url.pathname === '/index.html') return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url))
+  if (url.pathname === '/fiber' || url.pathname === '/fiber.html') return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, FIBER, 'fiber.html')
+  if (url.pathname === '/api/fiber') {
+    const d = fiberState(url.searchParams.get('net') || 'mainnet')
+    if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"unknown network"}') }
+    return sendJson(req, res, d)
+  }
+  if (url.pathname === '/api/fiber/stream') {
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
+    res.write('retry: 5000\n\n')
+    fiberClients.add(res)
+    req.on('close', () => fiberClients.delete(res))
+    return
+  }
   if (url.pathname === '/icon-192.png' || url.pathname === '/icon-512.png') { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); return res.end(icon(url.pathname.includes('512') ? 512 : 192)) }
   if (url.pathname === '/api/push/key') return sendJson(req, res, { key: publicKey() })
   if (url.pathname === '/api/push' && req.method === 'POST') return readJson(req, 16384, (j) => sendJson(req, res, subscribe(j)))
@@ -171,3 +189,4 @@ const server = http.createServer((req, res) => {
 })
 server.listen(PORT, () => console.log(`ckb-pulse on :${PORT}`))
 start()
+startFiber(DATA_DIR)
