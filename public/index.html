@@ -19,6 +19,7 @@
 </script>
 </head>
 <body>
+<a class="skip" href="#drawer" id="skip" data-t="l.skip"></a>
 <div id="stage" aria-hidden="true"></div>
 
 <header class="hud top">
@@ -27,13 +28,13 @@
     <div><h1>CKB Pulse</h1><p data-t="tagline"></p></div>
   </div>
   <div class="kpis">
-    <div><b id="k-day">0</b><span data-t="k.updates"></span></div>
-    <div><b id="k-people">0</b><span data-t="k.people"></span></div>
-    <div><b id="k-active">0</b><span data-t="k.projects"></span></div>
+    <button type="button" class="kpi" data-list="feed" aria-describedby="k-cap"><b id="k-day">0</b><span data-t="k.updates"></span></button>
+    <button type="button" class="kpi" data-list="people" aria-describedby="k-cap"><b id="k-people">0</b><span data-t="k.people"></span></button>
+    <button type="button" class="kpi" data-list="repos" aria-describedby="k-cap"><b id="k-active">0</b><span data-t="k.projects"></span></button>
     <p class="kcap" id="k-cap"></p>
   </div>
   <div class="tools">
-    <div class="search" id="search"><input id="q" type="search" autocomplete="off" data-t-label="search"><ul id="results" role="listbox" hidden></ul></div>
+    <div class="search" id="search"><input id="q" type="search" autocomplete="off" data-t-label="search"><ul id="results" hidden></ul></div>
     <button type="button" class="icon only-narrow" id="btn-search" data-t-label="searchShort"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <button type="button" class="icon filt-btn" id="btn-filters" aria-expanded="false" aria-controls="filters" data-t-label="filters"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M8.5 15h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="lbl-txt" data-t="filters"></span><b id="filt-n" hidden></b></button>
     <button type="button" class="icon" id="btn-home" data-t-label="home"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10a5.5 5.5 0 1 0 1.8-4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 3.5v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -53,20 +54,20 @@
 
 <aside class="hud side" id="side">
   <div class="tabs" role="tablist">
-    <button type="button" role="tab" aria-selected="true" data-tab="feed" data-t="tab.feed"></button>
-    <button type="button" role="tab" aria-selected="false" data-tab="top" data-t="tab.top"></button>
-    <button type="button" role="tab" aria-selected="false" data-tab="add"><span data-t="tab.new"></span><b class="dot" id="news-dot" hidden></b></button>
+    <button type="button" role="tab" id="tab-feed" aria-controls="feed" aria-selected="true" data-tab="feed" data-t="tab.feed"></button>
+    <button type="button" role="tab" id="tab-top" aria-controls="top" aria-selected="false" tabindex="-1" data-tab="top" data-t="tab.top"></button>
+    <button type="button" role="tab" id="tab-add" aria-controls="add" aria-selected="false" tabindex="-1" data-tab="add"><span data-t="tab.new"></span><b class="dot" id="news-dot" hidden></b></button>
     <button type="button" class="collapse" id="btn-side" data-t-label="side.toggle">›</button>
   </div>
-  <ol class="feed" id="feed" data-pane="feed"></ol>
-  <div class="top-pane" id="top" data-pane="top" hidden>
+  <ol class="feed" id="feed" data-pane="feed" aria-labelledby="tab-feed"></ol>
+  <div class="top-pane" id="top" data-pane="top" role="tabpanel" aria-labelledby="tab-top" hidden>
     <div class="trend" id="trend"></div>
     <div class="seg small" id="hl-period" role="group"><button type="button" data-h="day" data-t="h.day"></button><button type="button" data-h="week" data-t="h.week"></button><button type="button" data-h="month" data-t="h.month"></button></div>
     <div class="share-row"><button type="button" class="share-btn" id="hl-share"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 10v5.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-t="sh.highlights"></span></button></div>
     <div id="hl"></div>
     <p class="hint" data-t="h.note"></p>
   </div>
-  <div class="add-pane" data-pane="add" hidden>
+  <div class="add-pane" id="add" data-pane="add" role="tabpanel" aria-labelledby="tab-add" hidden>
     <h3 data-t="n.list"></h3>
     <p class="hint lead" data-t="n.lead"></p>
     <ol class="news" id="news"></ol>

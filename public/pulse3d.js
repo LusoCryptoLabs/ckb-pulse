@@ -222,6 +222,7 @@ function computeWindow() {
   })
   applyFilter()
   kpis(); filterCounts(); people()
+  if (listShown && T.period !== listPeriod && !$('drawer').hidden) renderList()
 }
 function matches(ri, k, a) {
   if (ri < 0) return false
@@ -309,14 +310,23 @@ function feed() {
 function feedItem(w, isNew) {
   const r = repos[w.r]
   const title = w.title ? `<div class="title">${w.url ? `<a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a>` : esc(w.title)}</div>` : ''
-  const did = t('v.' + w.k, { repo: `<span class="repo" data-repo="${w.r}">${esc(short(r.name))}</span>` })
+  const did = t('v.' + w.k, { repo: `<button type="button" class="repo" data-repo="${w.r}">${esc(short(r.name))}</button>` })
   return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" style="background:${kcol(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
 }
 $('feed').addEventListener('click', (e) => { const r = e.target.closest('[data-repo]'); if (r) openRepo(+r.dataset.repo) })
-for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', () => {
-  for (const x of document.querySelectorAll('.tabs [data-tab]')) x.setAttribute('aria-selected', String(x === b))
-  for (const p of document.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== b.dataset.tab
+function showTab(name) {
+  for (const x of document.querySelectorAll('.tabs [data-tab]')) { x.setAttribute('aria-selected', String(x.dataset.tab === name)); x.tabIndex = x.dataset.tab === name ? 0 : -1 }
+  for (const p of document.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== name
   $('side').classList.remove('closed')
+}
+for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', () => showTab(b.dataset.tab))
+// the tabs move with the arrow keys, the way screen readers present them
+document.querySelector('.tabs').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+  const xs = [...document.querySelectorAll('.tabs [data-tab]')], k = xs.indexOf(e.target.closest('[data-tab]'))
+  if (k < 0) return
+  const to = xs[(k + (e.key === 'ArrowRight' ? 1 : xs.length - 1)) % xs.length]
+  e.preventDefault(); showTab(to.dataset.tab); to.focus()
 })
 $('btn-side').addEventListener('click', () => $('side').classList.toggle('closed'))
 if (MOBILE) $('side').classList.add('closed')
@@ -333,16 +343,17 @@ function renderHighlights() {
   $('hl').innerHTML = HL_CATS.map(([cat, type]) => {
     const items = (L[k]?.[cat] || []).filter((x) => x[1] > 0).map(([name, n, av], i) => {
       const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
-      if (type === 'repo') return `<li data-repo-name="${esc(name)}">${rk}<i class="sw" style="background:${kcol(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></li>`
-      if (type === 'person') return `<li data-login="${esc(name)}" data-avatar="${esc(av || '')}">${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}</span><b>${n}</b></li>`
-      return `<li data-group="${esc(name)}">${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></li>`
+      const said = (label) => `aria-label="${esc(`${i + 1}. ${label}: ${n}`)}"`
+      if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" style="background:${kcol(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
+      if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}</span><b>${n}</b></button></li>`
+      return `<li><button type="button" class="row" data-group="${esc(name)}" ${said(gname(name))}>${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></button></li>`
     }).join('')
     return `<h3>${esc(t('h.' + cat))}</h3><ol class="hl">${items || `<li class="none">${esc(t('h.empty'))}</li>`}</ol>`
   }).join('')
 }
 $('hl-period').addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (b) { hlPeriod = b.dataset.h; renderHighlights() } })
 $('hl').addEventListener('click', (e) => {
-  const li = e.target.closest('li'); if (!li) return
+  const li = e.target.closest('.row'); if (!li) return
   if (li.dataset.repoName) { const i = repos.findIndex((r) => r.name === li.dataset.repoName); if (i >= 0) openRepo(i) }
   if (li.dataset.login) openPerson(actorOf(li.dataset.login, li.dataset.avatar))
   if (li.dataset.group) { const c = groupCenter.get(li.dataset.group); if (c) flyTo(c.x, c.z, Math.max(16, c.r * 3.2)) }
@@ -564,12 +575,16 @@ $('update-go').addEventListener('click', () => location.reload())
 $('update-x').addEventListener('click', () => { $('update').hidden = true; updateDismissed = true })
 
 // ================= the strip above the timeline =================
-function setNow(clock, text) {
+// the live line for screen readers: at most one every 10 seconds, so a busy hour does not talk over everything else,
+// and none for each update a replay flies past; what starts playing is said at once
+let saidAt = 0
+function say(text, now) { const at = performance.now(); if (!now && at - saidAt < 10000) return; saidAt = at; $('sr').textContent = text }
+function setNow(clock, text, speak = T.mode !== 'replay') {
   $('mode').textContent = t(T.mode === 'paused' ? 'mode.paused' : 'mode.' + T.period)
   $('now').classList.toggle('replay', T.mode === 'replay' || T.mode === 'done')
   $('now').classList.toggle('paused', T.mode === 'paused')
   $('clock').textContent = clock
-  if (text != null && performance.now() > T.holdTicker) { $('ticker').textContent = text; $('sr').textContent = text }
+  if (text != null && performance.now() > T.holdTicker) { $('ticker').textContent = text; if (speak) say(text, speak === 'now') }
   for (const b of $('periods').querySelectorAll('[data-p]')) b.setAttribute('aria-pressed', String(b.dataset.p === T.period))
   if (hlKey() !== hlShown) renderHighlights()
 }
@@ -860,7 +875,7 @@ function flyTo(x, z, dist = 14) {
   T.lastUser = Date.now()
 }
 function flyHome() { flight = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 } }
-$('btn-home').addEventListener('click', () => { $('drawer').hidden = true; flyHome() })
+$('btn-home').addEventListener('click', () => { closeDrawer(); flyHome() })
 function stepFlight(dt) {
   if (!flight) return
   flight.t = Math.min(1, flight.t + dt / 1.2)
@@ -870,12 +885,29 @@ function stepFlight(dt) {
   if (flight.t >= 1) flight = null
 }
 
-// ================= drawer: a project or a person =================
+// ================= drawer: a project, a person, or a list =================
+let drawerFrom = null
+function showDrawer() { if ($('drawer').hidden) { drawerFrom = document.activeElement; $('drawer').hidden = false } }
+function closeDrawer() {
+  const inside = $('drawer').contains(document.activeElement)
+  $('drawer').hidden = true; listShown = false
+  if (inside && drawerFrom?.isConnected && drawerFrom.getClientRects().length) drawerFrom.focus({ preventScroll: true })
+}
+// the heading takes the focus, so a keyboard or a screen reader carries on inside; not while the welcome card is up,
+// and, once the details have loaded, not if the focus went somewhere else in the meantime
+function focusDrawer(loaded) {
+  const a = document.activeElement
+  if (introOpen || (loaded && a && a !== document.body && !$('drawer').contains(a))) return
+  $('drawer-body').querySelector('h2')?.focus({ preventScroll: true })
+}
+const backBtn = (back) => back ? `<button type="button" class="back" data-back>\u2039 ${esc(t('l.back'))}</button>` : ''
 async function openRepo(i) {
   const r = repos[i]; if (!r) return
+  const back = backTo; backTo = null; listShown = false
   const c = cell[i]; if (c) flyTo(c.x, c.z, 26)
-  $('drawer').hidden = false
-  $('drawer-body').innerHTML = `<h2>${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
+  showDrawer()
+  $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
+  focusDrawer()
   const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>${followBtn('repo', r.name)}<button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>`
   const fresh = stateRepo(r.name)?.isNew ? `<span class="badge new">${esc(t('new.repo'))}</span>` : ''
   try {
@@ -886,7 +918,7 @@ async function openRepo(i) {
     const bw = 300 / d.daily.days
     const bars = d.daily.people.map((v, k) => { const hb = (d.daily.bots[k] / max) * 56, hp = (v / max) * 56; return `<rect x="${k * bw + 1}" y="${60 - hp - hb}" width="${bw - 2}" height="${hb}" fill="#8b9480" opacity=".6"/><rect x="${k * bw + 1}" y="${60 - hp}" width="${bw - 2}" height="${hp}" fill="#cbf34d" rx="1"/>` }).join('')
     const sub = [gname(d.group), d.lang, cnt('star', d.stars), d.pushedAt ? t('d.lastCode', { ago: ago(Date.parse(d.pushedAt)) }) : ''].filter(Boolean).map(esc).join(' · ')
-    $('drawer-body').innerHTML = `<h2>${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
+    $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
 ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}</p>
 <p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}
 <h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
@@ -896,22 +928,69 @@ ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
 <h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kcol(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
 ${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`
-  } catch { $('drawer-body').innerHTML = `<h2>${esc(short(r.name))}</h2><p class="owner">${esc(r.name)}</p>${badgesFor(r.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${esc(t('d.error'))}</p>${gh(`https://github.com/${r.name}`)}` }
+    focusDrawer(true)
+  } catch { $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(r.name))}</h2><p class="owner">${esc(r.name)}</p>${badgesFor(r.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${esc(t('d.error'))}</p>${gh(`https://github.com/${r.name}`)}`; focusDrawer(true) }
 }
 function openPerson(a) {
   const login = actors[a]?.[0]; if (!login) return
   const per = new Map()
   for (const w of rows) if (w.a === a && !w.b && w.r >= 0) per.set(w.r, (per.get(w.r) || 0) + 1)
   const list = [...per.entries()].sort((x, y) => y[1] - x[1])
-  $('drawer').hidden = false
-  $('drawer-body').innerHTML = `<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2>${esc(login)}</h2>
+  const back = backTo; backTo = null; listShown = false
+  showDrawer()
+  $('drawer-body').innerHTML = `${backBtn(back)}<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2 tabindex="-1">${esc(login)}</h2>
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}</p></div></div>
 ${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>
-<h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></li>`).join('')}</ol>`
+<h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li><button type="button" class="row" data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></button></li>`).join('')}</ol>`
+  focusDrawer()
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
 }
-$('drawer-body').addEventListener('click', (e) => { const li = e.target.closest('[data-repo]'); if (li) openRepo(+li.dataset.repo) })
-$('drawer-close').addEventListener('click', () => { $('drawer').hidden = true })
+
+// every project or person on screen as rows: the same picture as the scene, for a screen reader, a keyboard, or anyone
+// who prefers a list to blocks. The counters in the header open them. A list holds the moment it was opened (a list
+// that changed under the focus would be read out again and again) and follows a change of period.
+let listKind = null, listShown = false, listPeriod = null, restOpen = false, backTo = null
+function openList(kind) {
+  if (kind === 'feed') { closeDrawer(); showTab('feed'); $('tab-feed').focus(); return }
+  listKind = kind; restOpen = false
+  showDrawer()
+  renderList()
+  focusDrawer()
+}
+const repoRow = (i) => {
+  const r = repos[i], n = W.n[i], b = W.b[i]
+  const label = `${short(r.name)}, ${gname(r.group)}: ${[n ? cnt('upd', n) : t('l.noUpd'), b ? cnt('auto', b) : ''].filter(Boolean).join(', ')}`
+  return `<li><button type="button" class="row" data-repo="${i}" data-key="${esc(r.name)}" aria-label="${esc(label)}"><i class="sw" style="background:${n ? kcol(W.last[i]) : b ? 'var(--bot)' : '#2b3420'}"></i><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${n || ''}${b ? `<i>${b}</i>` : ''}</b></button></li>`
+}
+const personRow = ([a, n]) => `<li><button type="button" class="row" data-person="${a}" data-key="${esc(actors[a][0])}" aria-label="${esc(`${actors[a][0]}: ${cnt('upd', n)}`)}"><img src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(actors[a][0])}</span><b>${n}</b></button></li>`
+function renderList() {
+  listShown = true; listPeriod = T.period
+  const had = $('drawer').contains(document.activeElement) ? document.activeElement.dataset.key : null
+  let body
+  if (listKind === 'people') {
+    const ps = [...W.people].sort((x, y) => y[1] - x[1] || actors[x[0]][0].localeCompare(actors[y[0]][0]))
+    body = ps.length ? `<ol class="list people">${ps.map(personRow).join('')}</ol>` : `<p class="sub">${esc(t('l.none'))}</p>`
+  } else {
+    const all = repos.map((_, i) => i)
+    const busy = all.filter((i) => W.n[i]).sort((x, y) => W.n[y] - W.n[x] || W.b[y] - W.b[x] || repos[x].name.localeCompare(repos[y].name))
+    const rest = all.filter((i) => !W.n[i]).sort((x, y) => W.b[y] - W.b[x] || repos[x].name.localeCompare(repos[y].name))
+    body = `<p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>` +
+      (busy.length ? `<ol class="list">${busy.map(repoRow).join('')}</ol>` : `<p class="sub">${esc(t('l.none'))}</p>`) +
+      (rest.length ? `<button type="button" class="share-btn more" data-rest data-key="rest" aria-expanded="${restOpen}">${esc(cnt('l.rest', rest.length))}</button>${restOpen ? `<ol class="list">${rest.map(repoRow).join('')}</ol>` : ''}` : '')
+  }
+  $('drawer-body').innerHTML = `<h2 tabindex="-1">${esc(t(listKind === 'people' ? 'l.people' : 'l.repos'))}</h2><p class="sub">${esc(shown('k.'))}</p>${body}`
+  if (had) $('drawer-body').querySelector(`[data-key="${CSS.escape(had)}"]`)?.focus({ preventScroll: true })
+}
+$('drawer-body').addEventListener('click', (e) => {
+  if (e.target.closest('[data-back]')) { renderList(); focusDrawer(); return }
+  if (e.target.closest('[data-rest]')) { restOpen = !restOpen; renderList(); return }
+  const fromList = !!e.target.closest('.list')
+  const r = e.target.closest('[data-repo]'); if (r) { backTo = fromList ? listKind : null; openRepo(+r.dataset.repo) }
+  const p = e.target.closest('[data-person]'); if (p) { backTo = fromList ? listKind : null; openPerson(+p.dataset.person) }
+})
+$('drawer-close').addEventListener('click', closeDrawer)
+for (const b of document.querySelectorAll('.kpi')) b.addEventListener('click', () => openList(b.dataset.list))
+$('skip').addEventListener('click', (e) => { e.preventDefault(); openList('repos') })
 
 // ================= search =================
 function closeSearch() { $('search').classList.remove('open'); $('results').hidden = true }
@@ -925,19 +1004,26 @@ $('q').addEventListener('input', () => {
   if (q.length < 2) { $('results').hidden = true; return }
   const rs = repos.map((r, i) => [i, r]).filter(([, r]) => r.name.toLowerCase().includes(q)).slice(0, 8)
   const ps = actors.map((p, i) => [i, p]).filter(([, p]) => p[0].toLowerCase().includes(q)).slice(0, 6)
-  $('results').innerHTML = rs.map(([i, r]) => `<li role="option" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kcol(W.last[i]) : '#2b3420'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></li>`).join('') +
-    ps.map(([i, p]) => `<li role="option" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt=""><span>${esc(p[0])}</span><b>${W.people.get(i) || ''}</b></li>`).join('') || `<li>${esc(t('nothing'))}</li>`
+  $('results').innerHTML = rs.map(([i, r]) => `<li><button type="button" class="row" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kcol(W.last[i]) : '#2b3420'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></button></li>`).join('') +
+    ps.map(([i, p]) => `<li><button type="button" class="row" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt=""><span>${esc(p[0])}</span><b>${W.people.get(i) || ''}</b></button></li>`).join('') || `<li class="none">${esc(t('nothing'))}</li>`
   $('results').hidden = false
 })
+// the arrow keys move from the search box into its results and between them
+$('q').addEventListener('keydown', (e) => { const b = $('results').querySelector('.row'); if (e.key === 'ArrowDown' && b && !$('results').hidden) { e.preventDefault(); b.focus() } })
+$('results').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+  const xs = [...$('results').querySelectorAll('.row')], k = xs.indexOf(e.target.closest('.row'))
+  e.preventDefault(); (xs[k + (e.key === 'ArrowDown' ? 1 : -1)] || (e.key === 'ArrowUp' ? $('q') : xs[k]))?.focus()
+})
 $('results').addEventListener('click', (e) => {
-  const li = e.target.closest('li'); if (!li) return
+  const li = e.target.closest('.row'); if (!li) return
   if (li.dataset.repo) openRepo(+li.dataset.repo)
   if (li.dataset.person) openPerson(+li.dataset.person)
   closeSearch(); $('q').blur()
 })
 $('btn-full').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.() })
 if (!document.fullscreenEnabled) $('btn-full').hidden = true // iPhones have no full screen for pages
-addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('drawer').hidden = true; closeSearch(); openFilters(false) } })
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('drawer').hidden) closeDrawer(); closeSearch(); openFilters(false) } })
 addEventListener('pointerdown', (e) => {
   // a tap outside the open filter panel closes it
   if ($('filters').classList.contains('open') && !e.target.closest('#filters, #btn-filters')) openFilters(false)
@@ -971,6 +1057,7 @@ function drawHead() {
   $('head-label').textContent = T.mode === 'live' || T.mode === 'done' ? t('tl.now') : fmtDay(T.t)
   $('head-label').style.transform = `translateX(${x > 0.92 ? -100 : x < 0.08 ? 0 : -50}%)`
   track.setAttribute('aria-valuenow', String(Math.round(x * 100)))
+  track.setAttribute('aria-valuetext', $('head-label').textContent)
 }
 function timeAtX(clientX) { const b = track.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (clientX - b.left) / b.width)); return Date.now() - 7 * DAY + f * 7 * DAY }
 let dragging = false
@@ -1010,7 +1097,7 @@ function play(period, { auto = false, from = null } = {}) {
   T.rate = REDUCED ? 1e9 : PERIOD[period].span / PERIOD[period].ms
   T.t = from ?? Date.now() - PERIOD[period].span
   seekPtr(); computeWindow(); feed(); drawHead()
-  setNow(fmtDay(T.t), from == null ? t(auto ? 'replay.auto' : 'replay.' + period) : null)
+  setNow(fmtDay(T.t), from == null ? t(auto ? 'replay.auto' : 'replay.' + period) : null, 'now')
   if (from == null) T.holdTicker = performance.now() + 4500 // say what is playing before the first update takes the line
   setPlay(true)
 }
@@ -1094,11 +1181,13 @@ function applyLang() {
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
   $('q').placeholder = innerWidth <= 860 ? t('search') : innerWidth < 1200 ? t('searchShort') : t('search')
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
-  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automatic'))}</span>`
+  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automaticLong'))}</span>`
+  for (const b of document.querySelectorAll('.kpi')) b.title = t('l.see.' + b.dataset.list)
   for (const o of groupLabels) labelText(o.element)
   buildFilters(); liveDot(); setPlay(T.mode === 'replay'); renderNews(); notifyState()
   if (!repos.length) { $('ticker').textContent = t('connecting'); updateLayout(); return }
   computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges()
+  if (listShown && !$('drawer').hidden) renderList()
   if (T.mode === 'live') setNow(fmtClock(Date.now()), liveText()); else setNow(T.mode === 'done' ? fmtClock(T.t) : fmtDay(T.t), null)
   updateLayout()
 }
