@@ -15,6 +15,16 @@ GITHUB_TOKEN=<read-only token> node server.mjs
 
 Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sends browser notices (its keys are made on first start in `DATA_DIR/vapid.json`). `PORT` defaults to 8080, `DATA_DIR` to `./data`.
 
+## Test
+
+```sh
+npm test
+```
+
+The rules (what counts as CKB work, manifests, the burst cap), the words in every language, the share cards, and no long dashes. CI runs them on every push.
+
+`GET /health` answers 200 while the server lives; `collector.ok` turns false when no organisation feed has answered for 10 minutes.
+
 ## What it follows
 
 - The organisations and accounts in `config.mjs`, polled every minute with ETags. An account's repositories are read one by one, since its own feed only lists what that account did.
