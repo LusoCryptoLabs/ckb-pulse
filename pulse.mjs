@@ -477,6 +477,8 @@ async function fillWeek() {
 }
 
 async function discoverLoop() {
+  // groups that came in through the explorer before the rule above: not newcomers either
+  for (const o of Object.values(state.extra || {})) if (o.source === 'onchain' && state.groupsSeen) for (const f of o.repos) { const g = state.repos[f]?.group; if (g && state.groupsSeen[g] > 1) state.groupsSeen[g] = 0 }
   try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) }
   await verifyEventRepos()
   await fillOwnerTypes()
@@ -537,6 +539,8 @@ async function followOnchain() {
     if (r.private !== false) continue
     const prev = state.extra[key]
     if (prev?.repos.includes(full)) continue
+    // a script already on chain is not a newcomer: its group is never marked new
+    if (state.groupsSeen && !(r.group in state.groupsSeen)) state.groupsSeen[r.group] = 0
     await addOwner({ login: owner, type: r.ownerType || 'User', repos: [full] }, 'onchain')
   }
 }
