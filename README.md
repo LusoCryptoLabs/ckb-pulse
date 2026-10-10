@@ -45,6 +45,12 @@ Counted over the projects followed today: projects that stopped earlier are miss
 
 Once a day: every script the CKB explorer knows with a source repository (its repository is then followed too), and the mainnet contracts projects record in their committed ckb-cli migrations, measured on a public CKB node (`CKB_RPC`, default mainnet.ckb.dev): CKB in live cells that use each one and its last use. Shown in each project's card, with a tag in the scene.
 
+## Fiber
+
+`/fiber` maps the Fiber payment network on mainnet and testnet. Nodes, public channels and their updates come from a Fiber node of your own that only listens (no channels, no funds, auto-accept off): set `FIBER_MAINNET_RPC` and `FIBER_TESTNET_RPC` to its RPC. Openings and closings come from the chain block by block, as cells under Fiber's FundingLock appear and are spent, so private channels count there too (`CKB_RPC`, `CKB_TESTNET_RPC`). Payments travel encrypted between nodes and are not visible.
+
+Gossip is slow. Measured on testnet on 2026-10-10: a new listening node had 317 channels after 2 minutes and 537 more when their nodes announced them again 20 minutes later, and channel updates reached it 37 s to 42 min after their own timestamp. The chain is the fast path.
+
 ## New projects and following
 
 A followed public repository created in the last 14 days is a new project: it is listed under New and announced once to the open pages. "ckb" alone does not make a repository CKB work (it is also Central Kurdish and a Codebase Knowledge Base format): such a repository needs chain words in its name, description or topics.
@@ -62,9 +68,11 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /api/stream`: new events, Server-Sent Events
 - `GET /og/highlights.png?p=`, `/og/repo.png?name=`, `/og/person.png?login=`, each with `lang=en|pt|zh`: share pictures
 - `GET /api/push/key`, `POST /api/push` with `{sub, repos, people, news, lang}`, `POST /api/push/off` with `{endpoint}`: browser notices
+- `GET /api/fiber?net=mainnet|testnet`: the Fiber map, channels open on chain, a week of openings and closings
+- `GET /api/fiber/stream`: Fiber changes as they happen, Server-Sent Events
 - `GET /version.json`: the build the server runs, for the new-version notice
 - `POST /api/propose` with `{"login"}`, then `GET /api/propose?id=`: a suggestion and how its check went
 
 ## License
 
-MIT. Three.js is vendored in `public/vendor` under its own MIT licence.
+MIT. Three.js (MIT) and d3 (ISC) are vendored in `public/vendor` under their own licences.
