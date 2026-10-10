@@ -5,7 +5,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus } from './pulse.mjs'
+import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health } from './pulse.mjs'
+import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 
@@ -77,6 +78,19 @@ async function shareCard(req, res, url) {
   res.end(png)
 }
 
+// text compressed for browsers that take it: brotli, else gzip. The page's files only change with a deploy, so each
+// one is compressed once and kept (measured 2026-10-10: 430 kB went out uncompressed on a first visit)
+const ENC = (req) => { const ae = req.headers['accept-encoding'] || ''; return /\bbr\b/.test(ae) ? 'br' : /\bgzip\b/.test(ae) ? 'gzip' : '' }
+const squeeze = (buf, enc) => enc === 'br' ? zlib.brotliCompressSync(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9 } }) : zlib.gzipSync(buf, { level: 9 })
+const packed = new Map()
+function sendText(req, res, status, headers, body, key) {
+  const enc = ENC(req), buf = Buffer.isBuffer(body) ? body : Buffer.from(body)
+  if (!enc || buf.length < 1024) { res.writeHead(status, headers); return res.end(buf) }
+  let out = key && packed.get(key + enc)
+  if (!out) { out = squeeze(buf, enc); if (key) packed.set(key + enc, out) }
+  res.writeHead(status, { ...headers, 'content-encoding': enc, vary: 'accept-encoding' })
+  res.end(out)
+}
 // JSON, gzipped when the browser accepts it (the state with 7 days of history is a few hundred kB raw)
 function sendJson(req, res, obj) {
   const body = Buffer.from(JSON.stringify(obj))
@@ -102,8 +116,14 @@ setInterval(() => { for (const c of clients) c.write(': ping\n\n') }, 25e3).unre
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x')
-  if (url.pathname === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok') }
-  if (url.pathname === '/' || url.pathname === '/index.html') { res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }); return res.end(page(req, url)) }
+  // liveness stays 200; collector.ok turns false when no organisation feed has answered for 10 minutes, and the VPS
+  // watcher (sentinela, SONDA_pulse-*) mails when it does
+  if (url.pathname === '/health') {
+    const now = Date.now(), stale = now - (health.lastPollOk || health.startedAt) > 10 * 60e3
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+    return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, build: BUILD }))
+  }
+  if (url.pathname === '/' || url.pathname === '/index.html') return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url))
   if (url.pathname === '/icon-192.png' || url.pathname === '/icon-512.png') { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); return res.end(icon(url.pathname.includes('512') ? 512 : 192)) }
   if (url.pathname === '/api/push/key') return sendJson(req, res, { key: publicKey() })
   if (url.pathname === '/api/push' && req.method === 'POST') return readJson(req, 16384, (j) => sendJson(req, res, subscribe(j)))
@@ -143,7 +163,10 @@ const server = http.createServer((req, res) => {
   const f = path.join(ROOT, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname))
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found') }
   // the page's own files change together on every deploy: always ask again; three.js only changes with a new folder
-  res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream', 'cache-control': url.pathname.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache' })
+  const type = TYPES[path.extname(f)] || 'application/octet-stream'
+  const headers = { 'content-type': type, 'cache-control': url.pathname.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache' }
+  if (/^(text\/|application\/(json|manifest\+json)|image\/svg)/.test(type)) return sendText(req, res, 200, headers, fs.readFileSync(f), f)
+  res.writeHead(200, headers)
   fs.createReadStream(f).pipe(res)
 })
 server.listen(PORT, () => console.log(`ckb-pulse on :${PORT}`))

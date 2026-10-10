@@ -22,6 +22,8 @@ const NEW_DAYS = 7 // a project or an organisation counts as new for this long
 const STATE_VERSION = 3
 
 export const bus = new EventEmitter()
+// how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
+export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
 export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, startedAt: Date.now() }
 const ids = new Set()
@@ -39,6 +41,7 @@ export function load() {
     }
     state.events.sort((a, b) => a.at.localeCompare(b.at))
     for (const e of state.events) ids.add(e.id)
+    health.lastEventAt = Date.parse(state.events.at(-1)?.at || 0) || 0
     // builders found before the ckb-context rule: discover again once, so topic-only false friends drop out
     if (state.ctxRule !== 1) { state.discoveredAt = 0; state.ctxRule = 1 }
     console.log(`loaded ${state.events.length} events, ${Object.keys(state.repos).length} repos, ${state.builders.length} builders`)
@@ -173,6 +176,7 @@ async function intake(raw, source) {
     if (!n) continue
     state.events.push(n)
     added++
+    health.lastEventAt = Math.max(health.lastEventAt, Date.parse(n.at))
     // only events from the last few minutes pulse live; the backfill just fills the page
     if (Date.now() - new Date(n.at) < 15 * 60e3) fresh.push(n)
   }
@@ -208,6 +212,7 @@ async function pollOwners(backfill) {
       try {
         const url = o.user ? `/users/${o.n}/events/public?per_page=100&page=${page}` : `/orgs/${o.n}/events?per_page=100&page=${page}`
         const r = await gh(url, { conditional: !backfill })
+        if (r.status === 200 || r.status === 304) health.lastPollOk = Date.now()
         if (r.changed && Array.isArray(r.body)) {
           // a person's feed also lists what they did elsewhere: keep their own repositories and the followed ones
           const raw = o.user ? r.body.filter((e) => { const ow = ownerOf(e.repo?.name || '').toLowerCase(); return ownerSet.has(ow) || state.builders.includes(e.repo?.name) }) : r.body
@@ -511,6 +516,9 @@ function announceNews() {
   for (const [k, at] of Object.entries(state.announced)) if (at > 1 && Date.now() - at > 60 * DAY) delete state.announced[k]
 }
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
+
+// the pure rules, for the tests
+export { ckbContext, vetRepo, leaders, manifestOk }
 
 export function start() {
   load()
