@@ -38,6 +38,12 @@ The rules (what counts as CKB work, manifests, the burst cap), the words in ever
 
 The events API reaches back 90 days. Months and years come from GitHub's contributor statistics: commits per week and author for every known CKB repository, quiet ones included, refreshed weekly into `DATA_DIR/history.json`. From them: active developers per month (a commit in the month), new developers (their first commit among these repositories) and commits, two years back; and commits per month for each project.
 
+Counted over the projects followed today: projects that stopped earlier are missing, so older months read low and the growth looks larger than it was.
+
+## On chain
+
+Once a day: every script the CKB explorer knows with a source repository (its repository is then followed too), and the mainnet contracts projects record in their committed ckb-cli migrations, measured on a public CKB node (`CKB_RPC`, default mainnet.ckb.dev): CKB in live cells that use each one and its last use. Shown in each project's card, with a tag in the scene.
+
 ## New projects and following
 
 A followed public repository created in the last 14 days is a new project: it is listed under New and announced once to the open pages. "ckb" alone does not make a repository CKB work (it is also Central Kurdish and a Codebase Knowledge Base format): such a repository needs chain words in its name, description or topics.
