@@ -6,7 +6,8 @@
   "description": "Live GitHub activity of the CKB ecosystem, drawn in 3D",
   "license": "MIT",
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
