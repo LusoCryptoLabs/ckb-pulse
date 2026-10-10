@@ -326,6 +326,7 @@ const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['p
 const hlKey = () => hlPeriod || (T.period === 'week' ? 'week' : 'day')
 let hlShown = null
 function renderHighlights() {
+  renderTrend()
   const L = S?.leaders; if (!L) return
   const k = hlShown = hlKey()
   for (const b of $('hl-period').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.h === k))
@@ -346,6 +347,22 @@ $('hl').addEventListener('click', (e) => {
   if (li.dataset.login) openPerson(actorOf(li.dataset.login, li.dataset.avatar))
   if (li.dataset.group) { const c = groupCenter.get(li.dataset.group); if (c) flyTo(c.x, c.z, Math.max(16, c.r * 3.2)) }
 })
+// active developers per month over two years, from commits (the server reads GitHub's contributor statistics)
+const monthName = (m) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString(t('locale'), { month: 'long', year: 'numeric', timeZone: 'UTC' })
+function monthBars(list, key, hi) {
+  const max = Math.max(1, ...list.map((x) => x[key])), bw = 300 / list.length
+  return list.map((x, i) => { const h = (x[key] / max) * 56; return `<rect x="${(i * bw + 0.6).toFixed(1)}" y="${(60 - Math.max(1, h)).toFixed(1)}" width="${(bw - 1.2).toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" rx="1" fill="${i === hi ? '#cbf34d' : '#7d9a2c'}"><title>${esc(monthName(x.month))}: ${x[key]}</title></rect>` }).join('')
+}
+function renderTrend() {
+  const T2 = S?.trends
+  if (!T2 || !T2.repos) { $('trend').innerHTML = ''; return }
+  const ms = T2.months, last = ms.length - 2, m = ms[last], ago = ms[last - 12]
+  $('trend').innerHTML = `<h3>${esc(t('t.title'))}</h3><svg viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(ms, 'devs', last)}</svg>
+<div class="t-axis"><span>${esc(monthName(ms[0].month))}</span><span>${esc(monthName(ms[ms.length - 1].month))}</span></div>
+<p class="t-line">${esc(t('t.line', { devs: m.devs, month: monthName(m.month), newDevs: m.newDevs, yearAgo: ago ? ago.devs : 0 }))}</p>
+<p class="hint">${esc(T2.repos < T2.of ? t('t.counting', { repos: T2.repos, of: T2.of }) : t('t.source'))}</p>`
+}
+
 // the medals one project or one person holds, longest period first
 function badgesFor(name, cats, extra = '') {
   const L = S?.leaders
@@ -861,6 +878,7 @@ ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}
 <p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}
 <h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
 <p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>
+${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
 <h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kcol(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
 ${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`

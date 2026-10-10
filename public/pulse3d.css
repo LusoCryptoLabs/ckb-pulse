@@ -123,6 +123,12 @@ body.drawer-open .side { visibility: hidden; }
 .hl small { color: var(--mut); font-size: 11.5px; margin-left: 6px; }
 .hl b { color: var(--lime); font-variant-numeric: tabular-nums; }
 .hl .none { display: block; color: var(--mut); cursor: default; }
+.trend { margin: 2px 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.trend h3 { font-size: 13px; color: var(--mut); font-weight: 600; margin: 4px 0 8px; }
+.trend svg { width: 100%; height: 70px; display: block; }
+.t-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--mut); margin-top: 3px; }
+.t-line { margin: 8px 0 0; font-size: 13.5px; line-height: 1.45; }
+.trend .hint { margin-top: 6px; }
 .tabs .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ff6b8b; margin-left: 5px; vertical-align: 2px; }
 .add-pane .lead { margin: -2px 0 8px; }
 .news { list-style: none; margin: 0 0 12px; padding: 0; }
