@@ -2,7 +2,7 @@
 //  - the public graph (nodes, channels, their updates) from a listening Fiber node of your own, one per network
 //    (FIBER_MAINNET_RPC, FIBER_TESTNET_RPC), read every 20 s. A node with no channels receives it by gossip, which is
 //    slow and comes in waves: measured on testnet 2026-10-10, 317 channels in the first 2 minutes, 537 more when
-//    their nodes announced them again 20 minutes later, and channel updates 37 s to 42 min after their own stamp;
+//    their nodes announced them again 20 minutes later; outside that wave, updates 14 to 62 s after their own stamp;
 //  - every channel opening and closing, public or private, from the chain, block by block: a channel is a cell under
 //    Fiber's FundingLock, opened when the cell appears and closed when it is spent.
 // Payments travel encrypted from node to node and are never visible. Kept in DATA_DIR/fiber.json.

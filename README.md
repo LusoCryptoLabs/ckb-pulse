@@ -49,7 +49,7 @@ Once a day: every script the CKB explorer knows with a source repository (its re
 
 `/fiber` maps the Fiber payment network on mainnet and testnet. Nodes, public channels and their updates come from a Fiber node of your own that only listens (no channels, no funds, auto-accept off): set `FIBER_MAINNET_RPC` and `FIBER_TESTNET_RPC` to its RPC. Openings and closings come from the chain block by block, as cells under Fiber's FundingLock appear and are spent, so private channels count there too (`CKB_RPC`, `CKB_TESTNET_RPC`). Payments travel encrypted between nodes and are not visible.
 
-Gossip is slow. Measured on testnet on 2026-10-10: a new listening node had 317 channels after 2 minutes and 537 more when their nodes announced them again 20 minutes later, and channel updates reached it 37 s to 42 min after their own timestamp. The chain is the fast path.
+Gossip fills in slowly. Measured on testnet on 2026-10-10: a new listening node had 317 channels after 2 minutes and 537 more when their nodes announced them again 20 minutes later (that wave carried updates 41 minutes old). Outside the wave, channel updates reached it 14 to 62 s after their own timestamp (6 in 90 minutes). Openings and closings come from the chain, which is the fast path.
 
 ## New projects and following
 
