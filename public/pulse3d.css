@@ -145,6 +145,10 @@ body.drawer-open .side { visibility: hidden; }
 .notify { border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: 4px; }
 .notify .hint { margin: 8px 0 0; }
 .add-pane h3.suggest { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 12px; }
+.chain3d { font-size: 10.5px; font-weight: 800; color: #062a33; background: #62c9f5; border-radius: 999px; padding: 0 6px; transition: opacity 0.25s; pointer-events: none; }
+.drawer .oc li { display: block; }
+.drawer .oc li a { text-decoration: none; }
+.drawer .oc li a:hover b { text-decoration: underline; }
 .star3d { font-size: 12px; font-weight: 800; color: #07090a; background: var(--lime); border-radius: 999px; padding: 0 6px; transition: opacity 0.25s; pointer-events: none; }
 .hint { color: var(--mut); font-size: 12px; margin: 14px 0 0; }
 .add-pane { padding: 10px 14px 14px; overflow-y: auto; flex: 1; }

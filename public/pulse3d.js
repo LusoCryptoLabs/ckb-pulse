@@ -363,6 +363,17 @@ function renderTrend() {
 <p class="hint">${esc(T2.repos < T2.of ? t('t.counting', { repos: T2.repos, of: T2.of }) : t('t.source'))}</p>`
 }
 
+// what the project runs on mainnet: per contract, the CKB in cells that use it, transactions when known, the last use
+const ckbAmount = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)} M` : n >= 1e3 ? `${Math.round(n / 1e3)} k` : String(n)
+function onchainBlock(list) {
+  if (!list?.length) return ''
+  return `<h3>${esc(t('oc.title'))}</h3><ol class="oc">${list.slice(0, 8).map((c) => `<li><a href="https://explorer.nervos.org/script/${esc(c.codeHash)}/${esc(c.hashType)}" target="_blank" rel="noopener"><b>${esc(c.name)}</b></a><small>${[
+    c.capacity ? t('oc.capacity', { ckb: ckbAmount(c.capacity) }) : t('oc.idle'),
+    c.txs != null ? cnt('oc.tx', c.txs).replace(String(c.txs), Number(c.txs).toLocaleString(t('locale'))) : '',
+    c.lastUsedAt ? t('oc.last', { ago: ago(Date.parse(c.lastUsedAt)) }) : '',
+  ].filter(Boolean).map(esc).join(' · ')}</small></li>`).join('')}</ol><p class="hint">${esc(t('oc.note'))}</p>`
+}
+
 // the medals one project or one person holds, longest period first
 function badgesFor(name, cats, extra = '') {
   const L = S?.leaders
@@ -660,6 +671,8 @@ function placeBadges() {
   for (const [name, p] of repoWins) pin(name, MEDAL + esc(t(`b.repos.${p}`)), 'badge3d', 1000 + ['day', 'week', 'month'].indexOf(p))
   const fresh = (S?.repos || []).filter((r) => r.isNew && !repoWins.has(r.name)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6)
   for (const r of fresh) pin(r.name, esc(t('new.repo')), 'new3d', 50)
+  // contracts in use on mainnet: a small chain tag
+  for (const r of (S?.repos || []).filter((x) => x.onchain && !repoWins.has(x.name)).slice(0, 40)) pin(r.name, esc(t('oc.tag')), 'chain3d', 600)
   // what this device follows wears a star
   for (const r of repos.filter((x) => followsRepo(x.name) && !repoWins.has(x.name)).slice(0, 40)) pin(r.name, '★', 'star3d', 700)
 }
@@ -878,6 +891,7 @@ ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}
 <p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}
 <h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
 <p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>
+${onchainBlock(d.onchain)}
 ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
 <h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kcol(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
