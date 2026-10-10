@@ -75,3 +75,12 @@ export const POLL = {
 
 // Automation: kept as quiet sparks on the grid, never in the feed or the main counters (releases excepted)
 export const isNoiseActor = (login) => /\[bot\]$/i.test(login) || login === 'Copilot'
+// AI agents working under a person's account push to branches of their own (Claude Code, Codex, Copilot, Cursor,
+// Devin). Their pushes, the branches they open and the pull requests they propose count as automatic; the person who
+// merges the work still counts. Measured 2026-10-10 on the lab's 30 days: 60 such events among about 2,260 by people.
+export const AGENT_BRANCH = /^(claude|codex|copilot|cursor|devin)\//i
+export const isAgentBranch = (ref) => AGENT_BRANCH.test(ref || '')
+// A schedule, not a person: one account pushing the same commit title to one project on this many different days of
+// the last 30. Measured 2026-10-10: two accounts pushed "Update README.md" every two hours or so on 20 of 29 days (100
+// pushes each) and led the month's people; the most a person repeated a title was on 12 days (uploads from the web).
+export const SCHEDULE_DAYS = 15

@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -27,7 +27,7 @@ export const bus = new EventEmitter()
 // how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
 export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, agentRule: 0, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -47,12 +47,16 @@ export function load() {
     // discover again once when the rules change: 1, the ckb-context rule (topic-only false friends drop out);
     // 2, fourteen more searches (2026-10-10)
     if (state.ctxRule !== 2) { state.discoveredAt = 0; state.ctxRule = 2 }
+    // work by AI agents on their own branches became automatic on 2026-10-10: stored pushes and branches carry their
+    // branch; stored proposals are looked up once (markAgentProposals)
+    if (!state.agentRule) for (const e of state.events) if (!e.bot && (e.kind === 'push' || e.kind === 'branch') && isAgentBranch(e.ref)) Object.assign(e, { bot: true, agent: true })
+    markSchedules()
     console.log(`loaded ${state.events.length} events, ${Object.keys(state.repos).length} repos, ${state.builders.length} builders`)
   } catch (err) { console.error('could not read state:', err.message) }
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, historyAt: state.historyAt, onchainAt: state.onchainAt }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, historyAt: state.historyAt, onchainAt: state.onchainAt, agentRule: state.agentRule }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -101,7 +105,7 @@ function tagsFor(repo, text) {
 }
 
 // ---------- one GitHub event -> one line ----------
-const pr = (url) => once('pr:' + url, async () => { const r = await gh(url); return r.body ? { title: r.body.title, merged: r.body.merged, html: r.body.html_url } : null })
+const pr = (url) => once('pr:' + url, async () => { const r = await gh(url); return r.body ? { title: r.body.title, merged: r.body.merged, html: r.body.html_url, head: r.body.head?.ref || '' } : null })
 const prHtml = (apiUrl) => (apiUrl || '').replace('https://api.github.com/repos/', 'https://github.com/').replace('/pulls/', '/pull/')
 async function normalise(e) {
   if (e.public === false) return null
@@ -110,17 +114,18 @@ async function normalise(e) {
   const p = e.payload || {}
   // automation stays as quiet sparks on the grid; it costs no extra lookups and never enters the feed
   const bot = isNoiseActor(actor)
-  let kind = null, title = '', url = `https://github.com/${repo}`, ref = '', commits = 0
+  let kind = null, title = '', url = `https://github.com/${repo}`, ref = '', commits = 0, agent = false
   switch (e.type) {
     case 'PushEvent': {
       ref = (p.ref || '').replace('refs/heads/', '')
       if (ref === 'gh-pages') return null
       kind = 'push'
+      agent = !bot && isAgentBranch(ref)
       if (p.head) {
         url = `https://github.com/${repo}/commit/${p.head}`
-        title = bot ? ref : await once(`c:${repo}@${p.head}`, async () => { const r = await gh(`/repos/${repo}/commits/${p.head}`); return r.body ? r.body.commit.message.split('\n')[0] : '' })
+        title = bot || agent ? ref : await once(`c:${repo}@${p.head}`, async () => { const r = await gh(`/repos/${repo}/commits/${p.head}`); return r.body ? r.body.commit.message.split('\n')[0] : '' })
       }
-      if (!bot) commits = await commitCount(repo, p)
+      if (!bot && !agent) commits = await commitCount(repo, p)
       break
     }
     case 'PullRequestEvent': {
@@ -131,6 +136,7 @@ async function normalise(e) {
       if (!d) return null
       kind = a === 'closed' ? (d.merged ? 'pr_merged' : 'pr_closed') : 'pr_open'
       title = d.title; url = d.html
+      agent = kind === 'pr_open' && isAgentBranch(d.head) // proposed by an agent; merging or closing it is a person's call
       break
     }
     case 'IssuesEvent': {
@@ -156,6 +162,7 @@ async function normalise(e) {
     case 'CreateEvent':
       kind = p.ref_type === 'repository' ? 'repo' : p.ref_type === 'tag' ? 'tag' : 'branch'
       ref = p.ref || ''; title = p.ref_type === 'repository' ? (p.description || 'new repository') : ref
+      agent = !bot && kind === 'branch' && isAgentBranch(ref)
       break
     case 'PublicEvent': kind = 'repo'; title = 'made public'; break
     case 'ForkEvent': kind = 'fork'; title = p.forkee?.full_name || ''; break
@@ -164,7 +171,7 @@ async function normalise(e) {
   }
   const r = await ensureMeta(repo, e.type === 'PublicEvent')
   if (r.private !== false) return null
-  return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: bot && kind !== 'release', ...(commits ? { commits } : {}) }
+  return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: (bot || agent) && kind !== 'release', ...(agent ? { agent: true } : {}), ...(commits ? { commits } : {}) }
 }
 
 // ---------- intake ----------
@@ -183,7 +190,7 @@ async function intake(raw, source) {
     // only events from the last few minutes pulse live; the backfill just fills the page
     if (Date.now() - new Date(n.at) < 15 * 60e3) fresh.push(n)
   }
-  if (added) state.events.sort((a, b) => a.at.localeCompare(b.at))
+  if (added) { state.events.sort((a, b) => a.at.localeCompare(b.at)); markSchedules() }
   if (fresh.length) {
     for (const n of fresh) bus.emit('event', n)
     console.log(`${new Date().toISOString().slice(11, 19)} ${source}: ${fresh.length} new`)
@@ -353,6 +360,41 @@ async function backfillCommits() {
   }
   if (found + guessed) { save(); console.log(`commits counted for ${found} stored pushes, ${guessed} set to one`) }
 }
+// pushes on a schedule (SCHEDULE_DAYS): the same title from one account to one project on many different days. Once
+// a group qualifies, all its stored pushes count as automatic, and they stay so.
+const pushKey = (e) => `${e.actor}|${e.repo}|${(e.title || '').trim()}`
+export function scheduled(events) {
+  const days = new Map()
+  for (const e of events) {
+    if (e.kind !== 'push' || (e.bot && !e.sched) || !(e.title || '').trim()) continue
+    const k = pushKey(e)
+    let d = days.get(k)
+    if (!d) days.set(k, (d = new Set()))
+    d.add(e.at.slice(0, 10))
+  }
+  return new Set([...days].filter(([, d]) => d.size >= SCHEDULE_DAYS).map(([k]) => k))
+}
+function markSchedules() {
+  const keys = scheduled(state.events)
+  if (!keys.size) return
+  let n = 0
+  for (const e of state.events) if (e.kind === 'push' && !e.bot && keys.has(pushKey(e))) { Object.assign(e, { bot: true, sched: true }); n++ }
+  if (n) console.log(`schedules: ${n} pushes counted as automatic`)
+}
+// proposals stored before the agent rule: their head branch, read once
+async function markAgentProposals() {
+  if (state.agentRule) return
+  let n = 0
+  for (const e of state.events) {
+    if (e.bot || e.kind !== 'pr_open') continue
+    const m = String(e.url).match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/)
+    if (!m) continue
+    try { const d = await pr(`https://api.github.com/repos/${m[1]}/pulls/${m[2]}`); if (isAgentBranch(d?.head)) { Object.assign(e, { bot: true, agent: true }); n++ } } catch (err) { console.warn('agent', e.url, err.message) }
+  }
+  state.agentRule = 1
+  save()
+  console.log(`agent rule: ${n} stored proposals came from AI agents`)
+}
 // ---------- owners nobody listed: the people at work, and suggestions from the page ----------
 // a repository is chain work when it says so beyond the bare word ckb
 function ckbContext(m) {
@@ -483,6 +525,7 @@ async function discoverLoop() {
   await verifyEventRepos()
   await fillOwnerTypes()
   await backfillCommits()
+  await markAgentProposals()
   if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }

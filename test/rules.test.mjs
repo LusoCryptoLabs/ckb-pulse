@@ -7,7 +7,7 @@ import path from 'node:path'
 
 process.env.GITHUB_TOKEN ||= 'test'
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'pulse-test-'))
-const { ckbContext, vetRepo, leaders, manifestOk } = await import('../pulse.mjs')
+const { ckbContext, vetRepo, leaders, manifestOk, scheduled } = await import('../pulse.mjs')
 
 test('ckb alone is not chain work', () => {
   assert.equal(ckbContext({ name: 'codebase-kb-engine', description: 'Claude Code plugin: verifiable codebase knowledge base at .ckb', topics: ['ckb', 'knowledge-base'] }), false)
@@ -47,4 +47,24 @@ test('medals ignore bursts and branch openings, the counts do not', () => {
   assert.deepEqual(L.commits[0], ['b/steady', 24])
   assert.equal(L.stats.updates, 82) // every update by people counts on the cards: 40 + 30 + 12, never the bot
   assert.equal(L.stats.people, 2)
+})
+
+test('an AI agent\'s own branch is automatic, a branch named after one is not', async () => {
+  const { isAgentBranch } = await import('../config.mjs')
+  for (const ref of ['claude/fix-cell-dep-Xa91', 'codex/add-udt-balance', 'copilot/fix-123', 'cursor/refactor-sync-4b2e', 'devin/1712345-docs']) assert.equal(isAgentBranch(ref), true, ref)
+  for (const ref of ['main', 'feat/claude-support', 'cursor-pagination', 'codex', 'fix/copilot/x', '', undefined]) assert.equal(isAgentBranch(ref), false, String(ref))
+})
+
+test('the same push on many days is a schedule, a busy person is not', () => {
+  const day = (d, h) => new Date(Date.UTC(2026, 8, 10 + d, h)).toISOString()
+  const ev = []
+  // what two accounts did in September 2026: "Update README.md" every two hours, two days in three
+  for (let d = 0; d < 29; d++) if (d % 3 !== 2) for (let h = 6; h < 16; h += 2) ev.push({ kind: 'push', actor: 'cron', repo: 'cron/x', title: 'Update README.md', at: day(d, h) })
+  // a person uploading from the web on 12 days, and one re-pushing an amended commit many times in a day
+  for (let d = 0; d < 24; d += 2) ev.push({ kind: 'push', actor: 'web', repo: 'web/y', title: 'Add files via upload', at: day(d, 9) })
+  for (let i = 0; i < 40; i++) ev.push({ kind: 'push', actor: 'amend', repo: 'amend/z', title: 'ci: run the tests', at: day(3, 10) })
+  // 14 days is not enough; empty titles never group
+  for (let d = 0; d < 14; d++) ev.push({ kind: 'push', actor: 'edge', repo: 'edge/w', title: 'update', at: day(d, 12) })
+  for (let d = 0; d < 20; d++) ev.push({ kind: 'push', actor: 'untitled', repo: 'u/v', title: '', at: day(d, 12) })
+  assert.deepEqual([...scheduled(ev)], ['cron|cron/x|Update README.md'])
 })
