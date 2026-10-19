@@ -63,7 +63,7 @@ Visitors follow projects and people on their device, without an account. With br
 
 ## Digest, feed and badges
 
-`/digest?p=day|week|month` is the period's highlights as a plain page, in the three languages (`lang=`), to read, forward or print, with its own link preview. Every Monday at 08:00 UTC the week's highlights are kept in `DATA_DIR/digests.json` (a year of them), and `/feed.xml` is an Atom feed of those weeks and of the new projects, for feed readers. With `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `PUBLIC_URL` set, the weekly digest is also posted to that chat, picture first, in `DIGEST_LANG` (en).
+`/digest?p=day|week|month` is the period's highlights as a plain page, in the three languages (`lang=`), to read, forward or print, with its own link preview. Every Monday at 08:00 UTC the week's highlights are kept in `DATA_DIR/digests.json` (a year of them; the first one as soon as the page has a week of work), and `/feed.xml` is an Atom feed of those weeks and of the new projects, for feed readers. With `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `PUBLIC_URL` set, the weekly digest is also posted to that chat, picture first, in `DIGEST_LANG` (en).
 
 Badges are the last 7 days as a small SVG for a README or a site, grey when quiet or not followed, kept 10 minutes:
 
