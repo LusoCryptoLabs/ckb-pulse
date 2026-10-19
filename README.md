@@ -79,6 +79,8 @@ Each project's and person's card on the page shows its badge with the markdown t
 
 The independent builders, the largest cluster, sit by language: each language with four or more repositories gets its own small grid with a label, the rest share one. On a first visit the camera flies to the project and the person of the week before settling; any touch ends the flight.
 
+On a phone the scene is framed into whatever the panels leave free, and the panel is a sheet at the bottom: drag its bar to a peek, to half the screen or to the top; past half, the ticker steps aside. The timeline and the sheet keep clear of the home indicator.
+
 ## Share
 
 A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.

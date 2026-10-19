@@ -374,6 +374,37 @@ document.querySelector('.tabs').addEventListener('keydown', (e) => {
 })
 $('btn-side').addEventListener('click', () => $('side').classList.toggle('closed'))
 if (MOBILE) $('side').classList.add('closed')
+// on a phone the panel is a sheet at the bottom: drag its tab bar to any height between a peek and almost the whole
+// screen, and it snaps to the peek, to a half or to the top. A tap on a tab still switches it. The ticker and the
+// scene follow its height
+if (MOBILE) {
+  const PEEK = 46, bar = $('side').querySelector('.tabs')
+  const limit = () => innerHeight - box('.top').bottom - 150
+  // past half the screen the sheet is for reading: the ticker steps aside
+  const setSheet = (h) => { document.documentElement.style.setProperty('--sheet', `${Math.round(h)}px`); document.body.classList.toggle('sheet-tall', h > innerHeight * 0.45); updateView() }
+  let drag = null, dragged = false
+  bar.addEventListener('pointerdown', (e) => { drag = { y: e.clientY, h: $('side').getBoundingClientRect().height, moved: false } })
+  addEventListener('pointermove', (e) => {
+    if (!drag) return
+    const dy = drag.y - e.clientY
+    if (!drag.moved && Math.abs(dy) < 6) return
+    drag.moved = true
+    $('side').classList.remove('closed'); $('side').classList.add('dragging')
+    setSheet(Math.max(PEEK, Math.min(limit(), drag.h + dy)))
+  })
+  const end = () => {
+    if (!drag) return
+    const d = drag; drag = null; dragged = d.moved
+    $('side').classList.remove('dragging')
+    if (!d.moved) return
+    const h = $('side').getBoundingClientRect().height, half = Math.min(innerHeight * 0.4, limit())
+    const [, to, peek] = [[PEEK, 0, true], [half, half], [limit(), limit()]].map(([v, t, pk]) => [Math.abs(v - h), t, pk]).sort((a, b) => a[0] - b[0])[0]
+    if (peek) { $('side').classList.add('closed'); document.body.classList.remove('sheet-tall') } else setSheet(to)
+  }
+  addEventListener('pointerup', end); addEventListener('pointercancel', end)
+  bar.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopPropagation(); e.preventDefault() } }, true)
+  $('side').addEventListener('transitionend', updateView)
+}
 
 // the most active projects, people and organisations of the last day, week and month, from the server
 const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['people', 'person'], ['peopleCommits', 'person'], ['orgs', 'org']]
@@ -887,10 +918,17 @@ function stepHover() {
 // ================= framing =================
 // the panels cover the top, the bottom and (on wide screens) the right: measure them and centre the scene in what is left
 const box = (sel) => document.querySelector(sel).getBoundingClientRect()
+const onScreen = (el) => el && !el.hidden && getComputedStyle(el).visibility !== 'hidden'
 function hud() {
   const top = Math.max(box('.top').bottom, innerWidth >= 1340 ? box('#filters').bottom : 0) + 6
-  const bottom = MOBILE ? 180 + $('now').offsetHeight + 8 : innerHeight - box('#now').top + 8
-  const right = !MOBILE && (!$('side').classList.contains('closed') || !$('drawer').hidden) ? $('side').offsetWidth + 32 : 0
+  // on a phone the scene ends at whatever sits lowest on it: the ticker, the sheet at the height it was dragged to,
+  // a project's card or the timeline
+  if (MOBILE) {
+    const tops = ['#now', '#side', '#drawer', '.timeline'].map((q) => document.querySelector(q)).filter(onScreen).map((el) => el.getBoundingClientRect().top)
+    return { top, bottom: innerHeight - Math.min(innerHeight, ...tops) + 8, right: 0 }
+  }
+  const bottom = innerHeight - box('#now').top + 8
+  const right = !$('side').classList.contains('closed') || !$('drawer').hidden ? $('side').offsetWidth + 32 : 0
   return { top, bottom, right }
 }
 function updateLayout() {
@@ -909,8 +947,8 @@ function fitDistance() {
   const { top, bottom, right } = hud()
   const v = THREE.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect)
   const tw = Math.tan(h) * (innerWidth - right - 24) / innerWidth, tv = Math.tan(v) * Math.max(120, innerHeight - top - bottom) / innerHeight
-  // on a phone the whole ring would be tiny: frame the centre and let a pinch or a drag show the rest
-  const r = (layoutR + 3) * (MOBILE ? 0.55 : 1)
+  // on a phone the whole ring would be tiny: frame most of it and let a pinch or a drag show the rest
+  const r = (layoutR + 3) * (MOBILE ? 0.72 : 1)
   return Math.max(r / tw, (r * 0.66) / tv)
 }
 const ELEV = 0.66 // about 38 degrees above the ground

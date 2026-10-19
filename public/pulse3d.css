@@ -352,17 +352,21 @@ body.drawer-open .side { visibility: hidden; }
   .search.open input { width: 100%; padding: 10px 12px; font-size: 16px; background: var(--glass2); }
   .search.open ul { top: 48px; left: 0; right: 0; width: auto; }
   .filters.open { left: 12px; right: 12px; width: auto; }
-  .side { top: auto; left: 12px; right: 12px; width: auto; bottom: 128px; height: 36vh; transition: height 0.3s ease; }
+  :root { --sab: env(safe-area-inset-bottom, 0px); --sheet: 36vh; }
+  .side { top: auto; left: 12px; right: 12px; width: auto; bottom: calc(128px + var(--sab)); height: var(--sheet); transition: height 0.3s ease; }
   .side.closed { transform: none; height: 46px; }
+  .side.dragging { transition: none; }
+  .side .tabs { touch-action: none; padding-top: 12px; position: relative; cursor: grab; }
+  .side .tabs::before { content: ""; position: absolute; top: 4px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: rgba(255, 255, 255, 0.22); }
   .side.closed [data-pane] { visibility: hidden; }
   .side.closed .collapse { transform: rotate(90deg); } .collapse { transform: rotate(-90deg); }
-  .drawer { left: 12px; right: 12px; width: auto; bottom: 128px; }
-  .now { left: 12px; right: 12px; max-width: none; bottom: calc(128px + 36vh + 8px); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 22px; padding: 7px 10px 0; border-bottom: 7px solid transparent; background-clip: border-box; }
+  .drawer { left: 12px; right: 12px; width: auto; bottom: calc(128px + var(--sab)); }
+  .now { left: 12px; right: 12px; max-width: none; bottom: calc(136px + var(--sab) + var(--sheet)); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 22px; padding: 7px 10px 0; border-bottom: 7px solid transparent; background-clip: border-box; }
   .now .mode, .now .clock { margin-right: 6px; }
   .now .ticker { white-space: normal; overflow-wrap: anywhere; }
-  .side.closed ~ .now { bottom: 180px; }
-  body.drawer-open .now { visibility: hidden; }
-  .timeline { left: 8px; right: 8px; bottom: 8px; height: 112px; padding: 6px 8px; }
+  .side.closed ~ .now { bottom: calc(182px + var(--sab)); }
+  body.drawer-open .now, body.sheet-tall .side:not(.closed) ~ .now { visibility: hidden; }
+  .timeline { left: 8px; right: 8px; bottom: calc(8px + var(--sab)); height: 112px; padding: 6px 8px; }
   .tl-legend { display: none; }
   .periods button { padding: 5px 10px; }
   .lbl { font-size: 11px; padding: 1px 7px; }

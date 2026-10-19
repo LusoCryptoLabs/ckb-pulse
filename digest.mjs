@@ -63,7 +63,8 @@ nav.p a,nav.p b{display:inline-block;padding:6px 12px;border:1px solid #26331a;b
 ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #18210f}ol li b{color:#cbf34d;white-space:nowrap}ol li small{color:#9aa38e;margin-left:8px}
 .medals li{border:0;background:#0f140c;border-radius:12px;padding:10px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:#9aa38e;margin:0}.medals strong{font-size:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:40px;color:#9aa38e;font-size:14px;border-top:1px solid #18210f;padding-top:16px}code{background:#0f140c;border:1px solid #26331a;border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
-.langs a{margin-right:10px}@media print{body{background:#fff;color:#111}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print{display:none}}`
+.langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}h1{font-size:24px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}}
+@media print{body{background:#fff;color:#111}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print{display:none}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
 export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url }) {
