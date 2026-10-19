@@ -35,7 +35,7 @@ Page views and visitors per day for the page, the Fiber map, the digest, the fee
 - GitHub delays its events API by 30 seconds to several hours, so neither can this page be faster.
 - Builders: public repositories that depend on CKB libraries (CCC, Lumos, Spore, RGB++, JoyID, the JS, Go and Java SDKs, ckb-std, ckb-types, ckb-testtool and others, listed in `config.mjs`) or carry CKB topics, found by search every 6 hours.
 - Only public repositories. Owners with no human activity in 30 days are hidden.
-- Automatic work shows as grey sparks and stays out of the counts and medals: bots; what AI agents push, branch and propose on their own branches (`claude/`, `codex/`, `copilot/`, `cursor/`, `devin/`), while merging their work still counts; and a commit title one account pushes to one project on 15 or more days of the last 30.
+- Automatic work shows as grey sparks and stays out of the counts and medals: bots; what AI agents push, branch and propose on their own branches (`claude/`, `codex/`, `copilot/`, `cursor/`, `devin/`, and Claude Code's cloud `ccr-` branches), while merging their work still counts; and a commit title one account pushes to one project on 15 or more days of the last 30.
 - People at work in followed repositories are checked for CKB projects of their own once a week, and anyone can suggest an organisation or a person on the page. Either joins when GitHub shows public CKB work (topics, names, or a CKB dependency) from the last 30 days. `BLOCKED` in `config.mjs` keeps an owner off.
 - Once a day each followed repository's own event list fills the week, since an organisation's feed keeps only its last 300 events.
 

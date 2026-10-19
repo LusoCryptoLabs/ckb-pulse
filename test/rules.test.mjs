@@ -51,8 +51,8 @@ test('medals ignore bursts and branch openings, the counts do not', () => {
 
 test('an AI agent\'s own branch is automatic, a branch named after one is not', async () => {
   const { isAgentBranch } = await import('../config.mjs')
-  for (const ref of ['claude/fix-cell-dep-Xa91', 'codex/add-udt-balance', 'copilot/fix-123', 'cursor/refactor-sync-4b2e', 'devin/1712345-docs']) assert.equal(isAgentBranch(ref), true, ref)
-  for (const ref of ['main', 'feat/claude-support', 'cursor-pagination', 'codex', 'fix/copilot/x', '', undefined]) assert.equal(isAgentBranch(ref), false, String(ref))
+  for (const ref of ['claude/fix-cell-dep-Xa91', 'codex/add-udt-balance', 'copilot/fix-123', 'cursor/refactor-sync-4b2e', 'devin/1712345-docs', 'ccr-7a43f8d5-6t5wrf', 'ccr-c33c44e7-j7a20i']) assert.equal(isAgentBranch(ref), true, ref)
+  for (const ref of ['main', 'feat/claude-support', 'cursor-pagination', 'codex', 'fix/copilot/x', 'ccr-release', 'ccr-7a43f8d5', '', undefined]) assert.equal(isAgentBranch(ref), false, String(ref))
 })
 
 test('the same push on many days is a schedule, a busy person is not', () => {

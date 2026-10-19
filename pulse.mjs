@@ -22,6 +22,7 @@ const NEW_DAYS = 7 // a project or an organisation counts as new for this long
 // with it returned two private LusoCryptoLabs repos on 2026-10-09), so nothing is shown unless private === false.
 // 3: builders rediscovered with manifestOk (a copied package.json no longer makes a repository a builder)
 const STATE_VERSION = 3
+const AGENT_RULE = 2
 
 export const bus = new EventEmitter()
 // how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
@@ -49,7 +50,8 @@ export function load() {
     if (state.ctxRule !== 2) { state.discoveredAt = 0; state.ctxRule = 2 }
     // work by AI agents on their own branches became automatic on 2026-10-10: stored pushes and branches carry their
     // branch; stored proposals are looked up once (markAgentProposals)
-    if (!state.agentRule) for (const e of state.events) if (!e.bot && (e.kind === 'push' || e.kind === 'branch') && isAgentBranch(e.ref)) Object.assign(e, { bot: true, agent: true })
+    // 2 (2026-10-19): ccr- branches, Claude Code's cloud sessions
+    if (state.agentRule !== AGENT_RULE) for (const e of state.events) if (!e.bot && (e.kind === 'push' || e.kind === 'branch') && isAgentBranch(e.ref)) Object.assign(e, { bot: true, agent: true })
     markSchedules()
     console.log(`loaded ${state.events.length} events, ${Object.keys(state.repos).length} repos, ${state.builders.length} builders`)
   } catch (err) { console.error('could not read state:', err.message) }
@@ -383,7 +385,7 @@ function markSchedules() {
 }
 // proposals stored before the agent rule: their head branch, read once
 async function markAgentProposals() {
-  if (state.agentRule) return
+  if (state.agentRule === AGENT_RULE) return
   let n = 0
   for (const e of state.events) {
     if (e.bot || e.kind !== 'pr_open') continue
@@ -391,7 +393,7 @@ async function markAgentProposals() {
     if (!m) continue
     try { const d = await pr(`https://api.github.com/repos/${m[1]}/pulls/${m[2]}`); if (isAgentBranch(d?.head)) { Object.assign(e, { bot: true, agent: true }); n++ } } catch (err) { console.warn('agent', e.url, err.message) }
   }
-  state.agentRule = 1
+  state.agentRule = AGENT_RULE
   save()
   console.log(`agent rule: ${n} stored proposals came from AI agents`)
 }
