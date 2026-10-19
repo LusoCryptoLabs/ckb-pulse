@@ -239,7 +239,7 @@ async function ownerLoop() {
 }
 const extraRepos = () => Object.values(state.extra || {}).flatMap((o) => o.repos)
 // every public repository known as CKB work, quiet or not: the long history counts those that have since gone quiet too
-const knownRepos = () => [...new Set([...(state.orgRepos || []), ...pollSet()])].filter((f) => isPublic(f))
+export const knownRepos = () => [...new Set([...(state.orgRepos || []), ...pollSet()])].filter((f) => isPublic(f))
 const pollSet = () => [...new Set([...state.builders, ...extraRepos()])].filter((f) => !blocked.has(ownerOf(f).toLowerCase()))
 async function builderLoop() {
   for (;;) {
@@ -662,6 +662,15 @@ export function highlightsNow() {
   return hlCache.v
 }
 export const groupOf = (full) => state.repos[full]?.group || full.split('/')[0]
+// one project's last 7 days, for its badge: updates and people, or null when it is not followed
+export function repoWeek(name) {
+  const now = Date.now()
+  if (!followedNow(now)(name)) return null
+  const from = new Date(now - 7 * DAY).toISOString(), who = new Set()
+  let updates = 0
+  for (const e of state.events) if (!e.bot && e.repo === name && e.at >= from) { updates++; who.add(e.actor) }
+  return { updates, people: who.size }
+}
 export function personDetail(login) {
   const now = Date.now(), from = new Date(now - 7 * DAY).toISOString(), key = String(login).toLowerCase()
   const followed = followedNow(now)
@@ -696,7 +705,7 @@ export function snapshot() {
     const r = state.repos[full]
     const a = per[full]
     return {
-      name: full, group: r.group, desc: r.desc || '', stars: r.stars || 0, n: a ? a.n : 0, n24: a ? a.n24 : 0, b24: a ? a.b24 : 0,
+      name: full, group: r.group, desc: r.desc || '', stars: r.stars || 0, lang: r.lang || '', n: a ? a.n : 0, n24: a ? a.n24 : 0, b24: a ? a.b24 : 0,
       lastAt: a?.last ? a.last.at : null, lastKind: a?.last ? a.last.kind : null, lastBotAt: a?.lastBot ? a.lastBot.at : null, pushedAt: r.pushedAt || null, tags: tagsFor(r, ''),
       createdAt: r.createdAt || null, isNew: !!r.createdAt && now - Date.parse(r.createdAt) < NEW_DAYS * DAY,
       onchain: !!onchainOf(full),

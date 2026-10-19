@@ -5,7 +5,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health } from './pulse.mjs'
+import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos } from './pulse.mjs'
+import { trends } from './history.mjs'
+import { repoBadge, personBadge, allBadge } from './badge.mjs'
+import { initVisits, hit, visits } from './visits.mjs'
+import { loadDigests, startDigest, digestPage, feedXml } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
@@ -15,6 +19,11 @@ const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^
 const PORT = +(process.env.PORT || 8080)
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json' }
 const clients = new Set(), fiberClients = new Set()
+// the address the digest, the feed and Telegram name; without it, the one the request came to
+const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/$/, '')
+const baseOf = (req) => PUBLIC_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host || 'localhost'}`
+const langOf = (q) => (LANGS.includes(q.get('lang')) ? q.get('lang') : 'en')
+const ipOf = (req) => req.headers['x-real-ip'] || req.socket.remoteAddress || ''
 
 // one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
 // so a page left open can tell that a new version went out (the same scheme as cellula.id)
@@ -49,9 +58,8 @@ async function card(key, make) {
 }
 // the page, with link-preview tags for what is shared: a period's highlights, a project or a person
 function page(req, url) {
-  const q = url.searchParams, host = req.headers.host || 'localhost'
-  const base = `${req.headers['x-forwarded-proto'] || 'http'}://${host}`
-  const lang = LANGS.includes(q.get('lang')) ? q.get('lang') : 'en', t = words(lang)
+  const q = url.searchParams, base = baseOf(req)
+  const lang = langOf(q), t = words(lang)
   const d = q.get('repo') ? repoDetail(q.get('repo')) : null
   const p = !d && q.get('person') ? personDetail(q.get('person')) : null
   let title, desc, img
@@ -108,6 +116,9 @@ bus.on('news', (n) => { const msg = `event: news\ndata: ${JSON.stringify(n)}\n\n
 fiberBus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of fiberClients) c.write(msg) })
 const DATA_DIR = process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data')
 initPush(DATA_DIR)
+initVisits(DATA_DIR)
+loadDigests(DATA_DIR)
+startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
 const icons = {}
@@ -126,10 +137,31 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/health') {
     const now = Date.now(), stale = now - (health.lastPollOk || health.startedAt) > 10 * 60e3
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-    return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, fiber: fiberHealth(), build: BUILD }))
+    return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, fiber: fiberHealth(), visits: visits(1).days[0], build: BUILD }))
   }
-  if (url.pathname === '/' || url.pathname === '/index.html') return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url))
-  if (url.pathname === '/fiber' || url.pathname === '/fiber.html') return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, FIBER, 'fiber.html')
+  if (url.pathname === '/' || url.pathname === '/index.html') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
+  if (url.pathname === '/fiber' || url.pathname === '/fiber.html') { hit('fiber', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, FIBER, 'fiber.html') }
+  // the digest as a page and as a feed; badges for READMEs. GitHub's image proxy keeps a badge for its max-age
+  if (url.pathname === '/digest') {
+    hit('digest', ipOf(req), req.headers['user-agent'])
+    const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q)
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+  }
+  if (url.pathname === '/feed.xml') {
+    hit('feed', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': 'application/atom+xml; charset=utf-8', 'cache-control': 'public, max-age=900' }, feedXml({ lang: langOf(url.searchParams), news: news(), groupOf, base: baseOf(req) }))
+  }
+  if (url.pathname.startsWith('/badge/')) {
+    const q = url.searchParams, lang = langOf(q)
+    let svg = null
+    if (url.pathname === '/badge/repo.svg') svg = repoBadge(repoWeek(q.get('name') || ''), lang)
+    if (url.pathname === '/badge/person.svg') svg = personBadge(personDetail(q.get('login') || ''), lang)
+    if (url.pathname === '/badge/ckb.svg') svg = allBadge(highlightsNow().week.stats, lang)
+    if (!svg) { res.writeHead(404); return res.end('not found') }
+    hit('badge', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.svg'], 'cache-control': 'public, max-age=600' }, svg)
+  }
+  if (url.pathname === '/api/visits') return sendJson(req, res, visits(30))
   if (url.pathname === '/api/fiber') {
     const d = fiberState(url.searchParams.get('net') || 'mainnet')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"unknown network"}') }

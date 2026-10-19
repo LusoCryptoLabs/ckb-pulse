@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { gh } from './github.mjs'
-import { isNoiseActor } from './config.mjs'
+import { isNoiseActor, BLOCKED } from './config.mjs'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const DAY = 864e5
@@ -50,16 +50,19 @@ function lastMonths(n) {
   for (let i = n - 1; i >= 0; i--) out.push(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1)).toISOString().slice(0, 7))
   return out
 }
-// active developers (a commit in the month), new ones (their first commit among these repositories) and commits, per month
+// active developers (a commit in the month), new ones (their first commit among these repositories) and commits, per
+// month. Every repository read once stays counted after it goes quiet or leaves the page (since 2026-10-19; before, only
+// the repositories followed that day counted, so a project that stopped took its months with it)
 let memo = null
+const blocked = new Set(BLOCKED.map((b) => b.toLowerCase()))
 export function trends(list, months = 24) {
-  const key = list.length + '|' + new Date().toISOString().slice(0, 13)
+  const key = list.length + '|' + Object.keys(H.repos).length + '|' + new Date().toISOString().slice(0, 13)
   if (memo?.key === key) return memo.v
   const set = new Set(list), first = new Map(), per = new Map()
-  let counted = 0
+  let counted = 0, kept = 0
   for (const [full, r] of Object.entries(H.repos)) {
-    if (!set.has(full)) continue
-    counted++
+    if (blocked.has(full.split('/')[0].toLowerCase())) continue
+    if (set.has(full)) counted++; else kept++
     for (const [w, login, c] of r.rows) {
       const m = monthOf(w)
       if (!first.has(login) || first.get(login) > m) first.set(login, m)
@@ -70,7 +73,7 @@ export function trends(list, months = 24) {
   }
   const newBy = new Map()
   for (const m of first.values()) newBy.set(m, (newBy.get(m) || 0) + 1)
-  const v = { repos: counted, of: list.length, months: lastMonths(months).map((m) => ({ month: m, devs: per.get(m)?.devs.size || 0, newDevs: newBy.get(m) || 0, commits: per.get(m)?.commits || 0 })) }
+  const v = { repos: counted, of: list.length, kept, months: lastMonths(months).map((m) => ({ month: m, devs: per.get(m)?.devs.size || 0, newDevs: newBy.get(m) || 0, commits: per.get(m)?.commits || 0 })) }
   memo = { key, v }
   return v
 }
