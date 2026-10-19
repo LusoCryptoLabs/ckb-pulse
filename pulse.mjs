@@ -110,7 +110,8 @@ function tagsFor(repo, text) {
 const pr = (url) => once('pr:' + url, async () => { const r = await gh(url); return r.body ? { title: r.body.title, merged: r.body.merged, html: r.body.html_url, head: r.body.head?.ref || '' } : null })
 const prHtml = (apiUrl) => (apiUrl || '').replace('https://api.github.com/repos/', 'https://github.com/').replace('/pulls/', '/pull/')
 async function normalise(e) {
-  if (e.public === false) return null
+  // an event GitHub marks private: its repository went private (or always was), so whatever it showed leaves the page
+  if (e.public === false) { const r = state.repos[e.repo?.name]; if (r && r.private !== true) { r.private = true; hlCache = null; console.log(`private now: ${r.name}`) } return null }
   const actor = e.actor?.login || ''
   const repo = e.repo?.name
   const p = e.payload || {}
@@ -271,6 +272,8 @@ export async function listOwnerRepos() {
       let old = false
       for (const m of items) {
         if (new Date(m.pushed_at) < year) { old = true; continue }
+        // a followed repository that turned private leaves the page at once (the token may see private ones)
+        if (m.private !== false && state.repos[m.full_name] && state.repos[m.full_name].private !== true) { state.repos[m.full_name].private = true; hlCache = null; console.log(`private now: ${m.full_name}`) }
         if (m.archived || m.fork || m.private !== false) continue
         repoEntry(m.full_name, m)
         out.push(m.full_name)
@@ -328,10 +331,14 @@ export async function discover() {
   console.log(`discovery: ${found.size} candidates, ${keep.length} active public builders`)
 }
 // events kept from before visibility was recorded: check each repository once
-async function verifyEventRepos() {
-  const todo = [...new Set(state.events.map((e) => e.repo))].filter((full) => state.repos[full]?.private === undefined)
-  for (const full of todo) { try { await ensureMeta(full) } catch (err) { console.warn('verify', full, err.message) } }
-  if (todo.length) console.log(`visibility checked for ${todo.length} repositories in the stored events`)
+// every repository with stored events, unless looked at in the last 6 hours: a repository that went private sends no
+// public event again, so without this its stored work would stay on the page for 30 days (seen 2026-10-19)
+async function verifyEventRepos(maxAgeMs = 6 * 3600e3) {
+  const todo = [...new Set(state.events.map((e) => e.repo))].filter((full) => { const r = state.repos[full]; return r?.private === undefined || (r.private === false && Date.now() - (r.metaAt || 0) >= maxAgeMs) })
+  let hidden = 0
+  for (const full of todo) { try { const r = await ensureMeta(full, true); if (r.private !== false) hidden++ } catch (err) { console.warn('verify', full, err.message) } }
+  if (hidden) hlCache = null
+  if (todo.length) console.log(`visibility checked for ${todo.length} repositories in the stored events${hidden ? `, ${hidden} not public` : ''}`)
 }
 // repositories stored before the owner type was recorded: fetch their metadata again, once
 async function fillOwnerTypes() {
@@ -524,7 +531,7 @@ async function discoverLoop() {
   // groups that came in through the explorer before the rule above: not newcomers either
   for (const o of Object.values(state.extra || {})) if (o.source === 'onchain' && state.groupsSeen) for (const f of o.repos) { const g = state.repos[f]?.group; if (g && state.groupsSeen[g] > 1) state.groupsSeen[g] = 0 }
   try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) }
-  await verifyEventRepos()
+  await verifyEventRepos(0) // on every start, all of them: a deploy is how a fix like this one arrives
   await fillOwnerTypes()
   await backfillCommits()
   await markAgentProposals()
@@ -532,7 +539,7 @@ async function discoverLoop() {
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
     if (Date.now() - (state.onchainAt || 0) > DAY) { try { await refreshOnchain(knownRepos()); await followOnchain(); state.onchainAt = Date.now(); save() } catch (err) { console.warn('onchain', err.message) } }
-    if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } }
+    if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } await verifyEventRepos() }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
     if (Date.now() - (state.crawledAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await crawlPeople(); state.crawledAt = Date.now() } catch (err) { console.warn('crawl', err.message) } }
     if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
@@ -572,7 +579,7 @@ function announceNews() {
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
 
 // the pure rules, for the tests
-export { ckbContext, vetRepo, leaders, manifestOk }
+export { ckbContext, vetRepo, leaders, manifestOk, normalise }
 
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
 async function followOnchain() {
