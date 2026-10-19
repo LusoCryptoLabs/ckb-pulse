@@ -13,7 +13,7 @@ npm install
 GITHUB_TOKEN=<read-only token> node server.mjs
 ```
 
-Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sends browser notices (its keys are made on first start in `DATA_DIR/vapid.json`). `PORT` defaults to 8080, `DATA_DIR` to `./data`.
+Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sends browser notices (its keys are made on first start in `DATA_DIR/vapid.json`). `PORT` defaults to 8080, `DATA_DIR` to `./data`. `PUBLIC_URL` is the address the digest, the feed and Telegram name (without it, the one each request came to).
 
 ## Test
 
@@ -21,9 +21,13 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 npm test
 ```
 
-The rules (what counts as CKB work, manifests, the burst cap, agents and schedules), the words in every language, the share cards, and no long dashes. CI runs them on every push.
+The rules (what counts as CKB work, manifests, the burst cap, agents and schedules), the words in every language, the share cards, the badges, the digest page and the feed, the visit counts, the long history, and no long dashes. CI runs them on every push.
 
-`GET /health` answers 200 while the server lives; `collector.ok` turns false when no organisation feed has answered for 10 minutes.
+`GET /health` answers 200 while the server lives; `collector.ok` turns false when no organisation feed has answered for 10 minutes. It also carries today's visits.
+
+## Visits
+
+Page views and visitors per day for the page, the Fiber map, the digest, the feed and the badges, at `GET /api/visits` (30 days) and in `DATA_DIR/visits.json` (90 days). No cookies and no accounts: a visitor is a hash of the day's salt, the address and the browser, and the salt and the hashes are dropped when the day ends, so only the counts remain.
 
 ## What it follows
 
@@ -39,7 +43,7 @@ The rules (what counts as CKB work, manifests, the burst cap, agents and schedul
 
 The events API reaches back 90 days. Months and years come from GitHub's contributor statistics: commits per week and author for every known CKB repository, quiet ones included, refreshed weekly into `DATA_DIR/history.json`. From them: active developers per month (a commit in the month), new developers (their first commit among these repositories) and commits, two years back; and commits per month for each project.
 
-Counted over the projects followed today: projects that stopped earlier are missing, so older months read low and the growth looks larger than it was.
+Every repository read once stays counted after it goes quiet or leaves the page. Projects that stopped before this page began are still missing, so older months read low and the growth looks larger than it was.
 
 ## On chain
 
@@ -57,6 +61,24 @@ A followed public repository created in the last 14 days is a new project: it is
 
 Visitors follow projects and people on their device, without an account. With browser notices allowed, the server sends one when something followed moves (at most once per project in ten minutes) and, on request, when a new project appears. On iPhone that needs the page on the Home Screen.
 
+## Digest, feed and badges
+
+`/digest?p=day|week|month` is the period's highlights as a plain page, in the three languages (`lang=`), to read, forward or print, with its own link preview. Every Monday at 08:00 UTC the week's highlights are kept in `DATA_DIR/digests.json` (a year of them), and `/feed.xml` is an Atom feed of those weeks and of the new projects, for feed readers. With `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `PUBLIC_URL` set, the weekly digest is also posted to that chat, picture first, in `DIGEST_LANG` (en).
+
+Badges are the last 7 days as a small SVG for a README or a site, grey when quiet or not followed, kept 10 minutes:
+
+```md
+[![CKB Pulse](https://pulse-lab.lusocryptolabs.com/badge/repo.svg?name=owner/repo)](https://pulse-lab.lusocryptolabs.com/?repo=owner/repo)
+[![CKB Pulse](https://pulse-lab.lusocryptolabs.com/badge/person.svg?login=someone)](https://pulse-lab.lusocryptolabs.com/?person=someone)
+[![CKB Pulse](https://pulse-lab.lusocryptolabs.com/badge/ckb.svg)](https://pulse-lab.lusocryptolabs.com/)
+```
+
+Each project's and person's card on the page shows its badge with the markdown to copy.
+
+## The scene
+
+The independent builders, the largest cluster, sit by language: each language with four or more repositories gets its own small grid with a label, the rest share one. On a first visit the camera flies to the project and the person of the week before settling; any touch ends the flight.
+
 ## Share
 
 A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
@@ -72,6 +94,13 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /api/fiber/stream`: Fiber changes as they happen, Server-Sent Events
 - `GET /version.json`: the build the server runs, for the new-version notice
 - `POST /api/propose` with `{"login"}`, then `GET /api/propose?id=`: a suggestion and how its check went
+- `GET /digest?p=day|week|month&lang=`: the highlights as a page; `GET /feed.xml?lang=`: the Atom feed
+- `GET /badge/repo.svg?name=`, `/badge/person.svg?login=`, `/badge/ckb.svg`, each with `lang=`: badges
+- `GET /api/visits`: views and visitors per day, 30 days
+
+## Another ecosystem
+
+Almost everything that says "CKB" lives in `config.mjs` (the organisations, the searches, the vetting words, the tags) and in the group names in `public/words.js`. The on-chain and Fiber parts are CKB's own; without their variables they stay quiet. Point the configuration at another ecosystem's organisations and libraries and the same page follows it.
 
 ## License
 

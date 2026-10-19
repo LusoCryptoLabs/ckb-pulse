@@ -136,18 +136,52 @@ function spiral(n) {
   slots.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]) || Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0]))
   return { slots: slots.slice(0, n), w: cols * PITCH, d: rowsN * PITCH }
 }
+// the independent builders by language: each language its own small grid, the largest first, packed into rows, so the
+// big cluster reads as neighbourhoods (TypeScript, Rust, ...) instead of one mass. Languages with few repositories share
+// one "other" grid. Slots come back in the order of the list returned
+function neighbourhoods(list) {
+  const by = new Map()
+  for (const i of list) { const l = repos[i].lang || ''; if (!by.has(l)) by.set(l, []); by.get(l).push(i) }
+  const big = [...by.entries()].filter(([l, v]) => l && v.length >= 4).sort((a, b) => b[1].length - a[1].length)
+  if (big.length < 2) return { ...spiral(list.length), list, subs: [] }
+  const inBig = new Set(big.flatMap(([, v]) => v)), rest = list.filter((i) => !inBig.has(i))
+  const parts = [...big.map(([l, v]) => ({ name: l, list: v })), ...(rest.length ? [{ name: '', list: rest }] : [])]
+  for (const p of parts) Object.assign(p, spiral(p.list.length))
+  const GAP = 1.7, target = Math.sqrt(list.length) * PITCH * 1.45
+  const rowsOut = [[]]
+  let x = 0
+  for (const p of parts) { const r = rowsOut.at(-1); if (r.length && x + p.w > target) { rowsOut.push([p]); x = p.w + GAP } else { r.push(p); x += p.w + GAP } }
+  const rowW = (r) => r.reduce((t, p) => t + p.w, 0) + GAP * (r.length - 1), rowD = (r) => Math.max(...r.map((p) => p.d))
+  const w = Math.max(...rowsOut.map(rowW)), d = rowsOut.reduce((t, r) => t + rowD(r), 0) + GAP * (rowsOut.length - 1)
+  const slots = [], out = [], subs = []
+  let z = -d / 2
+  for (const r of rowsOut) {
+    const rd = rowD(r)
+    let cx = -rowW(r) / 2
+    for (const p of r) {
+      const px = cx + p.w / 2, pz = z + rd / 2
+      p.list.forEach((ri, k) => { const [sx, sz] = p.slots[k]; out.push(ri); slots.push([px / PITCH + sx, pz / PITCH + sz]) })
+      subs.push({ name: p.name, n: p.list.length, x: px, z: pz + p.d / 2 })
+      cx += p.w + GAP
+    }
+    z += rd + GAP
+  }
+  return { slots, w, d, list: out, subs }
+}
+const subLabels = []
+const subText = (div) => { div.textContent = `${div.dataset.name || t('g.other')} · ${div.dataset.n}` }
 const isNewGroup = (g) => !!S?.groups?.find((x) => x.name === g)?.isNew
 function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))} · ${div.dataset.n}${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
 function buildCells() {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose() }
-  for (const l of groupLabels) l.parent?.remove(l)
-  groupLabels.length = 0; groupCenter.clear(); cell.length = 0
+  for (const l of [...groupLabels, ...subLabels]) l.parent?.remove(l)
+  groupLabels.length = 0; subLabels.length = 0; groupCenter.clear(); cell.length = 0
   if (!repos.length) return
   const groups = new Map()
   repos.forEach((r, i) => { if (!groups.has(r.group)) groups.set(r.group, []); groups.get(r.group).push(i) })
   const weekly = new Array(repos.length).fill(0)
   for (const w of rows) if (w.r >= 0 && !w.b) weekly[w.r]++
-  const clusters = [...groups.entries()].map(([g, list]) => { list.sort((a, b) => weekly[b] - weekly[a] || (repos[b].pushedAt || '').localeCompare(repos[a].pushedAt || '')); return { g, list, ...spiral(list.length) } })
+  const clusters = [...groups.entries()].map(([g, list]) => { list.sort((a, b) => weekly[b] - weekly[a] || (repos[b].pushedAt || '').localeCompare(repos[a].pushedAt || '')); const lay = g === 'builders' ? neighbourhoods(list) : { ...spiral(list.length), list, subs: [] }; return { g, ...lay } })
   const center = clusters.find((c) => c.g === 'builders') || clusters.sort((a, b) => b.list.length - a.list.length)[0]
   const ring = clusters.filter((c) => c !== center).sort((a, b) => b.list.length - a.list.length)
   const place = (c, cx, cz) => { c.cx = cx; c.cz = cz; c.list.forEach((ri, k) => { const [sx, sz] = c.slots[k]; cell[ri] = { x: cx + sx * PITCH, z: cz + sz * PITCH } }) }
@@ -174,6 +208,16 @@ function buildCells() {
     o.position.set(c.cx, 0.2, c.cz + c.d / 2 + 1.1)
     o.userData.prio = 100 + c.list.length
     scene.add(o); groupLabels.push(o)
+    // the neighbourhoods' names, under the group's own in priority: a small screen keeps only the group
+    if (!MOBILE) for (const sb of c.subs) {
+      const sd = document.createElement('div')
+      sd.className = 'lbl sub culled'; sd.dataset.name = sb.name; sd.dataset.n = sb.n
+      subText(sd)
+      const so = new CSS2DObject(sd)
+      so.position.set(c.cx + sb.x, 0.2, c.cz + sb.z + 0.7)
+      so.userData.prio = 60 + sb.n
+      scene.add(so); subLabels.push(so)
+    }
   }
   const geo = new RoundedBoxGeometry(1, 1, 1, 2, 0.14)
   geo.translate(0, 0.5, 0)
@@ -340,6 +384,7 @@ function renderHighlights() {
   const L = S?.leaders; if (!L) return
   const k = hlShown = hlKey()
   for (const b of $('hl-period').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.h === k))
+  $('hl-digest').href = `digest?p=${k}&lang=${LANG}`; $('hl-digest').textContent = t('h.digest')
   $('hl').innerHTML = HL_CATS.map(([cat, type]) => {
     const items = (L[k]?.[cat] || []).filter((x) => x[1] > 0).map(([name, n, av], i) => {
       const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
@@ -448,6 +493,7 @@ addEventListener('pointerdown', (e) => { if (shareMenu && !e.target.closest('.sh
 $('hl-share').addEventListener('click', () => { const h = hlKey(); openShare($('hl-share'), { params: { h }, image: `og/highlights.png?p=${h}`, title: `CKB Pulse · ${t('mode.' + h)}` }) })
 $('drawer-body').addEventListener('click', (e) => {
   const b = e.target.closest('.share-btn'); if (!b) return
+  if (b.dataset.badgeRepo || b.dataset.badgePerson) return copyBadge(b)
   if (b.dataset.shareRepo) openShare(b, { params: { repo: b.dataset.shareRepo }, image: `og/repo.png?name=${encodeURIComponent(b.dataset.shareRepo)}`, title: t('og.repo', { name: short(b.dataset.shareRepo) }) })
   if (b.dataset.sharePerson) openShare(b, { params: { person: b.dataset.sharePerson }, image: `og/person.png?login=${encodeURIComponent(b.dataset.sharePerson)}`, title: t('og.person', { login: b.dataset.sharePerson }) })
 })
@@ -471,6 +517,15 @@ const saveFollows = () => store.set('follows', JSON.stringify({ repos: [...follo
 function followsRepo(name) { return follows.repos.has(String(name || '').toLowerCase()) }
 function followsPerson(login) { return follows.people.has(String(login || '').toLowerCase()) }
 const followLabel = (on) => (on ? '★ ' : '☆ ') + t(on ? 'f.following' : 'f.follow')
+// the live badge for a README, and its markdown to copy
+const badgeRow = (kind, id) => { const q = kind === 'repo' ? `name=${encodeURIComponent(id)}` : `login=${encodeURIComponent(id)}`; return `<div class="badge-row"><img src="badge/${kind}.svg?${q}&lang=${LANG}" alt="" height="20"><button type="button" class="share-btn small" data-badge-${kind}="${esc(id)}">${esc(t('sh.badge'))}</button></div>` }
+async function copyBadge(b) {
+  const kind = b.dataset.badgeRepo ? 'repo' : 'person', id = b.dataset.badgeRepo || b.dataset.badgePerson
+  const site = location.origin + location.pathname.replace(/[^/]*$/, '')
+  const md = kind === 'repo' ? `[![CKB Pulse](${site}badge/repo.svg?name=${encodeURIComponent(id)})](${site}?repo=${encodeURIComponent(id)})` : `[![CKB Pulse](${site}badge/person.svg?login=${encodeURIComponent(id)})](${site}?person=${encodeURIComponent(id)})`
+  try { await navigator.clipboard.writeText(md) } catch { prompt('Markdown', md); return }
+  const was = b.textContent; b.textContent = t('sh.badged'); b.classList.add('on'); setTimeout(() => { b.textContent = was; b.classList.remove('on') }, 2200)
+}
 function followBtn(kind, id) { const on = kind === 'repo' ? followsRepo(id) : followsPerson(id); return `<button type="button" class="follow${on ? ' on' : ''}" data-follow-${kind}="${esc(id)}" aria-pressed="${on}">${esc(followLabel(on))}</button>` }
 function toggleFollow(kind, id) {
   const set = kind === 'repo' ? follows.repos : follows.people, k = String(id).toLowerCase()
@@ -697,7 +752,7 @@ let panels = [], panelsAt = 0
 function cull(now) {
   // the panels move rarely: measure them a few times a second; the labels move with the blocks, so every frame
   if (now - panelsAt > 250) { panelsAt = now; panels = [...document.querySelectorAll('.hud, .intro')].filter((el) => { if (el.hidden) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden' }).map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height) }
-  const items = [...groupLabels, ...sceneBadges, ...personBadges].filter((o) => o.element.isConnected && o.element.style.display !== 'none')
+  const items = [...groupLabels, ...subLabels, ...sceneBadges, ...personBadges].filter((o) => o.element.isConnected && o.element.style.display !== 'none')
   items.sort((a, b) => b.userData.prio - a.userData.prio)
   const placed = []
   for (const o of items) {
@@ -920,7 +975,7 @@ async function openRepo(i) {
     const sub = [gname(d.group), d.lang, cnt('star', d.stars), d.pushedAt ? t('d.lastCode', { ago: ago(Date.parse(d.pushedAt)) }) : ''].filter(Boolean).map(esc).join(' · ')
     $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
 ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}</p>
-<p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}
+<p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}${badgeRow('repo', d.name)}
 <h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
 <p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>
 ${onchainBlock(d.onchain)}
@@ -940,7 +995,7 @@ function openPerson(a) {
   showDrawer()
   $('drawer-body').innerHTML = `${backBtn(back)}<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2 tabindex="-1">${esc(login)}</h2>
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}</p></div></div>
-${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>
+${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>${badgeRow('person', login)}
 <h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li><button type="button" class="row" data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></button></li>`).join('')}</ol>`
   focusDrawer()
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
@@ -1184,6 +1239,7 @@ function applyLang() {
   $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automaticLong'))}</span>`
   for (const b of document.querySelectorAll('.kpi')) b.title = t('l.see.' + b.dataset.list)
   for (const o of groupLabels) labelText(o.element)
+  for (const o of subLabels) subText(o.element)
   buildFilters(); liveDot(); setPlay(T.mode === 'replay'); renderNews(); notifyState()
   if (!repos.length) { $('ticker').textContent = t('connecting'); updateLayout(); return }
   computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges()
@@ -1198,13 +1254,37 @@ function openIntro() {
   introOpen = true; $('intro').hidden = false
   $('intro-go').focus()
 }
+// the first visit: after the intro, a short flight to the project and the person of the week, then back home. Any
+// touch of the controls, a key or a click ends it
+let tour = null
+function stopTour() { if (tour) { clearTimeout(tour); tour = null } }
+function startTour() {
+  if (REDUCED || MOBILE || !S?.leaders) return
+  const w = S.leaders.week, stops = []
+  const ri = repos.findIndex((r) => r.name === w.repos[0]?.[0])
+  if (ri >= 0 && cell[ri]) stops.push({ x: cell[ri].x, z: cell[ri].z, d: 16, text: `${t('b.repos.week')}: ${short(repos[ri].name)}` })
+  const sp = sprites.get(w.people[0]?.[0])
+  if (sp) stops.push({ x: sp.position.x * 0.6, z: sp.position.z * 0.6, d: 22, text: `${t('b.people.week')}: ${sp.userData.login}` })
+  if (!stops.length) return false
+  let k = 0
+  const step = () => {
+    if (introOpen || !$('drawer').hidden) { tour = null; return }
+    if (k < stops.length) { const st = stops[k++]; flyTo(st.x, st.z, st.d); $('ticker').textContent = st.text; T.holdTicker = performance.now() + 3800; tour = setTimeout(step, 3600) }
+    else { flyHome(); tour = null }
+  }
+  tour = setTimeout(step, 500)
+  return true
+}
+for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, stopTour, { capture: true, passive: true })
 function closeIntro() {
   if (!introOpen) return
+  const first = !store.get('seen')
   introOpen = false; $('intro').hidden = true; store.set('seen', '1')
   introFrom?.focus?.()
+  const touring = first && startTour()
   if (newsWaiting) { showNewsToast(newsWaiting); newsWaiting = null }
-  // a quiet hour would greet a newcomer with a still scene: start the day's replay almost at once
-  if (T.mode === 'live' && quiet() && !T.chosen) T.autoAt = performance.now() + 1200
+  // a quiet hour would greet a newcomer with a still scene: start the day's replay almost at once, or after the tour
+  if (T.mode === 'live' && quiet() && !T.chosen) T.autoAt = performance.now() + (touring ? 9500 : 1200)
 }
 $('btn-help').addEventListener('click', openIntro)
 $('intro-go').addEventListener('click', closeIntro)
@@ -1260,7 +1340,7 @@ addEventListener('resize', () => {
 // ================= start =================
 function ingest(N) {
   S = N
-  repos = S.repos.map((r) => ({ name: r.name, group: r.group, desc: r.desc, tags: r.tags || [], pushedAt: r.pushedAt }))
+  repos = S.repos.map((r) => ({ name: r.name, group: r.group, desc: r.desc, tags: r.tags || [], pushedAt: r.pushedAt, lang: r.lang || '' }))
   actors = S.history.actors.map(([l, av]) => [l, av]); actorIdx.clear(); actors.forEach(([l], i) => actorIdx.set(l, i))
   rows = S.history.rows.map(([at, k, r, a, b, title, c]) => ({ t: at * 1000, k: S.history.kinds[k], r, a, b, title: title || '', c: c || 0 }))
   rows.sort((x, y) => x.t - y.t)
