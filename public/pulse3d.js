@@ -382,7 +382,7 @@ if (MOBILE) {
   const limit = () => innerHeight - box('.top').bottom - 150
   // past half the screen the sheet is for reading: the ticker steps aside
   const setSheet = (h) => { document.documentElement.style.setProperty('--sheet', `${Math.round(h)}px`); document.body.classList.toggle('sheet-tall', h > innerHeight * 0.45); updateView() }
-  let drag = null, dragged = false
+  let drag = null, dragEnd = 0
   bar.addEventListener('pointerdown', (e) => { drag = { y: e.clientY, h: $('side').getBoundingClientRect().height, moved: false } })
   addEventListener('pointermove', (e) => {
     if (!drag) return
@@ -394,15 +394,19 @@ if (MOBILE) {
   })
   const end = () => {
     if (!drag) return
-    const d = drag; drag = null; dragged = d.moved
+    const d = drag; drag = null
     $('side').classList.remove('dragging')
     if (!d.moved) return
+    dragEnd = performance.now()
     const h = $('side').getBoundingClientRect().height, half = Math.min(innerHeight * 0.4, limit())
     const [, to, peek] = [[PEEK, 0, true], [half, half], [limit(), limit()]].map(([v, t, pk]) => [Math.abs(v - h), t, pk]).sort((a, b) => a[0] - b[0])[0]
-    if (peek) { $('side').classList.add('closed'); document.body.classList.remove('sheet-tall') } else setSheet(to)
+    // dragged shut, it opens again at its first height and not at the peek it was dragged down to
+    if (peek) { $('side').classList.add('closed'); document.body.classList.remove('sheet-tall'); document.documentElement.style.removeProperty('--sheet') } else setSheet(to)
   }
   addEventListener('pointerup', end); addEventListener('pointercancel', end)
-  bar.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopPropagation(); e.preventDefault() } }, true)
+  // the click a drag ends with is not a tap. A drag that ends off the bar has no click, so only one that comes at once
+  // is dropped; a flag kept until the next click ate the next real tap on a tab
+  bar.addEventListener('click', (e) => { if (performance.now() - dragEnd < 300) { dragEnd = 0; e.stopPropagation(); e.preventDefault() } }, true)
   $('side').addEventListener('transitionend', updateView)
 }
 
