@@ -223,7 +223,7 @@ body.drawer-open .side { visibility: hidden; }
 .share-btn svg { width: 16px; height: 16px; }
 .share-btn.small { padding: 4px 10px; font-size: 12px; } .share-btn.on { border-color: var(--lime); color: var(--lime); }
 .share-row { display: flex; flex-wrap: wrap; gap: 8px; } .share-row a.share-btn { text-decoration: none; }
-.drawer .badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; } .drawer .badge-row img { height: 20px; display: block; }
+.drawer .badge-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; } .drawer .badge-row img { height: auto; max-width: 100%; display: block; }
 .share-menu { display: flex; flex-direction: column; margin-top: 8px; width: 100%; max-width: 280px; background: var(--glass2); border: 1px solid rgba(203, 243, 77, 0.3); border-radius: 12px; padding: 4px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
 .share-menu a, .share-menu button { display: block; text-align: left; padding: 9px 12px; border-radius: 8px; background: none; border: 0; color: var(--fg); text-decoration: none; font-size: 14px; cursor: pointer; }
 .share-menu a:hover, .share-menu button:hover { background: rgba(203, 243, 77, 0.12); }
