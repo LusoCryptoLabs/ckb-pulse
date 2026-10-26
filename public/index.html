@@ -21,6 +21,12 @@
 <body>
 <a class="skip" href="#drawer" id="skip" data-t="l.skip"></a>
 <div id="stage" aria-hidden="true"></div>
+<!-- phones: the projects as bars, and a switch to the scene -->
+<div class="barsview" id="barsview" hidden><ol class="bv" id="bv"></ol><p class="bv-none" id="bv-none" hidden></p><div id="bv-rest"></div></div>
+<div class="hud viewbar" id="viewbar" hidden>
+  <p class="vb-cap" id="vb-cap"></p>
+  <div class="seg vb-seg" role="group" data-t-label="v.group"><button type="button" data-view="bars" data-t="v.bars"></button><button type="button" data-view="3d" data-t="v.3d"></button></div>
+</div>
 
 <header class="hud top">
   <div class="brand">

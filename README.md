@@ -79,7 +79,9 @@ Each project's and person's card on the page shows its badge with the markdown t
 
 The independent builders, the largest cluster, sit by language: each language with four or more repositories gets its own small grid with a label, the rest share one. On a first visit the camera flies to the project and the person of the week before settling; any touch ends the flight.
 
-On a phone the scene is framed into whatever the panels leave free, and the panel is a sheet at the bottom: drag its bar to a peek, to half the screen or to the top; past half, the ticker steps aside. The timeline and the sheet keep clear of the home indicator.
+On a phone the projects are bars by default: one row per project with work by people, as long as that work (square root) and in the colours of its kinds, with the faces of who did it at the end. Rows slide to their new place as work arrives, and hold still while a finger is on the list. A switch above them turns to the scene and back, and the choice is kept on the device. The scene is not drawn while the bars are up.
+
+In the scene, a phone frames it into whatever the panels leave free, and the panel is a sheet at the bottom: drag its bar to a peek, to half the screen or to the top; past half, the ticker steps aside. The timeline and the sheet keep clear of the home indicator.
 
 ## Share
 

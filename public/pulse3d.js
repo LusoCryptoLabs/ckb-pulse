@@ -20,6 +20,9 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
+// a phone shows the projects as bars unless the viewer picked the scene: its blocks are a few pixels there (2026-10-26)
+const PHONE = matchMedia('(max-width: 860px)').matches
+let VIEW = PHONE && store.get('view') !== '3d' ? 'bars' : '3d'
 const MEDAL = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 1h3.2l1.3 4.2-3.1 1.2zM14.5 1h-3.2L10 5.2l3.1 1.2z" fill="#e0533d"/><circle cx="10" cy="12.6" r="6.2" fill="#f3c23a" stroke="#a8740c" stroke-width="1.2"/><path d="M10 9.2l1.05 2.1 2.3.33-1.67 1.62.4 2.3L10 14.47l-2.08 1.08.4-2.3-1.67-1.62 2.3-.33z" fill="#fff4cc"/></svg>'
 
 // ================= words =================
@@ -242,17 +245,22 @@ function addRepo(r) {
 }
 
 // ================= the window on screen =================
-const W = { n: [], b: [], last: [], bits: [], people: new Map(), day: 0, bots: 0, fams: {} }
+// per project: updates by people (n), automatic ones (b), the last kind, which families (bits), how many of each (fc) and
+// who did them (who)
+const W = { n: [], b: [], last: [], bits: [], fc: [], who: [], people: new Map(), day: 0, bots: 0, fams: {} }
 function computeWindow() {
   const t1 = T.t, t0 = t1 - span(), scale = T.period === 'week' ? 0.3 : 1
   W.n = new Array(repos.length).fill(0); W.b = new Array(repos.length).fill(0); W.last = new Array(repos.length).fill(null); W.bits = new Array(repos.length).fill(0)
+  W.fc = []; W.who = []
   W.people = new Map(); W.day = 0; W.bots = 0; W.fams = {}; W.mine = new Array(repos.length).fill(0)
   for (const w of rows) {
     if (w.t > t1) break
     if (w.t < t0 || w.r < 0) continue
     if (w.b) { W.b[w.r]++; W.bots++; continue }
-    const f = fam(w.k)
-    W.n[w.r]++; W.last[w.r] = w.k; W.day++; W.bits[w.r] |= 1 << FAMS.indexOf(f)
+    const f = fam(w.k), fi = FAMS.indexOf(f)
+    W.n[w.r]++; W.last[w.r] = w.k; W.day++; W.bits[w.r] |= 1 << fi
+    const fc = (W.fc[w.r] ||= new Array(FAMS.length).fill(0)); fc[fi]++
+    const who = (W.who[w.r] ||= new Map()); who.set(w.a, (who.get(w.a) || 0) + 1)
     W.people.set(w.a, (W.people.get(w.a) || 0) + 1)
     if (followsPerson(actors[w.a]?.[0])) W.mine[w.r] = 1
     W.fams[f] = (W.fams[f] || 0) + 1
@@ -265,7 +273,7 @@ function computeWindow() {
     else { c.base.copy(DORMANT); c.hT = 0.22 }
   })
   applyFilter()
-  kpis(); filterCounts(); people()
+  kpis(); filterCounts(); if (VIEW === '3d') people()
   if (listShown && T.period !== listPeriod && !$('drawer').hidden) renderList()
 }
 function matches(ri, k, a) {
@@ -277,7 +285,7 @@ function matches(ri, k, a) {
   return true
 }
 const filtering = () => !!(filt.tag || filt.fam || filt.mine)
-function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }) }
+function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }); renderBars() }
 
 // ================= numbers =================
 const tween = new Map()
@@ -872,6 +880,7 @@ function stepFx(dt, now) {
 }
 function fire(w) {
   if (w.r < 0) return
+  if (VIEW === 'bars') { if ((!w.b || filt.bots) && (!filtering() || matches(w.r, w.k, w.a))) bvHit(w); return }
   if (w.b) { spark(w); return }
   if (filtering() && !matches(w.r, w.k, w.a)) return
   comet(w)
@@ -924,7 +933,7 @@ function stepHover() {
 const box = (sel) => document.querySelector(sel).getBoundingClientRect()
 const onScreen = (el) => el && !el.hidden && getComputedStyle(el).visibility !== 'hidden'
 function hud() {
-  const top = Math.max(box('.top').bottom, innerWidth >= 1340 ? box('#filters').bottom : 0) + 6
+  const top = Math.max(box('.top').bottom, innerWidth >= 1340 ? box('#filters').bottom : 0, PHONE ? box('#viewbar').bottom : 0) + 6
   // on a phone the scene ends at whatever sits lowest on it: the ticker, the sheet at the height it was dragged to,
   // a project's card or the timeline
   if (MOBILE) {
@@ -938,12 +947,20 @@ function hud() {
 function updateLayout() {
   const root = document.documentElement.style
   root.setProperty('--top', `${Math.round(box('.top').bottom + 6)}px`)
-  // notices sit under whatever is there: the filter bar on wide screens (one or two rows), the header elsewhere
-  root.setProperty('--below', `${Math.round((innerWidth >= 1340 ? box('#filters').bottom : box('.top').bottom) + 8)}px`)
+  // notices sit under whatever is there: the filter bar on wide screens (one or two rows), the switch between bars and
+  // the scene on a phone, the header elsewhere
+  root.setProperty('--below', `${Math.round((innerWidth >= 1340 ? box('#filters').bottom : PHONE ? box('#viewbar').bottom : box('.top').bottom) + 8)}px`)
   updateView()
 }
 function updateView() {
   const { top, bottom, right } = hud()
+  // the bars end where the scene would: above the ticker, the sheet or a card; and start under a notice while one is up,
+  // which would otherwise cover the busiest project
+  if (PHONE) {
+    const root = document.documentElement.style, notice = $('toasts').querySelector('.toast:not([hidden])') && onScreen($('toasts'))
+    root.setProperty('--bv-bottom', `${Math.round(bottom)}px`)
+    root.setProperty('--bv-top', `${Math.round((notice ? box('#toasts').bottom : box('#viewbar').bottom) + 6)}px`)
+  }
   camera.setViewOffset(innerWidth, innerHeight, right / 2, (bottom - top) / 2, innerWidth, innerHeight)
   camera.updateProjectionMatrix()
 }
@@ -961,6 +978,9 @@ function setHome() { const d = fitDistance(); home.p.set(0, d * Math.sin(ELEV), 
 function drawerShown() { document.body.classList.toggle('drawer-open', !$('drawer').hidden); updateView() }
 new MutationObserver(updateView).observe($('side'), { attributes: true, attributeFilter: ['class'] })
 new MutationObserver(drawerShown).observe($('drawer'), { attributes: true, attributeFilter: ['hidden'] })
+if (PHONE) new MutationObserver(updateView).observe($('toasts'), { attributes: true, subtree: true, attributeFilter: ['hidden'] })
+// the header grows when its caption first fills in: what sits under it follows then, not at the next resize, when it jumped
+new ResizeObserver(() => updateLayout()).observe(document.querySelector('.top'))
 
 // camera flights: to a project, to a group, back home
 let flight = null
@@ -1018,8 +1038,8 @@ async function openRepo(i) {
     $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
 ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}</p>
 <p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}${badgeRow('repo', d.name)}
-<h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
-<p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>
+${d.daily.people.some(Boolean) || d.daily.bots.some(Boolean) ? `<h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+<p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>` : `<p class="sub quiet">${esc(t('d.monthNone'))}</p>`}
 ${onchainBlock(d.onchain)}
 ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
@@ -1088,6 +1108,118 @@ $('drawer-body').addEventListener('click', (e) => {
 $('drawer-close').addEventListener('click', closeDrawer)
 for (const b of document.querySelectorAll('.kpi')) b.addEventListener('click', () => openList(b.dataset.list))
 $('skip').addEventListener('click', (e) => { e.preventDefault(); openList('repos') })
+
+// ================= bars: the projects as rows, on a phone =================
+// the same window as the scene: one bar per project with work by people, as long as that work and in the colours of its
+// kinds, with the faces of who did it at its end. The busiest come first; a row slides to its new place and lights up when
+// work lands on it. Nothing moves while a finger is on the list: the new order waits until it lets go
+const bv = { rows: new Map(), hold: 0, pending: false, timer: 0, lang: null, rest: false, restSig: '' }
+function repoMedals() {
+  const m = new Map(), L = S?.leaders
+  if (L) for (const p of ['day', 'week', 'month']) { const w = L[p]?.repos?.[0]; if (w && w[1] > 0) m.set(w[0], p) }
+  return m
+}
+const barScore = (i) => (filt.fam ? W.fc[i]?.[FAMS.indexOf(filt.fam)] || 0 : W.n[i])
+function barRow(key) {
+  const li = document.createElement('li')
+  li.className = 'bvr'; li.dataset.key = key
+  li.innerHTML = '<button type="button" class="bvr-main"><span class="bvr-head"><span class="bvr-name"></span><small></small><span class="bvr-tags"></span><b class="bvr-n"></b></span><span class="bvr-line"><span class="bvr-bar"></span></span></button><span class="bvr-faces"></span>'
+  return li
+}
+function setRow(li, i, n, max, medal) {
+  const r = repos[i], q = (s) => li.querySelector(s)
+  li.dataset.i = i
+  // the square root, like the scene's log for heights: a project with 4 next to one with 53 still shows a bar
+  li.style.setProperty('--w', Math.max(0.04, Math.sqrt(n / max)).toFixed(3))
+  const name = short(r.name), group = gname(r.group)
+  if (q('.bvr-name').textContent !== name) { q('.bvr-name').textContent = name; q('small').textContent = group }
+  q('.bvr-n').textContent = n
+  q('.bvr-main').setAttribute('aria-label', `${name}, ${group}: ${cnt('upd', n)}${medal ? `, ${t(`b.repos.${medal}`)}` : ''}`)
+  const segs = filt.fam ? [[filt.fam, n]] : FAMS.map((f, k) => [f, W.fc[i]?.[k] || 0]).filter((x) => x[1])
+  const segSig = segs.join()
+  if (li.dataset.segs !== segSig) { li.dataset.segs = segSig; q('.bvr-bar').innerHTML = segs.map(([f, c]) => `<i style="flex:${c};background:${FAMILY[f]}"></i>`).join('') }
+  const sr = stateRepo(r.name)
+  const tags = (medal ? `<span class="t-medal" title="${esc(t(`b.repos.${medal}`))}">${MEDAL}</span>` : '') + (sr?.isNew ? `<span class="t-new">${esc(t('new.repo'))}</span>` : '') + (sr?.onchain ? `<span class="t-chain">${esc(t('oc.tag'))}</span>` : '') + (followsRepo(r.name) ? '<span class="t-star">★</span>' : '')
+  if (li.dataset.tags !== tags) { li.dataset.tags = tags; q('.bvr-tags').innerHTML = tags }
+  const faces = [...(W.who[i] || [])].sort((x, y) => y[1] - x[1]).slice(0, 3).map(([a]) => a)
+  if (li.dataset.faces !== faces.join()) { li.dataset.faces = faces.join(); q('.bvr-faces').innerHTML = faces.map((a) => `<button type="button" data-person="${a}" aria-label="${esc(actors[a][0])}"><img src="${esc(ghAvatar(actors[a][0], actors[a][1], 52))}" alt="" loading="lazy"></button>`).join('') }
+}
+function renderBars(force) {
+  if (VIEW !== 'bars' || !repos.length) return
+  const list = $('bv')
+  if (force || bv.lang !== LANG) { list.textContent = ''; bv.rows.clear(); bv.lang = LANG; bv.restSig = '' }
+  $('vb-cap').textContent = filt.fam ? t('v.capFam', { fam: t('famLong.' + filt.fam) }) : t('v.cap')
+  const act = [], rest = []
+  repos.forEach((r, i) => { if (!filtering() || matches(i)) (barScore(i) ? act : rest).push(i) })
+  act.sort((x, y) => barScore(y) - barScore(x) || W.b[y] - W.b[x] || repos[x].name.localeCompare(repos[y].name))
+  const max = barScore(act[0]) || 1, medals = repoMedals()
+  const order = act.map((i) => {
+    const key = repos[i].name
+    let li = bv.rows.get(key)
+    if (!li) { li = barRow(key); bv.rows.set(key, li) }
+    setRow(li, i, barScore(i), max, medals.get(key))
+    return li
+  })
+  $('bv-none').hidden = act.length > 0; $('bv-none').textContent = t('l.none')
+  // the projects with nothing by people in this window: one line that opens a plain list
+  const restSig = `${rest.map((i) => repos[i].name).join('|')}#${bv.rest}`
+  if (restSig !== bv.restSig) {
+    bv.restSig = restSig
+    $('bv-rest').innerHTML = rest.length ? `<button type="button" class="share-btn bv-more" data-bv-rest aria-expanded="${bv.rest}">${esc(cnt('l.rest', rest.length))}</button>${bv.rest ? `<ol class="bv-rest">${rest.map((i) => `<li><button type="button" data-repo="${i}"><span>${esc(short(repos[i].name))}</span><small>${esc(gname(repos[i].group))}</small></button></li>`).join('')}</ol>` : ''}` : ''
+  }
+  const now = [...list.children]
+  if (now.length === order.length && now.every((li, k) => li === order[k])) return
+  if (performance.now() < bv.hold) { bv.pending = true; return }
+  // first where each row was, then the new order, then each row slides from its old place to the new one
+  const was = new Map(now.map((li) => [li, li.offsetTop]))
+  const keep = new Set(order)
+  for (const li of now) if (!keep.has(li)) { li.remove(); bv.rows.delete(li.dataset.key) }
+  order.forEach((li, k) => { if (list.children[k] !== li) list.insertBefore(li, list.children[k] || null) })
+  if (REDUCED) return
+  for (const li of order) {
+    const y = was.get(li)
+    if (y == null) { li.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, easing: 'ease-out' }); continue }
+    const d = y - li.offsetTop
+    if (d) li.animate([{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: 500, easing: 'cubic-bezier(.2,.7,.2,1)' })
+  }
+}
+// work landing on a project: its row lights up in the colour of that work
+function bvHit(w) {
+  const li = bv.rows.get(repos[w.r]?.name); if (!li?.isConnected) return
+  li.style.setProperty('--hit', w.b ? 'var(--bot)' : kcol(w.k))
+  li.classList.remove('hit'); void li.offsetWidth; li.classList.add('hit')
+}
+// a finger on the list, or a scroll still running, keeps the rows where they are
+function holdBars(ms) {
+  bv.hold = performance.now() + ms
+  clearTimeout(bv.timer)
+  if (ms < 1e9) bv.timer = setTimeout(() => { if (bv.pending) { bv.pending = false; renderBars() } }, ms + 50)
+}
+$('barsview').addEventListener('pointerdown', () => holdBars(1e9))
+for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, () => { if (bv.hold > performance.now() + 1e8) holdBars(1200) })
+$('barsview').addEventListener('scroll', () => { if (bv.hold < performance.now() + 1e8) holdBars(1200) }, { passive: true })
+$('barsview').addEventListener('click', (e) => {
+  if (e.target.closest('[data-bv-rest]')) { bv.rest = !bv.rest; renderBars(); return }
+  const p = e.target.closest('[data-person]'); if (p) { openPerson(+p.dataset.person); return }
+  const r = e.target.closest('[data-repo]'); if (r) { openRepo(+r.dataset.repo); return }
+  const row = e.target.closest('.bvr-main'); if (row) openRepo(+row.closest('.bvr').dataset.i)
+})
+// bars or the scene: the scene is not drawn while the bars are up, and the welcome card speaks of what is on screen
+function setView(v, chosen) {
+  VIEW = v
+  if (chosen) store.set('view', v)
+  document.body.classList.toggle('bars', v === 'bars')
+  $('barsview').hidden = v !== 'bars'
+  $('btn-home').hidden = v === 'bars'
+  for (const b of $('viewbar').querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === v))
+  for (const el of document.querySelectorAll('.intro .how [data-t]')) { el.dataset.t = el.dataset.t.replace(/Bars$/, '') + (v === 'bars' ? 'Bars' : ''); el.textContent = t(el.dataset.t) }
+  if (v === 'bars') renderBars(true)
+  else if (repos.length) { flyHome(); people(); placeBadges() } // flights asked for while the bars were up are dropped
+  updateLayout()
+}
+$('viewbar').addEventListener('click', (e) => { const b = e.target.closest('[data-view]'); if (b && b.dataset.view !== VIEW) { T.lastUser = Date.now(); setView(b.dataset.view, true) } })
+if (PHONE) $('viewbar').hidden = false
+setView(VIEW)
 
 // ================= search =================
 function closeSearch() { $('search').classList.remove('open'); $('results').hidden = true }
@@ -1340,6 +1472,8 @@ let last = performance.now(), slow = 0, frames = 0, acc = 0
 function frame(now) {
   requestAnimationFrame(frame)
   const dt = Math.min(0.1, (now - last) / 1000); last = now
+  // with the bars up the clock and the numbers run, and the scene waits undrawn
+  if (VIEW === 'bars') { stepTime(now, dt); stepTweens(now); return }
   stepTime(now, dt); stepFlight(dt); stepPeople(dt); stepComets(dt); stepFx(dt, now); stepTweens(now); stepHover()
   controls.update()
   if (mesh) {

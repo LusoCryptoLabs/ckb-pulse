@@ -304,7 +304,7 @@ body.drawer-open .side { visibility: hidden; }
 .intro { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(4, 6, 3, 0.55); animation: fade 0.3s ease-out; }
 @keyframes fade { from { opacity: 0; } }
 .intro .card { position: relative; width: min(540px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; background: var(--glass2); border: 1px solid rgba(203, 243, 77, 0.25); border-radius: 18px; padding: 24px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
-.intro h2 { margin: 0 70px 10px 0; font-size: 23px; line-height: 1.25; }
+.intro h2 { margin: 0 0 10px; font-size: 23px; line-height: 1.25; }
 .intro .lead { margin: 0 0 16px; color: #d6dec8; font-size: 15px; line-height: 1.55; }
 .intro .how { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 12px; }
 .intro .how li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; font-size: 14.5px; line-height: 1.45; }
@@ -316,9 +316,58 @@ body.drawer-open .side { visibility: hidden; }
 .intro .primary { display: block; width: 100%; background: var(--lime); color: #07090a; border: 0; border-radius: 12px; padding: 13px 20px; font-weight: 800; font-size: 16px; cursor: pointer; }
 .intro .primary:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .intro .fine { margin: 14px 0 0; text-align: center; font-size: 13px; color: var(--mut); }
-.intro .langs { position: absolute; top: 18px; right: 18px; display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+/* floated, so the title wraps around it on a phone instead of running under it */
+.intro .langs { float: right; margin: -6px -6px 10px 14px; display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .intro .langs button { background: none; border: 0; padding: 6px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--mut); }
 .intro .langs button[aria-pressed="true"] { background: rgba(203, 243, 77, 0.18); color: var(--fg); }
+
+/* phones: the projects as bars (2026-10-26), with a switch to the scene above them */
+@property --w { syntax: "<number>"; inherits: true; initial-value: 0; }
+.viewbar { top: var(--top); left: 12px; right: 12px; z-index: 9; display: flex; align-items: center; gap: 10px; height: 34px; }
+.vb-cap { margin: 0; flex: 1; min-width: 0; font-size: 12.5px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body:not(.bars) .vb-cap { visibility: hidden; }
+.vb-seg button { padding: 6px 12px; font-weight: 700; min-height: 32px; }
+body.drawer-open .viewbar { visibility: hidden; }
+body.bars #stage { display: none; }
+body.bars .top::before { bottom: 0; }
+.barsview { position: fixed; z-index: 4; left: 0; right: 0; top: var(--bv-top, calc(var(--top) + 40px)); bottom: var(--bv-bottom, 300px); overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 8px; }
+.bv { list-style: none; margin: 0; padding: 0; }
+.bvr { --fw: 72px; position: relative; border-radius: 12px; transition: --w 0.6s ease; }
+.bvr.hit { animation: bvhit 1.4s ease-out; }
+@keyframes bvhit { from { background: color-mix(in srgb, var(--hit) 26%, transparent); } }
+.bvr.hit .bvr-n { animation: bvn 0.6s ease-out; }
+@keyframes bvn { 30% { transform: scale(1.25); } }
+.bvr-main { display: block; width: 100%; padding: 7px 10px 6px; border: 0; border-radius: 12px; background: none; text-align: left; cursor: pointer; }
+.bvr-main:active { background: rgba(203, 243, 77, 0.07); }
+.bvr-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.bvr-name { font-weight: 700; font-size: 15px; min-width: 0; flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bvr-head small { color: var(--mut); font-size: 12px; min-width: 0; flex: 0 100 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bvr-tags { display: inline-flex; gap: 4px; align-self: center; flex: none; }
+.bvr-tags:empty { display: none; }
+.bvr-tags .t-medal svg { width: 17px; height: 17px; display: block; }
+.bvr-tags .t-new, .bvr-tags .t-chain, .bvr-tags .t-star { font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
+.bvr-tags .t-new { color: #fff; background: #ff6b8b; }
+.bvr-tags .t-chain { color: #062a33; background: #62c9f5; }
+.bvr-tags .t-star { color: #07090a; background: var(--lime); }
+.bvr-n { margin-left: auto; flex: none; font-size: 15px; color: var(--lime); font-variant-numeric: tabular-nums; }
+.bvr-line { display: block; position: relative; height: 26px; margin-top: 1px; }
+.bvr-bar { position: absolute; left: 0; top: 8px; height: 10px; width: calc((100% - var(--fw)) * var(--w)); display: flex; gap: 2px; border-radius: 5px; overflow: hidden; }
+.bvr-bar i { display: block; height: 100%; min-width: 3px; }
+.bvr-faces { position: absolute; left: calc(16px + (100% - 20px - var(--fw)) * var(--w)); bottom: 6px; display: flex; }
+/* the ticker keeps to one line over the bars: the list needs the height more than the sentence does */
+body.bars .now { display: flex; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+body.bars .now .ticker { white-space: nowrap; }
+.bvr-faces button { width: 26px; height: 26px; padding: 0; border: 2px solid var(--bg); border-radius: 50%; background: #1b2215; overflow: hidden; cursor: pointer; }
+.bvr-faces button + button { margin-left: -6px; }
+.bvr-faces img { width: 100%; height: 100%; display: block; }
+.bv-none { color: var(--mut); padding: 16px 10px; margin: 0; }
+.bv-more { margin: 10px 10px 4px; }
+.bv-more::before { content: "\25B8"; color: var(--mut); }
+.bv-more[aria-expanded="true"]::before { content: "\25BE"; }
+.bv-rest { list-style: none; margin: 4px 0 0; padding: 0; }
+.bv-rest button { display: flex; align-items: baseline; gap: 7px; width: 100%; padding: 10px; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; cursor: pointer; }
+.bv-rest small { color: var(--mut); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .bvr { transition: none; } .bvr.hit, .bvr.hit .bvr-n { animation: none; } }
 
 /* no WebGL 2 */
 .nogl-msg { display: none; }
