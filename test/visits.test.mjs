@@ -22,3 +22,16 @@ test('views, visitors, days', () => {
   const raw = JSON.parse(JSON.stringify(Object.values(visits(2, t0 + 864e5).days)))
   assert.ok(raw.every((d) => !('salt' in d) && !('seen' in d)))
 })
+
+test('monitors and previews count apart, as bots', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'visits-'))
+  initVisits(dir)
+  const t0 = Date.parse('2026-10-26T10:00:00Z')
+  const person = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36'
+  for (const ua of ['sentinela/1.0', 'Mozilla/5.0+(compatible; UptimeRobot/2.0; http://www.uptimerobot.com/)', 'curl/8.19.0', 'TelegramBot (like TwitterBot)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.7827.55 Safari/537.36', '', undefined]) hit('pulse', '9.9.9.9', ua, t0)
+  hit('pulse', '1.2.3.4', person, t0)
+  const v = visits(1, t0)
+  assert.deepEqual(v.total.views, { pulse: 1 })
+  assert.deepEqual(v.total.visitors, { pulse: 1 })
+  assert.deepEqual(v.total.bots, { pulse: 7 })
+})

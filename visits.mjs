@@ -1,13 +1,18 @@
 // Who comes: page views and visitors per day, without cookies or accounts. A visitor is a hash of the day's salt, the
 // address and the browser, kept only for that day; the salt is dropped with the day, so no hash can be checked later.
-// Kept in DATA_DIR/visits.json for 90 days: `/api/visits` reads the last 30.
+// Kept in DATA_DIR/visits.json for 90 days: `/api/visits` reads the last 30. Monitors, link previews and scripts
+// count apart, as bots: on 2026-10-26 they made 1997 views of the page while its script was fetched 26 times.
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
 const KEEP_DAYS = 90
 let file = '', dirty = false
-let V = { days: {} } // day -> { salt, views: { page: n }, seen: { page: [hash] } }
+let V = { days: {} } // day -> { salt, views: { page: n }, seen: { page: [hash] }, bots: { page: n } }
+
+// what is not a person reading: uptime checks, crawlers, link previews, scripts, headless browsers
+const BOT = /bot|crawl|spider|slurp|preview|uptime|monitor|sentinel|curl|wget|python|^node|go-http|java\/|okhttp|axios|headless|lighthouse|facebookexternalhit|whatsapp|embedly/i
+export const isBot = (ua) => !ua || BOT.test(ua)
 
 export function initVisits(dir) {
   file = path.join(dir, 'visits.json')
@@ -36,6 +41,7 @@ function dayRec(day) {
 // one request to a page; ip and ua as the proxy gives them
 export function hit(page, ip, ua, now = Date.now()) {
   const d = dayRec(dayOf(now))
+  if (isBot(ua)) { (d.bots ||= {})[page] = (d.bots[page] || 0) + 1; dirty = true; return }
   d.views[page] = (d.views[page] || 0) + 1
   const h = crypto.createHash('sha256').update(`${d.salt}|${ip || ''}|${ua || ''}`).digest('hex').slice(0, 16)
   const seen = d.seen[page] || (d.seen[page] = [])
@@ -47,9 +53,9 @@ export function visits(n = 30, now = Date.now()) {
   const days = []
   for (let i = n - 1; i >= 0; i--) {
     const day = dayOf(now - i * 864e5), r = V.days[day]
-    days.push({ day, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {} })
+    days.push({ day, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
   }
-  const total = { views: {}, visitors: {} }
-  for (const d of days) for (const k of ['views', 'visitors']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
+  const total = { views: {}, visitors: {}, bots: {} }
+  for (const d of days) for (const k of ['views', 'visitors', 'bots']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
   return { days, total }
 }

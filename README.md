@@ -27,7 +27,7 @@ The rules (what counts as CKB work, manifests, the burst cap, agents and schedul
 
 ## Visits
 
-Page views and visitors per day for the page, the Fiber map, the digest, the feed and the badges, at `GET /api/visits` (30 days) and in `DATA_DIR/visits.json` (90 days). No cookies and no accounts: a visitor is a hash of the day's salt, the address and the browser, and the salt and the hashes are dropped when the day ends, so only the counts remain.
+Page views and visitors per day for the page, the Fiber map, the digest, the feed and the badges, at `GET /api/visits` (30 days) and in `DATA_DIR/visits.json` (90 days). No cookies and no accounts: a visitor is a hash of the day's salt, the address and the browser, and the salt and the hashes are dropped when the day ends, so only the counts remain. Uptime checks, crawlers, link previews, scripts and headless browsers count apart, as `bots`, by their user agent: on 2026-10-26 they made 1997 of the page's views, while its script was fetched 26 times.
 
 ## What it follows
 
