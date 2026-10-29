@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="pulse3d.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
+<script type="importmap">{ "imports": { "three": "./vendor/__VENDOR__/three.module.js", "three/addons/": "./vendor/__VENDOR__/addons/" } }</script>
 <script>
   // the page is drawn in 3D: without WebGL 2 it says so instead of failing quietly
   (() => { let ok = false; try { ok = !!document.createElement('canvas').getContext('webgl2') } catch {} if (!ok) document.documentElement.classList.add('nogl') })()
@@ -20,9 +20,17 @@
   // behind a button (fpop) on screens under 1340 px, and on every screen in the trial. Set here, before the first paint
   ;(() => {
     const h = document.documentElement
-    try { const q = new URLSearchParams(location.search).get('ui'); if (q) localStorage.setItem('ckbpulse.ui', q); if ((q || localStorage.getItem('ckbpulse.ui')) === 'next') h.classList.add('next') } catch {}
+    let view = null
+    try { const q = new URLSearchParams(location.search).get('ui'); if (q) localStorage.setItem('ckbpulse.ui', q); if ((q || localStorage.getItem('ckbpulse.ui')) === 'next') h.classList.add('next'); view = localStorage.getItem('ckbpulse.view') } catch {}
     const fp = () => h.classList.toggle('fpop', innerWidth < 1340 || h.classList.contains('next'))
     fp(); addEventListener('resize', fp)
+    if (h.classList.contains('nogl')) return
+    // bars on a phone and in the trial, unless the viewer picked the scene; the scene asks for three.js now, with the
+    // page's own files, and the bars never do. The state is asked for here too, and the page shows outlines until it is in
+    h.dataset.firstView = (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
+    if (h.dataset.firstView === '3d') for (const f of ['three.module.js', 'three.core.js']) document.head.append(Object.assign(document.createElement('link'), { rel: 'modulepreload', href: `vendor/__VENDOR__/${f}` }))
+    h.classList.add('wait')
+    window.pulseState = fetch('api/state').catch(() => null)
   })()
 </script>
 </head>
@@ -30,7 +38,17 @@
 <a class="skip" href="#drawer" id="skip" data-t="l.skip"></a>
 <div id="stage" aria-hidden="true"></div>
 <!-- phones: the projects as bars, and a switch to the scene -->
-<div class="barsview" id="barsview" hidden><ol class="bv" id="bv"></ol><p class="bv-none" id="bv-none" hidden></p><div id="bv-rest"></div></div>
+<div class="barsview" id="barsview" hidden><ol class="bv" id="bv">
+  <!-- outlines with the rows' own markup until the state is in; the first drawing of the list replaces them -->
+  <li class="bvr sk" aria-hidden="true" style="--w:1"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">project-name</span><small class="sk-t">Nervos core</small><b class="bvr-n sk-t">00</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.82"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">project</span><small class="sk-t">Independent builders</small><b class="bvr-n sk-t">00</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.7"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">a-project</span><small class="sk-t">CKB DevRel</small><b class="bvr-n sk-t">00</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.6"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">project-name</span><small class="sk-t">Nervos core</small><b class="bvr-n sk-t">0</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.52"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">project</span><small class="sk-t">Independent builders</small><b class="bvr-n sk-t">0</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.45"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">a-project</span><small class="sk-t">Spore</small><b class="bvr-n sk-t">0</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.4"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">project-name</span><small class="sk-t">Nervos core</small><b class="bvr-n sk-t">0</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+  <li class="bvr sk" aria-hidden="true" style="--w:.35"><div class="bvr-main"><span class="bvr-head"><span class="bvr-name sk-t">project</span><small class="sk-t">Independent builders</small><b class="bvr-n sk-t">0</b></span><span class="bvr-line"><span class="bvr-bar"><i class="sk-bar"></i></span></span></div></li>
+</ol><p class="bv-none" id="bv-none" hidden></p><div id="bv-rest"></div></div>
 <div class="hud viewbar" id="viewbar" hidden>
   <p class="vb-cap" id="vb-cap"></p>
   <div class="seg vb-seg" role="group" data-t-label="v.group"><button type="button" data-view="bars" data-t="v.bars"></button><button type="button" data-view="3d" data-t="v.3d"></button></div>
@@ -42,9 +60,9 @@
     <div><h1>CKB Pulse</h1><p data-t="tagline"></p></div>
   </div>
   <div class="kpis">
-    <button type="button" class="kpi" data-list="feed" aria-describedby="k-cap"><b id="k-day">0</b><span data-t="k.updates"></span></button>
-    <button type="button" class="kpi" data-list="people" aria-describedby="k-cap"><b id="k-people">0</b><span data-t="k.people"></span></button>
-    <button type="button" class="kpi" data-list="repos" aria-describedby="k-cap"><b id="k-active">0</b><span data-t="k.projects"></span></button>
+    <button type="button" class="kpi" data-list="feed" aria-describedby="k-cap"><b id="k-day"><i class="sk-t" aria-hidden="true">000</i></b><span data-t="k.updates"></span></button>
+    <button type="button" class="kpi" data-list="people" aria-describedby="k-cap"><b id="k-people"><i class="sk-t" aria-hidden="true">00</i></b><span data-t="k.people"></span></button>
+    <button type="button" class="kpi" data-list="repos" aria-describedby="k-cap"><b id="k-active"><i class="sk-t" aria-hidden="true">00</i></b><span data-t="k.projects"></span></button>
     <p class="kcap" id="k-cap"></p>
   </div>
   <div class="tools">
@@ -73,7 +91,12 @@
     <button type="button" role="tab" id="tab-add" aria-controls="add" aria-selected="false" tabindex="-1" data-tab="add"><span data-t="tab.new"></span><b class="dot" id="news-dot" hidden></b></button>
     <button type="button" class="collapse" id="btn-side" data-t-label="side.toggle">›</button>
   </div>
-  <ol class="feed" id="feed" data-pane="feed" aria-labelledby="tab-feed"></ol>
+  <ol class="feed" id="feed" data-pane="feed" aria-labelledby="tab-feed">
+    <li class="sk" aria-hidden="true"><i class="sk-av"></i><div><div class="what sk-t">someone opened a pull request on a project</div><div class="meta sk-t">a while ago · a group</div></div></li>
+    <li class="sk" aria-hidden="true"><i class="sk-av"></i><div><div class="what sk-t">someone pushed to project</div><div class="meta sk-t">a while ago · a group</div></div></li>
+    <li class="sk" aria-hidden="true"><i class="sk-av"></i><div><div class="what sk-t">someone commented on a project</div><div class="meta sk-t">a while ago · a group</div></div></li>
+    <li class="sk" aria-hidden="true"><i class="sk-av"></i><div><div class="what sk-t">someone pushed to a-project</div><div class="meta sk-t">a while ago · a group</div></div></li>
+  </ol>
   <div class="top-pane" id="top" data-pane="top" role="tabpanel" aria-labelledby="tab-top" hidden>
     <div class="trend" id="trend"></div>
     <div class="seg small" id="hl-period" role="group"><button type="button" data-h="day" data-t="h.day"></button><button type="button" data-h="week" data-t="h.week"></button><button type="button" data-h="month" data-t="h.month"></button></div>

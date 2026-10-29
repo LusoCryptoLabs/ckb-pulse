@@ -1,14 +1,7 @@
 // CKB Pulse in 3D: repositories as blocks of light, people as avatars above them, each update a comet from the person
 // to the project. Three ways to look: live, the last 24 hours, the last 7 days. The camera stays where the viewer puts it.
 // Data: /api/state (7 days of compact history, highlights, groups), /api/stream (live), /api/repo (one project).
-import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
+// three.js comes only when the scene is first shown (loadScene): the bars, what a phone shows, never need its 370 kB
 import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
 
 const DAY = 864e5
@@ -25,7 +18,8 @@ const PHONE = matchMedia('(max-width: 860px)').matches
 // the tidier layout on trial (?ui=next, see index.html): bars on every screen, a period button shows the whole period
 // and only the play button replays it, the ticker only while it says something the panel does not
 const NEXT = document.documentElement.classList.contains('next')
-let VIEW = (PHONE || NEXT) && store.get('view') !== '3d' ? 'bars' : '3d'
+// bars or the scene is decided in index.html's head, which starts loading three.js there when the scene comes first
+let VIEW = document.documentElement.dataset.firstView === '3d' ? '3d' : 'bars'
 const wideBar = () => !document.documentElement.classList.contains('fpop')
 const MEDAL = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 1h3.2l1.3 4.2-3.1 1.2zM14.5 1h-3.2L10 5.2l3.1 1.2z" fill="#e0533d"/><circle cx="10" cy="12.6" r="6.2" fill="#f3c23a" stroke="#a8740c" stroke-width="1.2"/><path d="M10 9.2l1.05 2.1 2.3.33-1.67 1.62.4 2.3L10 14.47l-2.08 1.08.4-2.3-1.67-1.62 2.3-.33z" fill="#fff4cc"/></svg>'
 
@@ -79,51 +73,99 @@ const avatarUrl = (i) => ghAvatar(actors[i]?.[0], actors[i]?.[1], 96)
 const stateRepo = (name) => S?.repos?.find((r) => r.name === name)
 
 // ================= scene =================
-const renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: 'high-performance' })
-renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2))
-renderer.setSize(innerWidth, innerHeight)
-renderer.toneMapping = THREE.NeutralToneMapping // keeps hues saturated; ACES washed the cells into pastel
-$('stage').appendChild(renderer.domElement)
-const labelRenderer = new CSS2DRenderer()
-labelRenderer.setSize(innerWidth, innerHeight)
-Object.assign(labelRenderer.domElement.style, { position: 'fixed', inset: '0', pointerEvents: 'none' })
-$('stage').appendChild(labelRenderer.domElement)
+// three.js, its add-ons and everything made with them arrive together on the first call; until then (and on a phone
+// that keeps to the bars, always) has3d is false and every step of the scene is skipped
+let THREE, CSS2DObject, RoundedBoxGeometry
+let renderer, labelRenderer, scene, camera, controls, composer, bloom, glowTex, peopleGroup, ringGeo, ray, ptr, home
+let tmpM, tmpQ, tmpS, tmpP, tmpC, DORMANT, BOTCELL
+let has3d = false, sceneLoading = null, useBloom = true
+function loadScene() {
+  sceneLoading ||= Promise.all([
+    import('three'), import('three/addons/controls/OrbitControls.js'), import('three/addons/postprocessing/EffectComposer.js'),
+    import('three/addons/postprocessing/RenderPass.js'), import('three/addons/postprocessing/UnrealBloomPass.js'),
+    import('three/addons/postprocessing/OutputPass.js'), import('three/addons/geometries/RoundedBoxGeometry.js'),
+    import('three/addons/renderers/CSS2DRenderer.js'),
+  ]).then(([three, oc, ec, rp, ub, op, rb, css]) => {
+    THREE = three; RoundedBoxGeometry = rb.RoundedBoxGeometry; CSS2DObject = css.CSS2DObject
+    makeScene({ OrbitControls: oc.OrbitControls, EffectComposer: ec.EffectComposer, RenderPass: rp.RenderPass, UnrealBloomPass: ub.UnrealBloomPass, OutputPass: op.OutputPass, CSS2DRenderer: css.CSS2DRenderer })
+    has3d = true
+  }).catch((err) => { sceneLoading = null; throw err }) // offline for a moment: the next call tries again
+  return sceneLoading
+}
+function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, CSS2DRenderer }) {
+  renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: 'high-performance' })
+  renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2))
+  renderer.setSize(innerWidth, innerHeight)
+  renderer.toneMapping = THREE.NeutralToneMapping // keeps hues saturated; ACES washed the cells into pastel
+  $('stage').appendChild(renderer.domElement)
+  labelRenderer = new CSS2DRenderer()
+  labelRenderer.setSize(innerWidth, innerHeight)
+  Object.assign(labelRenderer.domElement.style, { position: 'fixed', inset: '0', pointerEvents: 'none' })
+  $('stage').appendChild(labelRenderer.domElement)
 
-const scene = new THREE.Scene()
-scene.background = new THREE.Color('#07090a')
-scene.fog = new THREE.FogExp2('#07090a', 0.011)
-const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 600)
-// the view only moves when the viewer moves it (or opens something to look at)
-const controls = new OrbitControls(camera, renderer.domElement)
-Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: false, maxPolarAngle: 1.33, minDistance: 5, enablePan: true, screenSpacePanning: false })
-controls.addEventListener('start', () => { T.lastUser = Date.now(); flight = null })
+  scene = new THREE.Scene()
+  scene.background = new THREE.Color('#07090a')
+  scene.fog = new THREE.FogExp2('#07090a', 0.011)
+  camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 600)
+  // the view only moves when the viewer moves it (or opens something to look at)
+  controls = new OrbitControls(camera, renderer.domElement)
+  Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: false, maxPolarAngle: 1.33, minDistance: 5, enablePan: true, screenSpacePanning: false })
+  controls.addEventListener('start', () => { T.lastUser = Date.now(); flight = null })
 
-scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.45))
-const sun = new THREE.DirectionalLight('#ffffff', 0.85)
-sun.position.set(30, 60, 20)
-scene.add(sun)
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshStandardMaterial({ color: '#080b06', roughness: 1 }))
-ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02
-scene.add(ground)
-const grid = new THREE.GridHelper(400, 308, '#1f2b12', '#11180a')
-grid.material.transparent = true; grid.material.opacity = 0.55
-scene.add(grid)
+  scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.45))
+  const sun = new THREE.DirectionalLight('#ffffff', 0.85)
+  sun.position.set(30, 60, 20)
+  scene.add(sun)
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshStandardMaterial({ color: '#080b06', roughness: 1 }))
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02
+  scene.add(ground)
+  const grid = new THREE.GridHelper(400, 308, '#1f2b12', '#11180a')
+  grid.material.transparent = true; grid.material.opacity = 0.55
+  scene.add(grid)
 
-const composer = new EffectComposer(renderer)
-composer.addPass(new RenderPass(scene, camera))
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), MOBILE ? 0.85 : 1.05, 0.6, 0.42)
-composer.addPass(bloom)
-composer.addPass(new OutputPass())
-let useBloom = true
+  composer = new EffectComposer(renderer)
+  composer.addPass(new RenderPass(scene, camera))
+  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), MOBILE ? 0.85 : 1.05, 0.6, 0.42)
+  composer.addPass(bloom)
+  composer.addPass(new OutputPass())
 
-// glow sprite texture for comets and sparks
-const glowTex = (() => {
+  // glow sprite texture for comets and sparks
   const c = document.createElement('canvas'); c.width = c.height = 64
   const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32)
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)')
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64)
-  return new THREE.CanvasTexture(c)
-})()
+  glowTex = new THREE.CanvasTexture(c)
+
+  tmpM = new THREE.Matrix4(); tmpQ = new THREE.Quaternion(); tmpS = new THREE.Vector3(); tmpP = new THREE.Vector3(); tmpC = new THREE.Color()
+  DORMANT = new THREE.Color('#1c2412'); BOTCELL = new THREE.Color('#3b4330')
+  peopleGroup = new THREE.Group()
+  scene.add(peopleGroup)
+  ringGeo = new THREE.RingGeometry(0.8, 1, 64)
+  home = { p: new THREE.Vector3(), t: new THREE.Vector3() }
+
+  // a click on a block or a face opens it; a drag only moves the view
+  ray = new THREE.Raycaster(); ptr = new THREE.Vector2()
+  renderer.domElement.addEventListener('pointermove', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrPx.x = e.clientX; ptrPx.y = e.clientY; ptrPx.in = true })
+  renderer.domElement.addEventListener('pointerleave', () => { ptrPx.in = false; $('tip').hidden = true })
+  renderer.domElement.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); openFilters(false); closeSearch() })
+  renderer.domElement.addEventListener('pointerup', (e) => {
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 450) return
+    ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
+    const pick = pickAt()
+    if (pick.person) openPerson(actorIdx.get(pick.person))
+    else if (pick.cell >= 0) openRepo(pick.cell)
+  })
+}
+// the scene's first picture, once both the state and three.js are in: the blocks, the camera coming down, faces, medals
+let sceneShown = false
+function sceneStart() {
+  if (!has3d || !repos.length || sceneShown || VIEW !== '3d') return
+  sceneShown = true
+  buildCells(); computeWindow(); updateLayout(); setHome()
+  camera.position.copy(home.p).multiplyScalar(1.4); controls.target.set(0, 0, 0)
+  flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 }
+  placeBadges()
+}
 
 // ================= cells =================
 const PITCH = 1.3
@@ -132,8 +174,6 @@ const cell = [] // per repo: {x, z, h, hT, glow, flash: Color, base: Color, dim,
 const groupLabels = []
 const groupCenter = new Map()
 let layoutR = 20
-const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpC = new THREE.Color()
-const DORMANT = new THREE.Color('#1c2412'), BOTCELL = new THREE.Color('#3b4330')
 
 function spiral(n) {
   // grid slots ordered from the centre outwards, so the busiest repos sit in the middle of their cluster
@@ -180,6 +220,7 @@ const subText = (div) => { div.textContent = `${div.dataset.name || t('g.other')
 const isNewGroup = (g) => !!S?.groups?.find((x) => x.name === g)?.isNew
 function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))} · ${div.dataset.n}${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
 function buildCells() {
+  if (!sceneShown) return
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose() }
   for (const l of [...groupLabels, ...subLabels]) l.parent?.remove(l)
   groupLabels.length = 0; subLabels.length = 0; groupCenter.clear(); cell.length = 0
@@ -244,7 +285,7 @@ function addRepo(r) {
   const i = repos.length
   repos.push(r)
   const a = Math.random() * Math.PI * 2, R = layoutR + 3
-  cell[i] = { x: Math.cos(a) * R, z: Math.sin(a) * R, h: 0.01, hT: 0.4, glow: 0, flash: new THREE.Color('#fff'), base: DORMANT.clone(), dim: 1, dimT: 1, hover: 0, born: performance.now() }
+  if (sceneShown) cell[i] = { x: Math.cos(a) * R, z: Math.sin(a) * R, h: 0.01, hT: 0.4, glow: 0, flash: new THREE.Color('#fff'), base: DORMANT.clone(), dim: 1, dimT: 1, hover: 0, born: performance.now() }
   if (mesh && i < mesh.instanceMatrix.count) mesh.count = repos.length
   return i
 }
@@ -706,8 +747,6 @@ function liveText() {
 }
 
 // ================= people above the scene =================
-const peopleGroup = new THREE.Group()
-scene.add(peopleGroup)
 const sprites = new Map() // login -> sprite
 const texCache = new Map() // login -> texture
 let personWins = new Map() // login -> the longest period this person leads
@@ -733,7 +772,8 @@ function avatarTexture(login, avatar) {
 // each person keeps one place on the ring (the golden angle from a hash of the login), so nobody swaps seats as counts change
 function seat(login) { let h = 0; for (const ch of login) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h }
 function people() {
-  const top = [...W.people.entries()].sort((x, y) => y[1] - x[1]).slice(0, MOBILE ? 16 : 32)
+  if (!sceneShown) return
+  const top =[...W.people.entries()].sort((x, y) => y[1] - x[1]).slice(0, MOBILE ? 16 : 32)
   const keep = new Set(top.map(([a]) => actors[a][0]))
   for (const [login, s] of sprites) if (!keep.has(login)) s.userData.leaving = true
   const R = layoutR + 4, max = top[0]?.[1] || 1
@@ -780,6 +820,7 @@ function stepPeople(dt) {
 // ================= medals and new projects in the scene =================
 const sceneBadges = [] // CSS2D objects that follow a cell
 function placeBadges() {
+  if (!sceneShown) return
   for (const o of sceneBadges) o.parent?.remove(o)
   sceneBadges.length = 0
   const L = S?.leaders
@@ -861,7 +902,6 @@ function stepComets(dt) {
     }
   }
 }
-const ringGeo = new THREE.RingGeometry(0.8, 1, 64)
 function hit(w, color) {
   const c = cell[w.r]
   if (!c) return
@@ -899,19 +939,9 @@ function fire(w) {
 }
 
 // ================= interaction =================
-const ray = new THREE.Raycaster()
-const ptr = new THREE.Vector2(), ptrPx = { x: 0, y: 0, in: false }
+// the pointer's listeners are set on the canvas in makeScene
+const ptrPx = { x: 0, y: 0, in: false }
 let hovered = -1, down = null
-renderer.domElement.addEventListener('pointermove', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrPx.x = e.clientX; ptrPx.y = e.clientY; ptrPx.in = true })
-renderer.domElement.addEventListener('pointerleave', () => { ptrPx.in = false; $('tip').hidden = true })
-renderer.domElement.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); openFilters(false); closeSearch() })
-renderer.domElement.addEventListener('pointerup', (e) => {
-  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 450) return
-  ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
-  const pick = pickAt()
-  if (pick.person) openPerson(actorIdx.get(pick.person))
-  else if (pick.cell >= 0) openRepo(pick.cell)
-})
 function pickAt() {
   ray.setFromCamera(ptr, camera)
   const ps = ray.intersectObjects(peopleGroup.children, false)
@@ -975,6 +1005,7 @@ function updateView() {
     // a wide screen: the list keeps left of the panel, in a column no wider than 900 px, centred in what is left
     if (!PHONE) { const pad = Math.max(0, (innerWidth - 16 - right - 900) / 2); root.setProperty('--bv-l', `${Math.round(16 + pad)}px`); root.setProperty('--bv-r', `${Math.round(Math.max(right, 16) + pad)}px`) }
   }
+  if (!has3d) return
   camera.setViewOffset(innerWidth, innerHeight, right / 2, (bottom - top) / 2, innerWidth, innerHeight)
   camera.updateProjectionMatrix()
 }
@@ -987,8 +1018,7 @@ function fitDistance() {
   return Math.max(r / tw, (r * 0.66) / tv)
 }
 const ELEV = 0.66 // about 38 degrees above the ground
-const home = { p: new THREE.Vector3(), t: new THREE.Vector3() }
-function setHome() { const d = fitDistance(); home.p.set(0, d * Math.sin(ELEV), d * Math.cos(ELEV)); home.t.set(0, 0, 0); controls.maxDistance = d * 2.5 }
+function setHome() { if (!has3d) return; const d = fitDistance(); home.p.set(0, d * Math.sin(ELEV), d * Math.cos(ELEV)); home.t.set(0, 0, 0); controls.maxDistance = d * 2.5 }
 function drawerShown() { document.body.classList.toggle('drawer-open', !$('drawer').hidden); updateView() }
 new MutationObserver(updateView).observe($('side'), { attributes: true, attributeFilter: ['class'] })
 new MutationObserver(drawerShown).observe($('drawer'), { attributes: true, attributeFilter: ['hidden'] })
@@ -999,13 +1029,14 @@ new ResizeObserver(() => updateLayout()).observe(document.querySelector('.top'))
 // camera flights: to a project, to a group, back home
 let flight = null
 function flyTo(x, z, dist = 14) {
+  if (!has3d) return
   const dir = camera.position.clone().sub(controls.target).normalize()
   const to = { t: new THREE.Vector3(x, 0.5, z) }
   to.p = to.t.clone().add(dir.multiplyScalar(dist)); to.p.y = Math.max(to.p.y, 6)
   flight = { from: { p: camera.position.clone(), t: controls.target.clone() }, to, t: 0 }
   T.lastUser = Date.now()
 }
-function flyHome() { flight = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 } }
+function flyHome() { if (!has3d) return; flight = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 } }
 $('btn-home').addEventListener('click', () => { closeDrawer(); flyHome() })
 function stepFlight(dt) {
   if (!flight) return
@@ -1228,6 +1259,13 @@ function setView(v, chosen) {
   for (const b of $('viewbar').querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === v))
   for (const el of document.querySelectorAll('.intro .how [data-t]')) { el.dataset.t = el.dataset.t.replace(/Bars$/, '') + (v === 'bars' ? 'Bars' : ''); el.textContent = t(el.dataset.t) }
   if (v === 'bars') renderBars(true)
+  else if (!has3d) {
+    // the first visit to the scene fetches three.js: the button says so until it is drawn. Without it, the bars stay
+    const b = $('viewbar').querySelector('[data-view="3d"]'); b.setAttribute('aria-busy', 'true')
+    loadScene().then(() => { if (VIEW === '3d') { sceneStart(); updateLayout() } })
+      .catch((err) => { console.warn('scene', err); if (VIEW === '3d' && (PHONE || NEXT)) setView('bars') })
+      .finally(() => b.removeAttribute('aria-busy'))
+  } else if (!sceneShown) sceneStart()
   else if (repos.length) { flyHome(); people(); placeBadges() } // flights asked for while the bars were up are dropped
   updateLayout()
 }
@@ -1462,7 +1500,7 @@ function stopTour(e) {
   if (!e?.target?.closest?.('#stage')) flyHome()
 }
 function startTour() {
-  if (REDUCED || MOBILE || VIEW === 'bars' || !S?.leaders) return
+  if (REDUCED || MOBILE || VIEW === 'bars' || !sceneShown || !S?.leaders) return
   const w = S.leaders.week, stops = []
   const ri = repos.findIndex((r) => r.name === w.repos[0]?.[0])
   if (ri >= 0 && cell[ri]) stops.push({ x: cell[ri].x, z: cell[ri].z, d: 16, text: `${t('b.repos.week')}: ${short(repos[ri].name)}` })
@@ -1501,8 +1539,8 @@ let last = performance.now(), slow = 0, frames = 0, acc = 0
 function frame(now) {
   requestAnimationFrame(frame)
   const dt = Math.min(0.1, (now - last) / 1000); last = now
-  // with the bars up the clock and the numbers run, and the scene waits undrawn
-  if (VIEW === 'bars') { stepTime(now, dt); stepTweens(now); return }
+  // with the bars up (or the scene still on its way) the clock and the numbers run, and the scene waits undrawn
+  if (VIEW === 'bars' || !sceneShown) { stepTime(now, dt); stepTweens(now); return }
   stepTime(now, dt); stepFlight(dt); stepPeople(dt); stepComets(dt); stepFx(dt, now); stepTweens(now); stepHover()
   controls.update()
   if (mesh) {
@@ -1535,9 +1573,11 @@ function frame(now) {
   if (acc > 2) { if (frames / acc < 28) slow++; else slow = 0; if (slow >= 2 && useBloom) { useBloom = false; renderer.setPixelRatio(1) } acc = 0; frames = 0 }
 }
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight
-  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight)
-  bloom.resolution.set(innerWidth / 2, innerHeight / 2)
+  if (has3d) {
+    camera.aspect = innerWidth / innerHeight
+    renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight)
+    bloom.resolution.set(innerWidth / 2, innerHeight / 2)
+  }
   updateLayout(); setHome()
   drawBars(); drawHead()
 })
@@ -1554,23 +1594,31 @@ function ingest(N) {
   for (const w of rows) { const u = urls.get(`${repos[w.r]?.name}|${w.t}`); if (u) w.url = u }
 }
 async function load() {
-  const res = await fetch('api/state', { cache: 'no-store' })
+  // index.html's head asked for the state before this file came; a request that failed there is made again here
+  const early = window.pulseState; window.pulseState = null
+  let res = early ? await early : null
+  if (!res?.ok) res = await fetch('api/state')
+  if (!res.ok) throw new Error(`state ${res.status}`)
   ingest(await res.json())
-  buildCells()
-  updateLayout(); setHome()
-  camera.position.copy(home.p).multiplyScalar(1.4); controls.target.set(0, 0, 0)
-  flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 }
+  // the scene first: a shared link flies the camera to what it names, so the camera has to be there
+  if (VIEW === '3d') await loadScene().catch(() => {})
+  sceneStart()
+  updateLayout()
   goLive()
   drawBars(); drawHead(); renderHighlights(); placeBadges()
+  document.documentElement.classList.remove('wait')
   if (quiet()) T.autoAt = performance.now() + 3500 // after the opening flight
   openFromLink()
   renderNews(); newsToastOnLoad()
   if (pushOk && Notification.permission === 'granted') syncFollows(false)
 }
-// every few minutes: projects that joined or left, new organisations, fresh highlights
+// every few minutes: projects that joined or left, new organisations, fresh highlights. The server answers 304 when
+// nothing changed; a hidden tab asks for nothing and catches up when it is looked at again
+let refreshedAt = 0
 async function refresh() {
+  refreshedAt = Date.now()
   try {
-    const res = await fetch('api/state', { cache: 'no-store' }); if (!res.ok) return
+    const res = await fetch('api/state'); if (!res.ok) return
     const before = repos.map((r) => r.name).join('|')
     ingest(await res.json())
     if (repos.map((r) => r.name).join('|') !== before) buildCells()
@@ -1578,4 +1626,9 @@ async function refresh() {
     seekPtr(); computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges()
   } catch (err) { console.warn('refresh', err) }
 }
-load().then(() => { connect(); requestAnimationFrame(frame); setInterval(refresh, REFRESH_MS) }).catch((err) => { console.error(err); $('ticker').textContent = t('err.load'); setTimeout(() => location.reload(), 10000) })
+load().then(() => {
+  refreshedAt = Date.now()
+  connect(); requestAnimationFrame(frame)
+  setInterval(() => { if (!document.hidden) refresh() }, REFRESH_MS)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - refreshedAt > REFRESH_MS) refresh() })
+}).catch((err) => { console.error(err); document.documentElement.classList.remove('wait'); $('ticker').textContent = t('err.load'); setTimeout(() => location.reload(), 10000) })

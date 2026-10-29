@@ -368,6 +368,17 @@ body.bars .now .ticker { white-space: nowrap; }
 .bv-rest small { color: var(--mut); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .bvr { transition: none; } .bvr.hit, .bvr.hit .bvr-n { animation: none; } }
 
+/* outlines while the first state is on its way (index.html): the real markup with its words hidden, and no number that
+   could read as an answer. .wait comes off once the state is drawn; the outlined rows are replaced by the real ones */
+.sk-t { color: transparent !important; font-style: normal; background: rgba(203, 243, 77, 0.08); border-radius: 6px; }
+.feed .sk .sk-t { width: fit-content; }
+.sk .sk-av { display: block; width: 30px; height: 30px; border-radius: 50%; background: #1b2215; }
+.sk .sk-bar { flex: 1; background: rgba(203, 243, 77, 0.1); }
+.sk, .kpis .sk-t, .vb-seg [aria-busy="true"] { animation: skpulse 1.6s ease-in-out infinite; }
+@keyframes skpulse { 50% { opacity: 0.55; } }
+.wait #fams b, .wait #bots-n, .wait #k-cap { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .sk, .kpis .sk-t, .vb-seg [aria-busy="true"] { animation: none; } }
+
 /* the trial layout (?ui=next, 2026-10-29): bars on wide screens too, in a centred column left of the panel; while live
    the panel already shows the latest, so the strip above the timeline only speaks for a period or a pause */
 @media (min-width: 861px) {
