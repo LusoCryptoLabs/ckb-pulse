@@ -90,7 +90,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 ## API
 
 - `GET /api/state`: repositories, highlights, 7 days of history
-- `GET /api/repo?name=owner/repo`: one repository, 30 days
+- `GET /api/repo?name=owner/repo`: one repository, 30 days; the name in any case, the answer with the spelling kept
 - `GET /api/stream`: new events, Server-Sent Events
 - `GET /og/highlights.png?p=`, `/og/repo.png?name=`, `/og/person.png?login=`, each with `lang=en|pt|zh`: share pictures
 - `GET /api/push/key`, `POST /api/push` with `{sub, repos, people, news, lang}`, `POST /api/push/off` with `{endpoint}`: browser notices
