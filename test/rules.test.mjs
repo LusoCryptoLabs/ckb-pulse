@@ -7,13 +7,26 @@ import path from 'node:path'
 
 process.env.GITHUB_TOKEN ||= 'test'
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'pulse-test-'))
-const { ckbContext, vetRepo, leaders, manifestOk, scheduled } = await import('../pulse.mjs')
+const { ckbContext, vetRepo, leaders, manifestOk, scheduled, newsWorthy } = await import('../pulse.mjs')
 
 test('ckb alone is not chain work', () => {
   assert.equal(ckbContext({ name: 'codebase-kb-engine', description: 'Claude Code plugin: verifiable codebase knowledge base at .ckb', topics: ['ckb', 'knowledge-base'] }), false)
   assert.equal(ckbContext({ name: 'kurdish-translations', description: 'Sorani Kurdish strings', topics: ['ckb'] }), false)
   assert.equal(ckbContext({ name: 'dao-cycle', description: 'When each Nervos DAO deposit on a CKB address ends its cycle', topics: ['ckb'] }), true)
   assert.equal(ckbContext({ name: 'khie-mobile', description: 'mobile wallet for ckb', topics: [] }), true)
+})
+
+test('optical fibre is not Fiber', () => {
+  assert.equal(ckbContext({ name: 'fiber-map', description: 'Open-source Django + React optical fiber network management map', topics: ['fiber', 'fiber-network', 'gis'] }), false)
+  assert.equal(ckbContext({ name: 'ftth-planner', description: 'Fibre optic network planning', topics: ['fiber-network'] }), false)
+  assert.equal(ckbContext({ name: 'fiber-pay', description: 'Pay over Fiber, the CKB payment network', topics: ['fiber-network'] }), true)
+})
+
+test('news: no forks, and a followed person needs chain words', () => {
+  assert.equal(newsWorthy('LusoCryptoLabs/fiber', { fork: true, desc: 'A scalable, privacy-by-default payment & swap network', topics: [] }), false)
+  assert.equal(newsWorthy('LusoCryptoLabs/telmodasilva-qa', { desc: 'Test automation for a personal site with pytest, Playwright and axe-core', topics: [] }), false)
+  assert.equal(newsWorthy('LusoCryptoLabs/vortx-swap', { desc: 'Greatest dex in the world on CKB. Testnet only', topics: [] }), true)
+  assert.equal(newsWorthy('nervosnetwork/ckb-tools', { desc: '', topics: [] }), true)
 })
 
 test('vetting asks for more than the word ckb', () => {

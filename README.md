@@ -57,7 +57,7 @@ Gossip fills in slowly. Measured on testnet on 2026-10-10: a new listening node 
 
 ## New projects and following
 
-A followed public repository created in the last 14 days is a new project: it is listed under New and announced once to the open pages. "ckb" alone does not make a repository CKB work (it is also Central Kurdish and a Codebase Knowledge Base format): such a repository needs chain words in its name, description or topics.
+A followed public repository created in the last 14 days is a new project: it is listed under New and announced once to the open pages. Forks are not. Outside the followed organisations, a new repository needs chain words in its name, description or topics. "ckb" alone does not make a repository CKB work (it is also Central Kurdish and a Codebase Knowledge Base format), and neither does the fiber-network topic, which optical fibre projects use too.
 
 Visitors follow projects and people on their device, without an account. With browser notices allowed, the server sends one when something followed moves (at most once per project in ten minutes) and, on request, when a new project appears. On iPhone that needs the page on the Home Screen.
 

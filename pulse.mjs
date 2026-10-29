@@ -13,6 +13,7 @@ const FILE = path.join(DATA, 'state.json')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const OWNERS = [...ORGS.map((n) => ({ n, user: false })), ...USERS.map((n) => ({ n, user: true }))]
 const ownerSet = new Set(OWNERS.map((o) => o.n.toLowerCase()))
+const orgSet = new Set(ORGS.map((n) => n.toLowerCase()))
 const ownerOf = (full) => full.split('/')[0]
 const blocked = new Set(BLOCKED.map((b) => b.toLowerCase()))
 const DAY = 864e5
@@ -46,8 +47,8 @@ export function load() {
     for (const e of state.events) ids.add(e.id)
     health.lastEventAt = Date.parse(state.events.at(-1)?.at || 0) || 0
     // discover again once when the rules change: 1, the ckb-context rule (topic-only false friends drop out);
-    // 2, fourteen more searches (2026-10-10)
-    if (state.ctxRule !== 2) { state.discoveredAt = 0; state.ctxRule = 2 }
+    // 2, fourteen more searches (2026-10-10); 3, the fiber-network topic asks for chain words too (2026-10-29)
+    if (state.ctxRule !== 3) { state.discoveredAt = 0; state.ctxRule = 3 }
     // work by AI agents on their own branches became automatic on 2026-10-10: stored pushes and branches carry their
     // branch; stored proposals are looked up once (markAgentProposals)
     // 2 (2026-10-19): ccr- branches, Claude Code's cloud sessions
@@ -77,6 +78,7 @@ function repoEntry(full, meta) {
     Object.assign(r, { desc: meta.description || '', topics: meta.topics || [], stars: meta.stargazers_count ?? r.stars ?? 0, lang: meta.language || '', pushedAt: meta.pushed_at, metaAt: Date.now() })
     if (meta.owner?.type) r.ownerType = meta.owner.type
     if (meta.created_at) r.createdAt = meta.created_at
+    if ('fork' in meta) r.fork = !!meta.fork
     // only an explicit "false" from GitHub makes a repository public here
     r.private = meta.private === false ? false : true
   }
@@ -292,6 +294,7 @@ export async function listOwnerRepos() {
 const SKIP_DIRS = /(^|\/)(node_modules|vendor|third_party|database|data|fixtures?|test-fixtures|testdata|\.github)\//i
 function manifestOk(p) { return !!p && p.split('/').length <= 3 && !SKIP_DIRS.test(p) }
 
+const LOOSE_TOPICS = ['topic:ckb', 'topic:fiber-network']
 // builders: public repositories that depend on CKB libraries or carry CKB topics, outside the followed owners
 export async function discover() {
   const found = new Map()
@@ -320,8 +323,8 @@ export async function discover() {
     let m = hit.meta
     if (!m) { const r = await gh(`/repos/${full}`); m = r.body }
     if (!m || m.private !== false || m.fork || m.archived) continue
-    // found only through the plain ckb topic: it must also look like chain work
-    if (!hit.code && (hit.topics || []).every((q) => q === 'topic:ckb') && !ckbContext(m)) continue
+    // found only through a topic other fields use too (ckb, fiber-network): it must also look like chain work
+    if (!hit.code && (hit.topics || []).every((q) => LOOSE_TOPICS.includes(q)) && !ckbContext(m)) continue
     repoEntry(full, m)
     if (new Date(m.pushed_at) > recent) keep.push(full)
   }
@@ -551,18 +554,32 @@ async function discoverLoop() {
 // a followed public repository created in the last 14 days is news; each one is announced once, to the open pages and
 // to the browsers that asked for new projects. The ones present when this started are listed but not announced.
 const NEWS_DAYS = 14
+// a fork is not a new project, and only a followed organisation is CKB by default: a followed person also keeps other
+// work (LusoCryptoLabs' fork of fiber and its test suite for a personal site were both listed, 2026-10-29). The
+// owner's name stays out of the text: "LusoCryptoLabs" says crypto, which passed every one of its repositories
+function newsWorthy(full, r) {
+  if (r.fork) return false
+  return orgSet.has(ownerOf(full).toLowerCase()) || ckbContext({ name: full.split('/')[1], description: r.desc, topics: r.topics })
+}
 export function news(now = Date.now()) {
   const followed = followedNow(now)
   const out = []
   for (const full of new Set([...(state.orgRepos || []), ...pollSet(), ...state.events.map((e) => e.repo)])) {
     const r = state.repos[full]
     if (!r?.createdAt || now - Date.parse(r.createdAt) > NEWS_DAYS * DAY || !followed(full)) continue
-    // announced as a CKB project only when it reads as one (or comes from a followed organisation)
-    if (!ownerSet.has(ownerOf(full).toLowerCase()) && !ckbContext({ name: full, description: r.desc, topics: r.topics })) continue
+    if (!newsWorthy(full, r)) continue
     const at = state.announced?.[full]
     out.push({ name: full, group: r.group, desc: r.desc || '', lang: r.lang || '', createdAt: r.createdAt, announcedAt: at > 1 ? at : null })
   }
   return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+// repositories stored before the fork flag was kept (2026-10-29): look again at the recent ones, the ones news reads
+async function forkFlags() {
+  for (const [full, r] of Object.entries(state.repos)) {
+    if (r.fork !== undefined || !r.createdAt || Date.now() - Date.parse(r.createdAt) > NEWS_DAYS * DAY) continue
+    try { await ensureMeta(full, true) } catch (err) { console.warn('fork flag', full, err.message) }
+  }
+  save()
 }
 function announceNews() {
   if (!typesReady) return
@@ -579,7 +596,7 @@ function announceNews() {
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
 
 // the pure rules, for the tests
-export { ckbContext, vetRepo, leaders, manifestOk, normalise }
+export { ckbContext, vetRepo, leaders, manifestOk, normalise, newsWorthy }
 
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
 async function followOnchain() {
@@ -601,6 +618,7 @@ export function start() {
   load()
   loadHistory(DATA)
   loadOnchain(DATA)
+  forkFlags().catch((e) => console.warn('fork flags', e.message))
   ownerLoop().catch((e) => console.error('owner loop died', e))
   builderLoop().catch((e) => console.error('builder loop died', e))
   discoverLoop().catch((e) => console.error('discovery loop died', e))

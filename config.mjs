@@ -48,9 +48,10 @@ export const VET_TOPICS = ['ckb', 'nervos', 'nervos-network', 'nervos-ckb', 'ckb
 export const VET_TEXT = /\bckb|nervos|rgb\+\+|rgbpp|spore protocol|spore-sdk/i
 // "ckb" alone is not enough: it is also Central Kurdish and, since 2026, "Codebase Knowledge Base" (a Claude Code plugin
 // tagged ckb was listed as a new CKB project on 2026-10-09). A repository found only through the ckb topic, or naming
-// ckb and nothing else, needs one of these words in its name, description or topics.
+// ckb and nothing else, needs one of these words in its name, description or topics. The fiber-network topic is also
+// telecom: an optical fibre map came in through it on 2026-10-26, hence the fibre words in CKB_NOT.
 export const CKB_CONTEXT = /nervos|blockchain|\bcell|\budt\b|\bxudt\b|spore|\bdob\b|rgb\+\+|rgbpp|fiber|\bccc\b|lumos|joyid|godwoken|\bdao\b|layer ?1|\bl1\b|wallet|crypto|token|\bnft|smart contract|testnet|mainnet|on-?chain|lock script|type script|ckb-vm|riscv|risc-v/i
-export const CKB_NOT = /knowledge base|kurdish|sorani|kurd/i
+export const CKB_NOT = /knowledge base|kurdish|sorani|kurd|optical|fib(?:er|re)[ -]optic/i
 
 export const VET = { activeDays: 30, maxRepos: 20, perIpPerHour: 5, allPerHour: 40, recheckDays: 7, crawlPerCycle: 60 }
 
