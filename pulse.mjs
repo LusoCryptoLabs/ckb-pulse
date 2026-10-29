@@ -755,8 +755,17 @@ function compactHistory(list, repos) {
   return { kinds: KIND_LIST, actors, rows }
 }
 
+// GitHub names a repository in any case, so "owner/repo" finds "Owner/Repo"; the answer says the spelling kept
+// here (asked by CKBdapps, ckb-pulse#1)
+function storedName(name) {
+  if (state.repos[name]) return name
+  const lower = name.toLowerCase()
+  return Object.keys(state.repos).find((k) => k.toLowerCase() === lower) || name
+}
+
 // one repository in detail, from what is already stored (no GitHub call): daily activity, people, latest events
-export function repoDetail(name) {
+export function repoDetail(asked) {
+  const name = storedName(asked)
   if (!followedNow(Date.now())(name)) return null
   const r = state.repos[name]
   const list = state.events.filter((e) => e.repo === name)
