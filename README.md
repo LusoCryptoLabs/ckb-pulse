@@ -83,6 +83,8 @@ On a phone the projects are bars by default: one row per project with work by pe
 
 In the scene, a phone frames it into whatever the panels leave free, and the panel is a sheet at the bottom: drag its bar to a peek, to half the screen or to the top; past half, the ticker steps aside. The timeline and the sheet keep clear of the home indicator.
 
+A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, 24 hours and 7 days show the whole period at once while the play button replays it, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
+
 ## Share
 
 A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.

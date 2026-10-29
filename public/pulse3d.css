@@ -70,20 +70,19 @@ button, select, input { font: inherit; color: inherit; }
 .switch[aria-pressed="true"] i::after { transform: translateX(11px); background: var(--lime); }
 .switch b { color: var(--mut); font-weight: 600; font-size: 12px; }
 .done { background: var(--lime); color: #07090a; border: 0; border-radius: 10px; padding: 11px; font-weight: 800; font-size: 15px; cursor: pointer; }
-@media (max-width: 1339px) {
-  .filters { display: none; }
-  .filters.open { display: flex; flex-direction: column; align-items: stretch; gap: 14px; left: auto; right: 16px; width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - var(--top) - 16px); overflow-y: auto; background: var(--glass2); border: 1px solid rgba(203, 243, 77, 0.25); border-radius: 14px; padding: 16px; z-index: 9; pointer-events: auto; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5); }
-  .filters.open .only-sheet { display: block; }
-  .filters h2 { margin: 0; font-size: 16px; }
-  .filters .f-row { flex-direction: column; align-items: stretch; gap: 6px; }
-  .f-lbl { font-size: 12.5px; color: var(--mut); }
-  .filters .seg { flex-wrap: wrap; gap: 6px; border: 0; background: none; overflow: visible; backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .filters .seg button, .filters .seg button + button { border: 1px solid var(--line); border-radius: 999px; background: var(--glass); padding: 7px 12px; }
-  .filters .seg button[aria-pressed="true"] { background: rgba(203, 243, 77, 0.2); border-color: var(--lime); }
-  .filters select { max-width: none; width: 100%; padding-top: 9px; padding-bottom: 9px; }
-  .filters .switch { align-self: flex-start; padding: 8px 12px; }
-}
-@media (min-width: 1340px) { .filt-btn { display: none; } }
+/* the filters as a panel behind a button: under 1340 px, and everywhere in the trial layout (fpop, set in index.html) */
+.fpop .filters { display: none; }
+.fpop .filters.open { display: flex; flex-direction: column; align-items: stretch; gap: 14px; left: auto; right: 16px; width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - var(--top) - 16px); overflow-y: auto; background: var(--glass2); border: 1px solid rgba(203, 243, 77, 0.25); border-radius: 14px; padding: 16px; z-index: 9; pointer-events: auto; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5); }
+.fpop .filters.open .only-sheet { display: block; }
+.fpop .filters h2 { margin: 0; font-size: 16px; }
+.fpop .filters .f-row { flex-direction: column; align-items: stretch; gap: 6px; }
+.fpop .f-lbl { font-size: 12.5px; color: var(--mut); }
+.fpop .filters .seg { flex-wrap: wrap; gap: 6px; border: 0; background: none; overflow: visible; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.fpop .filters .seg button, .fpop .filters .seg button + button { border: 1px solid var(--line); border-radius: 999px; background: var(--glass); padding: 7px 12px; }
+.fpop .filters .seg button[aria-pressed="true"] { background: rgba(203, 243, 77, 0.2); border-color: var(--lime); }
+.fpop .filters select { max-width: none; width: 100%; padding-top: 9px; padding-bottom: 9px; }
+.fpop .filters .switch { align-self: flex-start; padding: 8px 12px; }
+html:not(.fpop) .filt-btn { display: none; }
 
 /* side panel */
 .side { top: var(--top); right: 16px; width: var(--side); bottom: 134px; background: var(--glass); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; transition: transform 0.35s ease; }
@@ -369,6 +368,19 @@ body.bars .now .ticker { white-space: nowrap; }
 .bv-rest small { color: var(--mut); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .bvr { transition: none; } .bvr.hit, .bvr.hit .bvr-n { animation: none; } }
 
+/* the trial layout (?ui=next, 2026-10-29): bars on wide screens too, in a centred column left of the panel; while live
+   the panel already shows the latest, so the strip above the timeline only speaks for a period or a pause */
+@media (min-width: 861px) {
+  .next .viewbar { left: var(--bv-l, 16px); right: var(--bv-r, 16px); }
+  .next .barsview { left: var(--bv-l, 16px); right: var(--bv-r, 16px); padding: 0 0 8px; }
+  .next .now:not(.replay):not(.paused) { visibility: hidden; }
+  .next body.drawer-open .viewbar { visibility: visible; } /* a card here takes the panel's place, not the list's */
+  .next body.bars .now { left: var(--bv-l, 16px); border-bottom: 1px solid var(--line); }
+}
+.drawer details.dev { margin: 12px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
+.drawer details.dev summary { cursor: pointer; color: var(--mut); font-size: 13px; }
+.drawer details.dev[open] summary { margin-bottom: 8px; }
+
 /* no WebGL 2 */
 .nogl-msg { display: none; }
 .nogl .hud, .nogl #stage { display: none; }
@@ -400,7 +412,7 @@ body.bars .now .ticker { white-space: nowrap; }
   .search.open { display: block; position: fixed; top: 54px; left: 12px; right: 12px; z-index: 12; }
   .search.open input { width: 100%; padding: 10px 12px; font-size: 16px; background: var(--glass2); }
   .search.open ul { top: 48px; left: 0; right: 0; width: auto; }
-  .filters.open { left: 12px; right: 12px; width: auto; }
+  .fpop .filters.open { left: 12px; right: 12px; width: auto; }
   :root { --sab: env(safe-area-inset-bottom, 0px); --sheet: 36vh; }
   .side { top: auto; left: 12px; right: 12px; width: auto; bottom: calc(128px + var(--sab)); height: var(--sheet); transition: height 0.3s ease; }
   .side.closed { transform: none; height: 46px; }

@@ -16,6 +16,14 @@
 <script>
   // the page is drawn in 3D: without WebGL 2 it says so instead of failing quietly
   (() => { let ok = false; try { ok = !!document.createElement('canvas').getContext('webgl2') } catch {} if (!ok) document.documentElement.classList.add('nogl') })()
+  // a tidier layout on trial (2026-10-29): ?ui=next turns it on in this browser, ?ui=old turns it off. The filters sit
+  // behind a button (fpop) on screens under 1340 px, and on every screen in the trial. Set here, before the first paint
+  ;(() => {
+    const h = document.documentElement
+    try { const q = new URLSearchParams(location.search).get('ui'); if (q) localStorage.setItem('ckbpulse.ui', q); if ((q || localStorage.getItem('ckbpulse.ui')) === 'next') h.classList.add('next') } catch {}
+    const fp = () => h.classList.toggle('fpop', innerWidth < 1340 || h.classList.contains('next'))
+    fp(); addEventListener('resize', fp)
+  })()
 </script>
 </head>
 <body>

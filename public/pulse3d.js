@@ -22,7 +22,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
 // a phone shows the projects as bars unless the viewer picked the scene: its blocks are a few pixels there (2026-10-26)
 const PHONE = matchMedia('(max-width: 860px)').matches
-let VIEW = PHONE && store.get('view') !== '3d' ? 'bars' : '3d'
+// the tidier layout on trial (?ui=next, see index.html): bars on every screen, a period button shows the whole period
+// and only the play button replays it, the ticker only while it says something the panel does not
+const NEXT = document.documentElement.classList.contains('next')
+let VIEW = (PHONE || NEXT) && store.get('view') !== '3d' ? 'bars' : '3d'
+const wideBar = () => !document.documentElement.classList.contains('fpop')
 const MEDAL = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 1h3.2l1.3 4.2-3.1 1.2zM14.5 1h-3.2L10 5.2l3.1 1.2z" fill="#e0533d"/><circle cx="10" cy="12.6" r="6.2" fill="#f3c23a" stroke="#a8740c" stroke-width="1.2"/><path d="M10 9.2l1.05 2.1 2.3.33-1.67 1.62.4 2.3L10 14.47l-2.08 1.08.4-2.3-1.67-1.62 2.3-.33z" fill="#fff4cc"/></svg>'
 
 // ================= words =================
@@ -562,7 +566,12 @@ function followsRepo(name) { return follows.repos.has(String(name || '').toLower
 function followsPerson(login) { return follows.people.has(String(login || '').toLowerCase()) }
 const followLabel = (on) => (on ? '★ ' : '☆ ') + t(on ? 'f.following' : 'f.follow')
 // the live badge for a README, and its markdown to copy
-const badgeRow = (kind, id) => { const q = kind === 'repo' ? `name=${encodeURIComponent(id)}` : `login=${encodeURIComponent(id)}`; return `<div class="badge-row"><img src="badge/${kind}.svg?${q}&lang=${LANG}" alt="" height="20"><button type="button" class="share-btn small" data-badge-${kind}="${esc(id)}">${esc(t('sh.badge'))}</button></div>` }
+const badgeRow = (kind, id) => {
+  const q = kind === 'repo' ? `name=${encodeURIComponent(id)}` : `login=${encodeURIComponent(id)}`
+  const row = `<div class="badge-row"><img src="badge/${kind}.svg?${q}&lang=${LANG}" alt="" height="20"><button type="button" class="share-btn small" data-badge-${kind}="${esc(id)}">${esc(t('sh.badge'))}</button></div>`
+  // the trial keeps what only a developer wants out of the card's way
+  return NEXT ? `<details class="dev"><summary>${esc(t('dev.title'))}</summary>${row}</details>` : row
+}
 async function copyBadge(b) {
   const kind = b.dataset.badgeRepo ? 'repo' : 'person', id = b.dataset.badgeRepo || b.dataset.badgePerson
   const site = location.origin + location.pathname.replace(/[^/]*$/, '')
@@ -680,8 +689,10 @@ let saidAt = 0
 function say(text, now) { const at = performance.now(); if (!now && at - saidAt < 10000) return; saidAt = at; $('sr').textContent = text }
 function setNow(clock, text, speak = T.mode !== 'replay') {
   $('mode').textContent = t(T.mode === 'paused' ? 'mode.paused' : 'mode.' + T.period)
+  const was = $('now').className
   $('now').classList.toggle('replay', T.mode === 'replay' || T.mode === 'done')
   $('now').classList.toggle('paused', T.mode === 'paused')
+  if (NEXT && $('now').className !== was) updateView() // the trial hides the strip while live: the bars end lower
   $('clock').textContent = clock
   if (text != null && performance.now() > T.holdTicker) { $('ticker').textContent = text; if (speak) say(text, speak === 'now') }
   for (const b of $('periods').querySelectorAll('[data-p]')) b.setAttribute('aria-pressed', String(b.dataset.p === T.period))
@@ -934,14 +945,14 @@ function stepHover() {
 const box = (sel) => document.querySelector(sel).getBoundingClientRect()
 const onScreen = (el) => el && !el.hidden && getComputedStyle(el).visibility !== 'hidden'
 function hud() {
-  const top = Math.max(box('.top').bottom, innerWidth >= 1340 ? box('#filters').bottom : 0, PHONE ? box('#viewbar').bottom : 0) + 6
+  const top = Math.max(box('.top').bottom, wideBar() ? box('#filters').bottom : 0, PHONE || NEXT ? box('#viewbar').bottom : 0) + 6
   // on a phone the scene ends at whatever sits lowest on it: the ticker, the sheet at the height it was dragged to,
   // a project's card or the timeline
   if (MOBILE) {
     const tops = ['#now', '#side', '#drawer', '.timeline'].map((q) => document.querySelector(q)).filter(onScreen).map((el) => el.getBoundingClientRect().top)
     return { top, bottom: innerHeight - Math.min(innerHeight, ...tops) + 8, right: 0 }
   }
-  const bottom = innerHeight - box('#now').top + 8
+  const bottom = innerHeight - (onScreen($('now')) ? box('#now') : box('.timeline')).top + 8
   const right = !$('side').classList.contains('closed') || !$('drawer').hidden ? $('side').offsetWidth + 32 : 0
   return { top, bottom, right }
 }
@@ -950,17 +961,19 @@ function updateLayout() {
   root.setProperty('--top', `${Math.round(box('.top').bottom + 6)}px`)
   // notices sit under whatever is there: the filter bar on wide screens (one or two rows), the switch between bars and
   // the scene on a phone, the header elsewhere
-  root.setProperty('--below', `${Math.round((innerWidth >= 1340 ? box('#filters').bottom : PHONE ? box('#viewbar').bottom : box('.top').bottom) + 8)}px`)
+  root.setProperty('--below', `${Math.round((wideBar() ? box('#filters').bottom : PHONE || NEXT ? box('#viewbar').bottom : box('.top').bottom) + 8)}px`)
   updateView()
 }
 function updateView() {
   const { top, bottom, right } = hud()
   // the bars end where the scene would: above the ticker, the sheet or a card; and start under a notice while one is up,
   // which would otherwise cover the busiest project
-  if (PHONE) {
+  if (PHONE || NEXT) {
     const root = document.documentElement.style, notice = $('toasts').querySelector('.toast:not([hidden])') && onScreen($('toasts'))
     root.setProperty('--bv-bottom', `${Math.round(bottom)}px`)
     root.setProperty('--bv-top', `${Math.round((notice ? box('#toasts').bottom : box('#viewbar').bottom) + 6)}px`)
+    // a wide screen: the list keeps left of the panel, in a column no wider than 900 px, centred in what is left
+    if (!PHONE) { const pad = Math.max(0, (innerWidth - 16 - right - 900) / 2); root.setProperty('--bv-l', `${Math.round(16 + pad)}px`); root.setProperty('--bv-r', `${Math.round(Math.max(right, 16) + pad)}px`) }
   }
   camera.setViewOffset(innerWidth, innerHeight, right / 2, (bottom - top) / 2, innerWidth, innerHeight)
   camera.updateProjectionMatrix()
@@ -1219,7 +1232,7 @@ function setView(v, chosen) {
   updateLayout()
 }
 $('viewbar').addEventListener('click', (e) => { const b = e.target.closest('[data-view]'); if (b && b.dataset.view !== VIEW) { T.lastUser = Date.now(); setView(b.dataset.view, true) } })
-if (PHONE) $('viewbar').hidden = false
+if (PHONE || NEXT) $('viewbar').hidden = false
 setView(VIEW)
 
 // ================= search =================
@@ -1334,10 +1347,17 @@ function play(period, { auto = false, from = null } = {}) {
   if (from == null) T.holdTicker = performance.now() + 4500 // say what is playing before the first update takes the line
   setPlay(true)
 }
+// the trial: the whole period at once, held still; the play button replays it
+function whole(period) {
+  T.period = period; T.mode = 'done'; T.auto = false; T.doneAt = Infinity; T.t = Date.now(); T.holdTicker = 0
+  seekPtr(); computeWindow(); feed(); drawHead()
+  setNow(fmtClock(T.t), t('whole.' + period), 'now')
+  setPlay(false)
+}
 $('periods').addEventListener('click', (e) => {
   const b = e.target.closest('[data-p]'); if (!b) return
   T.lastUser = Date.now(); T.chosen = true
-  if (b.dataset.p === 'live') goLive(true); else play(b.dataset.p)
+  if (b.dataset.p === 'live') goLive(true); else if (NEXT) whole(b.dataset.p); else play(b.dataset.p)
 })
 $('btn-play').addEventListener('click', () => {
   T.lastUser = Date.now(); T.chosen = true
@@ -1442,7 +1462,7 @@ function stopTour(e) {
   if (!e?.target?.closest?.('#stage')) flyHome()
 }
 function startTour() {
-  if (REDUCED || MOBILE || !S?.leaders) return
+  if (REDUCED || MOBILE || VIEW === 'bars' || !S?.leaders) return
   const w = S.leaders.week, stops = []
   const ri = repos.findIndex((r) => r.name === w.repos[0]?.[0])
   if (ri >= 0 && cell[ri]) stops.push({ x: cell[ri].x, z: cell[ri].z, d: 16, text: `${t('b.repos.week')}: ${short(repos[ri].name)}` })
