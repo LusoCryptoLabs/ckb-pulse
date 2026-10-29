@@ -91,7 +91,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 
 ## API
 
-- `GET /api/state`: repositories, highlights, 7 days of history
+- `GET /api/state`: repositories, highlights, 7 days of history; built at most once a minute, with an ETag (send `If-None-Match` for a 304 when nothing changed)
 - `GET /api/repo?name=owner/repo`: one repository, 30 days; the name in any case, the answer with the spelling kept
 - `GET /api/stream`: new events, Server-Sent Events
 - `GET /og/highlights.png?p=`, `/og/repo.png?name=`, `/og/person.png?login=`, each with `lang=en|pt|zh`: share pictures

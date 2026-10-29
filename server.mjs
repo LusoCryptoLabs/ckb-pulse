@@ -14,6 +14,7 @@ import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
+import { etag, notModified, shared } from './cache.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
@@ -27,7 +28,7 @@ const ipOf = (req) => req.headers['x-real-ip'] || req.socket.remoteAddress || ''
 
 // one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
 // so a page left open can tell that a new version went out (the same scheme as cellula.id)
-function buildId() {
+function buildId(dir = ROOT) {
   const h = crypto.createHash('sha256')
   const walk = (dir) => {
     for (const n of fs.readdirSync(dir).sort()) {
@@ -36,12 +37,15 @@ function buildId() {
       else { h.update(path.relative(ROOT, f).replace(/\\/g, '/')); h.update(fs.readFileSync(f)) }
     }
   }
-  walk(ROOT)
+  walk(dir)
   return h.digest('hex').slice(0, 12)
 }
 const BUILD = buildId()
-const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD)
-const FIBER = fs.readFileSync(path.join(ROOT, 'fiber.html'), 'utf8').replace('__BUILD__', BUILD)
+// three.js and d3 are served under the hash of their folder (/vendor/<VENDOR>/...): a browser keeps them a year, and a
+// new copy of the folder has a new address
+const VENDOR = buildId(path.join(ROOT, 'vendor'))
+const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR)
+const FIBER = fs.readFileSync(path.join(ROOT, 'fiber.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR)
 
 // share cards: pictures drawn on demand, kept ten minutes per address
 const LANGS = ['en', 'pt', 'zh'], PERIODS = ['day', 'week', 'month']
@@ -92,14 +96,23 @@ async function shareCard(req, res, url) {
 // one is compressed once and kept (measured 2026-10-10: 430 kB went out uncompressed on a first visit)
 const ENC = (req) => { const ae = req.headers['accept-encoding'] || ''; return /\bbr\b/.test(ae) ? 'br' : /\bgzip\b/.test(ae) ? 'gzip' : '' }
 const squeeze = (buf, enc) => enc === 'br' ? zlib.brotliCompressSync(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9 } }) : zlib.gzipSync(buf, { level: 9 })
+// per file: its tag and its compressed copies, made once. Every text body goes out with a tag, and a browser that
+// already holds that version gets a 304 with no body
 const packed = new Map()
 function sendText(req, res, status, headers, body, key) {
-  const enc = ENC(req), buf = Buffer.isBuffer(body) ? body : Buffer.from(body)
-  if (!enc || buf.length < 1024) { res.writeHead(status, headers); return res.end(buf) }
-  let out = key && packed.get(key + enc)
-  if (!out) { out = squeeze(buf, enc); if (key) packed.set(key + enc, out) }
-  res.writeHead(status, { ...headers, 'content-encoding': enc, vary: 'accept-encoding' })
-  res.end(out)
+  const buf = Buffer.isBuffer(body) ? body : Buffer.from(body)
+  let e = key && packed.get(key)
+  if (!e) { e = { tag: etag(buf) }; if (key) packed.set(key, e) }
+  sendEntry(req, res, status, headers, buf, e)
+}
+function sendEntry(req, res, status, headers, buf, e) {
+  const h = { ...headers, etag: e.tag, vary: 'accept-encoding' }
+  if (status === 200 && notModified(req, e.tag)) { res.writeHead(304, h); return res.end() }
+  const enc = ENC(req)
+  if (!enc || buf.length < 1024) { res.writeHead(status, h); return res.end(buf) }
+  e[enc] ||= squeeze(buf, enc)
+  res.writeHead(status, { ...h, 'content-encoding': enc })
+  res.end(e[enc])
 }
 // JSON, gzipped when the browser accepts it (the state with 7 days of history is a few hundred kB raw)
 function sendJson(req, res, obj) {
@@ -109,6 +122,10 @@ function sendJson(req, res, obj) {
   res.end(gz ? zlib.gzipSync(body) : body)
 }
 
+// the state is the same for everyone: built at most once a minute, and again as soon as something new comes in, so a
+// page never starts from a state older than the live stream it then joins
+const stateNow = shared(() => JSON.stringify(snapshot()), 60e3)
+bus.on('event', () => stateNow.drop()); bus.on('news', () => stateNow.drop())
 bus.on('event', (e) => { const msg = `data: ${JSON.stringify(e)}\n\n`; for (const c of clients) c.write(msg); notifyEvent(e) })
 // a new project goes to every open page as its own kind of message, and to the browsers that asked for new projects
 bus.on('news', (n) => { const msg = `event: news\ndata: ${JSON.stringify(n)}\n\n`; for (const c of clients) c.write(msg); notifyNews(n) })
@@ -180,7 +197,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/push/off' && req.method === 'POST') return readJson(req, 4096, (j) => sendJson(req, res, unsubscribe(j)))
   if (url.pathname.startsWith('/og/')) { shareCard(req, res, url).catch((err) => { console.warn('card', err.message); if (!res.headersSent) res.writeHead(500); res.end() }); return }
   if (url.pathname === '/version.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ v: BUILD })) }
-  if (url.pathname === '/api/state') return sendJson(req, res, snapshot())
+  if (url.pathname === '/api/state') { const e = stateNow.get(); return sendEntry(req, res, 200, { 'content-type': 'application/json', 'cache-control': 'no-cache' }, e.buf, e) }
   if (url.pathname === '/api/repo') {
     const d = repoDetail(url.searchParams.get('name') || '')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }
@@ -210,11 +227,15 @@ const server = http.createServer((req, res) => {
     req.on('close', () => clients.delete(res))
     return
   }
-  const f = path.join(ROOT, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname))
+  const vm = url.pathname.match(/^\/vendor\/([0-9a-f]{12})\/(.+)$/)
+  const rel = vm ? `/vendor/${vm[2]}` : url.pathname
+  const f = path.join(ROOT, rel === '/' ? 'index.html' : decodeURIComponent(rel))
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found') }
-  // the page's own files change together on every deploy: always ask again; three.js only changes with a new folder
+  // the page's own files change together on every deploy: always ask again (a 304 when nothing changed). three.js and
+  // d3 under the current hash never change; an old hash or the old unversioned address still answers
   const type = TYPES[path.extname(f)] || 'application/octet-stream'
-  const headers = { 'content-type': type, 'cache-control': url.pathname.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache' }
+  const cache = vm ? (vm[1] === VENDOR ? 'public, max-age=31536000, immutable' : 'no-cache') : rel.startsWith('/vendor/') ? 'public, max-age=86400' : 'no-cache'
+  const headers = { 'content-type': type, 'cache-control': cache }
   if (/^(text\/|application\/(json|manifest\+json)|image\/svg)/.test(type)) return sendText(req, res, 200, headers, fs.readFileSync(f), f)
   res.writeHead(200, headers)
   fs.createReadStream(f).pipe(res)
