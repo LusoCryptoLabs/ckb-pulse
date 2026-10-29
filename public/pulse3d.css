@@ -184,7 +184,7 @@ body.drawer-open .side { visibility: hidden; }
 .drawer .key { margin: 4px 0 0; font-size: 12px; color: var(--mut); display: flex; align-items: center; gap: 6px; }
 .drawer .key i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 .drawer .key i.h { background: var(--lime); } .drawer .key i.b { background: var(--bot); margin-left: 8px; }
-.drawer .people { display: flex; flex-wrap: wrap; gap: 6px; }
+.drawer .people:not(.list) { display: flex; flex-wrap: wrap; gap: 6px; }
 .drawer .people a { display: flex; align-items: center; gap: 6px; text-decoration: none; background: rgba(255, 255, 255, 0.05); border-radius: 999px; padding: 2px 10px 2px 2px; font-size: 13px; }
 .drawer .people img { width: 26px; height: 26px; border-radius: 50%; }
 .drawer .people b { color: var(--lime); font-weight: 600; }
