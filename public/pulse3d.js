@@ -209,7 +209,8 @@ function buildCells() {
     labelText(div)
     const o = new CSS2DObject(div)
     o.position.set(c.cx, 0.2, c.cz + c.d / 2 + 1.1)
-    o.userData.prio = 100 + c.list.length
+    // above the on-chain tags, which crowd the core organisations and hid "Nervos core" (2026-10-29); under the stars
+    o.userData.prio = 650 + c.list.length / 1000
     scene.add(o); groupLabels.push(o)
     // the neighbourhoods' names, under the group's own in priority: a small screen keeps only the group
     if (!MOBILE) for (const sb of c.subs) {
@@ -1237,8 +1238,11 @@ $('q').addEventListener('input', () => {
     ps.map(([i, p]) => `<li><button type="button" class="row" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt=""><span>${esc(p[0])}</span><b>${W.people.get(i) || ''}</b></button></li>`).join('') || `<li class="none">${esc(t('nothing'))}</li>`
   $('results').hidden = false
 })
-// the arrow keys move from the search box into its results and between them
-$('q').addEventListener('keydown', (e) => { const b = $('results').querySelector('.row'); if (e.key === 'ArrowDown' && b && !$('results').hidden) { e.preventDefault(); b.focus() } })
+// the arrow keys move from the search box into its results and between them; Enter opens the first one
+$('q').addEventListener('keydown', (e) => {
+  const b = $('results').querySelector('.row'); if (!b || $('results').hidden) return
+  if (e.key === 'ArrowDown') { e.preventDefault(); b.focus() } else if (e.key === 'Enter') { e.preventDefault(); b.click() }
+})
 $('results').addEventListener('keydown', (e) => {
   if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
   const xs = [...$('results').querySelectorAll('.row')], k = xs.indexOf(e.target.closest('.row'))
@@ -1429,9 +1433,14 @@ function openIntro() {
   $('intro-go').focus()
 }
 // the first visit: after the intro, a short flight to the project and the person of the week, then back home. Any
-// touch of the controls, a key or a click ends it
+// touch of the controls, a key or a click ends it: a hand on the scene keeps the view it takes, anything else goes
+// home, or the camera stays where the tour left it, often over an empty corner (2026-10-29)
 let tour = null
-function stopTour() { if (tour) { clearTimeout(tour); tour = null } }
+function stopTour(e) {
+  if (!tour) return
+  clearTimeout(tour); tour = null
+  if (!e?.target?.closest?.('#stage')) flyHome()
+}
 function startTour() {
   if (REDUCED || MOBILE || !S?.leaders) return
   const w = S.leaders.week, stops = []
