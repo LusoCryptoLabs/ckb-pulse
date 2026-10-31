@@ -41,7 +41,7 @@ Page views and visitors per day for the page, the Fiber map, the digest, the fee
 
 ## History
 
-The events API reaches back 90 days. Months and years come from GitHub's contributor statistics: commits per week and author for every known CKB repository, quiet ones included, refreshed weekly into `DATA_DIR/history.json`. From them: active developers per month (a commit in the month), new developers (their first commit among these repositories) and commits, two years back; and commits per month for each project.
+The events API reaches back 90 days. Months and years come from GitHub's contributor statistics: commits per week and author for every known CKB repository, quiet ones included, refreshed weekly into `DATA_DIR/history.json`. From them: active developers per month (a commit in the month), new developers (their first commit among these repositories) and commits, two years back; and commits per month for each project. Authors that are not people (bots, `actions-user`, AI agents committing as `claude` or `cursoragent`, listed in `config.mjs`) are left out, as they are from the live counts.
 
 Every repository read once stays counted after it goes quiet or leaves the page. Projects that stopped before this page began are still missing, so older months read low and the growth looks larger than it was.
 

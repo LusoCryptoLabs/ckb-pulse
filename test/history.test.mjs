@@ -25,3 +25,19 @@ test('quiet and departed repositories stay in the trends', () => {
   assert.equal(repoMonths('b/gone').at(-1).commits, 3)
   assert.equal(repoMonths('c/unknown'), null)
 })
+
+test('agents and automation are not counted as developers or commits', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'history-'))
+  const week = (d) => Math.floor(Date.parse(d) / 1000)
+  const thisMonth = new Date().toISOString().slice(0, 7) + '-08T00:00:00Z'
+  fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify({ repos: {
+    'a/app': { at: Date.now(), rows: [[week(thisMonth), 'alice', 2], [week(thisMonth), 'claude', 40], [week(thisMonth), 'actions-user', 90]] },
+    'b/tool': { at: Date.now(), rows: [[week(thisMonth), 'renovate-bot', 5]] },
+  } }))
+  loadHistory(dir)
+  const m = trends(['a/app', 'b/tool']).months.at(-1)
+  assert.equal(m.devs, 1)
+  assert.equal(m.commits, 2)
+  assert.equal(m.newDevs, 1)
+  assert.deepEqual(repoMonths('a/app').at(-1), { month: m.month, devs: 1, commits: 2 })
+})

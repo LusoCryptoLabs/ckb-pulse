@@ -76,6 +76,11 @@ export const POLL = {
 
 // Automation: kept as quiet sparks on the grid, never in the feed or the main counters (releases excepted)
 export const isNoiseActor = (login) => /\[bot\]$/i.test(login) || login === 'Copilot'
+// Commit authors in GitHub's contributor statistics that are not people. Measured 2026-10-31 in the lab's history:
+// actions-user 9,722 commits in one project, claude 6,296 in 59, renovate-bot 252, dependabot-support 180,
+// dependabot-bot 75, cursoragent 21, snyk-bot 4, deepsourcebot 1. September 2026 read 111 developers with two of them.
+export const AUTOMATIC_AUTHORS = new Set(['actions-user', 'claude', 'cursoragent', 'renovate-bot', 'dependabot-support', 'dependabot-bot', 'snyk-bot', 'deepsourcebot'])
+export const isAutomaticAuthor = (login) => isNoiseActor(login) || AUTOMATIC_AUTHORS.has(String(login).toLowerCase())
 // AI agents working under a person's account push to branches of their own (Claude Code, Codex, Copilot, Cursor,
 // Devin). Their pushes, the branches they open and the pull requests they propose count as automatic; the person who
 // merges the work still counts. Measured 2026-10-10 on the lab's 30 days: 60 such events among about 2,260 by people.

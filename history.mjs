@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { gh } from './github.mjs'
-import { isNoiseActor, BLOCKED } from './config.mjs'
+import { isAutomaticAuthor, BLOCKED } from './config.mjs'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const DAY = 864e5
@@ -29,7 +29,7 @@ export async function refreshHistory(list, maxAgeDays = 7) {
       const rows = []
       for (const c of Array.isArray(r.body) ? r.body : []) {
         const login = c.author?.login
-        if (!login || isNoiseActor(login)) continue
+        if (!login || isAutomaticAuthor(login)) continue
         for (const w of c.weeks || []) if (w.c > 0) rows.push([w.w, login, w.c])
       }
       H.repos[full] = { at: Date.now(), rows }
@@ -64,6 +64,7 @@ export function trends(list, months = 24) {
     if (blocked.has(full.split('/')[0].toLowerCase())) continue
     if (set.has(full)) counted++; else kept++
     for (const [w, login, c] of r.rows) {
+      if (isAutomaticAuthor(login)) continue // rows stored before the rule
       const m = monthOf(w)
       if (!first.has(login) || first.get(login) > m) first.set(login, m)
       let p = per.get(m)
@@ -82,6 +83,6 @@ export function repoMonths(full, months = 24) {
   const r = H.repos[full]
   if (!r) return null
   const per = new Map()
-  for (const [w, login, c] of r.rows) { const m = monthOf(w); let p = per.get(m); if (!p) per.set(m, (p = { devs: new Set(), commits: 0 })); p.devs.add(login); p.commits += c }
+  for (const [w, login, c] of r.rows) { if (isAutomaticAuthor(login)) continue; const m = monthOf(w); let p = per.get(m); if (!p) per.set(m, (p = { devs: new Set(), commits: 0 })); p.devs.add(login); p.commits += c }
   return lastMonths(months).map((m) => ({ month: m, devs: per.get(m)?.devs.size || 0, commits: per.get(m)?.commits || 0 }))
 }
