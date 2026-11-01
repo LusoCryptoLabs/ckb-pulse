@@ -31,9 +31,30 @@ export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
 export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, fundedAt: 0, agentRule: 0, startedAt: Date.now() }
 const ids = new Set()
-// commits counted from a repository's commits list rather than from a push (readCommits)
-const commitShas = new Set()
-function readShas() { commitShas.clear(); for (const e of state.events) for (const s of e.shas || []) commitShas.add(s) }
+// commits counted from a repository's commits list rather than from a push (readCommits), and what the pushes GitHub
+// did send say: their heads, and each repository's latest. Kept as pushes arrive: read once per round of the commit
+// lists, a push the daily fill brought in during the round went unseen and its head was counted again (2026-11-01, two)
+const commitShas = new Set(), pushHeads = new Set(), lastPushAt = new Map()
+const headOf = (e) => /\/commit\/([0-9a-f]{40})$/.exec(e.url || '')?.[1]
+function notePush(e) {
+  if (e.kind !== 'push' || e.shas) return
+  if (e.at > (lastPushAt.get(e.repo) || '')) lastPushAt.set(e.repo, e.at)
+  const h = headOf(e); if (h) pushHeads.add(h)
+}
+function readShas() {
+  commitShas.clear(); pushHeads.clear(); lastPushAt.clear()
+  for (const e of state.events) notePush(e)
+  // a counted commit that a push GitHub sent also brought in leaves the counted push
+  state.events = state.events.filter((e) => {
+    if (!e.shas) return true
+    const kept = e.shas.filter((s) => !pushHeads.has(s))
+    if (kept.length === e.shas.length) return true
+    e.shas = kept
+    if (!e.bot) e.commits = kept.length
+    return kept.length > 0
+  })
+  for (const e of state.events) for (const s of e.shas || []) commitShas.add(s)
+}
 
 // ---------- persistence ----------
 export function load() {
@@ -205,6 +226,7 @@ function admit(list, source) {
   const fresh = []
   for (const n of list) {
     state.events.push(n)
+    notePush(n)
     health.lastEventAt = Math.max(health.lastEventAt, Date.parse(n.at))
     // only events from the last few minutes pulse live; the backfill just fills the page
     if (Date.now() - new Date(n.at) < 15 * 60e3) fresh.push(n)
@@ -283,33 +305,29 @@ async function builderLoop() {
 // requests and comments kept coming, and nervosnetwork/fiber took a commit. So the main branch of every repository with
 // recent work by people is read as a list of commits too. A commit dated after the repository's last push (any branch)
 // that is still not brought in commitsGraceMin later counts as a push of its own, one per author; a push that arrives
-// after that with one of those commits as its head is dropped (normalise), so the work counts once.
+// after that with one of those commits as its head is dropped (normalise), so the work counts once. The new commits of a
+// repository wait for each other: counting the older ones of a push before its newest was due let the push, arriving
+// late with the newest as its head, count the older ones again.
 export function commitWatch(now = Date.now()) {
   const from = new Date(now - POLL.commitsDays * DAY).toISOString()
-  const list = new Set(), lastPush = new Map(), heads = new Set()
-  for (const e of state.events) {
-    if (!e.bot && e.at >= from) list.add(e.repo)
-    if (e.kind === 'push' && !e.shas) {
-      if (e.at > (lastPush.get(e.repo) || '')) lastPush.set(e.repo, e.at)
-      // a push's own head is never counted again, whatever the clock of the machine that made it said
-      const head = /\/commit\/([0-9a-f]{40})$/.exec(e.url || '')?.[1]
-      if (head) heads.add(head)
-    }
-  }
-  return { repos: [...list].filter((f) => isPublic(f) && !moved(f) && !blocked.has(ownerOf(f).toLowerCase())), lastPush, heads }
+  const list = new Set()
+  for (const e of state.events) if (!e.bot && e.at >= from) list.add(e.repo)
+  return [...list].filter((f) => isPublic(f) && !moved(f) && !blocked.has(ownerOf(f).toLowerCase()))
 }
-export async function readCommits(full, { lastPush, heads }, now = Date.now()) {
+export async function readCommits(full, now = Date.now()) {
   const r = state.repos[full]
   // a 304 answers with the list read before, so commits still waiting for their push are looked at again
   const res = await gh(`/repos/${full}/commits?per_page=100`, { conditional: true })
   if (!r || !Array.isArray(res.body)) return []
-  const after = Math.max(Date.parse(lastPush.get(full) || 0), now - 7 * DAY)
+  const after = Math.max(Date.parse(lastPushAt.get(full) || 0), now - 7 * DAY)
   const ripe = now - POLL.commitsGraceMin * 60e3
   const by = new Map()
   for (const c of res.body) {
     const date = c.commit?.committer?.date || c.commit?.author?.date
     const at = Date.parse(date || 0)
-    if (!(at > after && at <= ripe) || commitShas.has(c.sha) || heads.has(c.sha)) continue
+    // a push's own head is never counted again, whatever the clock of the machine that made it said
+    if (!(at > after) || commitShas.has(c.sha) || pushHeads.has(c.sha)) continue
+    if (at > ripe) return []
     // merges made on github.com are committed by web-flow: the author is the person
     const actor = c.author?.login || (c.committer?.login !== 'web-flow' ? c.committer?.login : '')
     if (!actor) continue
@@ -334,14 +352,13 @@ export async function readCommits(full, { lastPush, heads }, now = Date.now()) {
 async function commitLoop() {
   await sleep(120e3) // after the first feeds are in
   for (;;) {
-    const watch = commitWatch()
-    const { repos } = watch
+    const repos = commitWatch()
     if (!repos.length) { await sleep(60e3); continue }
     const gap = (POLL.commitsCycleMin * 60e3) / repos.length
     let n = 0
     for (const full of repos) {
       const t0 = Date.now()
-      try { n += (await readCommits(full, watch)).length } catch (err) { console.warn('commits', full, err.message) }
+      try { n += (await readCommits(full)).length } catch (err) { console.warn('commits', full, err.message) }
       await sleep(Math.max(0, gap - (Date.now() - t0)))
     }
     if (n) console.log(`commits: ${n} pushes counted from ${repos.length} repositories' commit lists`)
@@ -688,7 +705,7 @@ function announceNews() {
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
 
 // the pure rules, for the tests
-export { ckbContext, vetRepo, leaders, manifestOk, normalise, newsWorthy }
+export { ckbContext, vetRepo, leaders, manifestOk, normalise, intake, newsWorthy }
 
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
 async function followOnchain() {
