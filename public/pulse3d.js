@@ -431,11 +431,13 @@ if (MOBILE) $('side').classList.add('closed')
 // on a phone the panel is a sheet at the bottom: drag its tab bar to any height between a peek and almost the whole
 // screen, and it snaps to the peek, to a half or to the top. A tap on a tab still switches it. The ticker and the
 // scene follow its height
+let sheetUp = null
 if (MOBILE) {
   const PEEK = 46, bar = $('side').querySelector('.tabs')
   const limit = () => innerHeight - box('.top').bottom - 150
   // past half the screen the sheet is for reading: the ticker steps aside
   const setSheet = (h) => { document.documentElement.style.setProperty('--sheet', `${Math.round(h)}px`); document.body.classList.toggle('sheet-tall', h > innerHeight * 0.45); updateView() }
+  sheetUp = () => { $('side').classList.remove('closed'); setSheet(limit()) }
   let drag = null, dragEnd = 0
   bar.addEventListener('pointerdown', (e) => { drag = { y: e.clientY, h: $('side').getBoundingClientRect().height, moved: false } })
   addEventListener('pointermove', (e) => {
@@ -460,7 +462,9 @@ if (MOBILE) {
   addEventListener('pointerup', end); addEventListener('pointercancel', end)
   // the click a drag ends with is not a tap. A drag that ends off the bar has no click, so only one that comes at once
   // is dropped; a flag kept until the next click ate the next real tap on a tab
-  bar.addEventListener('click', (e) => { if (performance.now() - dragEnd < 300) { dragEnd = 0; e.stopPropagation(); e.preventDefault() } }, true)
+  // (dragEnd starts at 0: without the first test, a tab clicked in the page's first 300 ms was dropped, as a shared
+  // ?h= link does on a fast load, measured 136 ms on 2026-11-01)
+  bar.addEventListener('click', (e) => { if (dragEnd && performance.now() - dragEnd < 300) { dragEnd = 0; e.stopPropagation(); e.preventDefault() } }, true)
   $('side').addEventListener('transitionend', updateView)
 }
 
@@ -570,6 +574,8 @@ function openShare(anchor, { params, image, title }) {
     `<a href="https://wa.me/?text=${enc(`${title} ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>` +
     `<a href="${esc(img)}" download="ckb-pulse.png">${esc(t('sh.image'))}</a>`
   anchor.after(m)
+  // in a phone's half-open sheet the menu started below its edge: only "Copy link" and "X" showed (2026-11-01)
+  requestAnimationFrame(() => m.scrollIntoView({ block: 'nearest' }))
   m.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]')
     if (!b) { setTimeout(closeShare, 100); return }
@@ -591,10 +597,16 @@ function openFromLink() {
   const q = new URLSearchParams(location.search)
   const repo = q.get('repo'), person = q.get('person'), h = q.get('h')
   if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; openRepo(i) } }
-  else if (person && actorIdx.has(person)) { T.chosen = true; openPerson(actorIdx.get(person)) }
+  else if (person) {
+    // GitHub logins ignore case, and so does the link preview: ?person=raheemjnr is RaheemJnr
+    const key = [...actorIdx.keys()].find((k) => k.toLowerCase() === person.toLowerCase())
+    if (key) { T.chosen = true; openPerson(actorIdx.get(key)) }
+  }
   else if (['day', 'week', 'month'].includes(h)) {
     hlPeriod = h
     document.querySelector('.tabs [data-tab="top"]').click()
+    // a shared week is its medals: on a phone the half sheet left them below its edge
+    sheetUp?.()
     if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
   }
 }

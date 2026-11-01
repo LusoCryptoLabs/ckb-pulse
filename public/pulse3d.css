@@ -284,6 +284,9 @@ body.drawer-open .side { visibility: hidden; }
 .news-toast .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 860px) { body.drawer-open .toasts, .side:not(.closed) ~ .toasts { visibility: hidden; } .toasts { left: 12px; right: 12px; max-width: none; align-items: stretch; } .toast > span:nth-child(2), .news-toast .what { flex: 1; } }
+/* a phone has no room for the project's name and three buttons on one line (at 390 px it showed 111 px of 257): the
+   name keeps the line and the buttons move under it, to the right */
+@media (max-width: 600px) { .news-toast { flex-wrap: wrap; row-gap: 6px; } .toast.news-toast .what { flex: 1 1 calc(100% - 64px); white-space: normal; overflow-wrap: anywhere; } .news-toast .go { margin-left: auto; } }
 
 /* tooltip */
 .tip { position: fixed; z-index: 9; max-width: 300px; background: var(--glass2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13px; pointer-events: none; }
@@ -418,6 +421,9 @@ body.bars .now .ticker { white-space: nowrap; }
   .icon { min-width: 36px; height: 36px; padding: 0 8px; }
   .search { display: none; }
   .search.open { display: block; position: fixed; top: 54px; left: 12px; right: 12px; z-index: 12; }
+  /* the header is its own layer: while the search is open it goes above the bars switch, or the switch takes the taps
+     meant for the first results (2026-11-01, a tap on fiber-lsp-sdk turned the page to 3D) */
+  .top:has(.search.open) { z-index: 10; }
   .search.open input { width: 100%; padding: 10px 12px; font-size: 16px; background: var(--glass2); }
   .search.open ul { top: 48px; left: 0; right: 0; width: auto; }
   .fpop .filters.open { left: 12px; right: 12px; width: auto; }
