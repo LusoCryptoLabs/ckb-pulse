@@ -22,12 +22,14 @@
     const h = document.documentElement
     let view = null
     try { const q = new URLSearchParams(location.search).get('ui'); if (q) localStorage.setItem('ckbpulse.ui', q); if ((q || localStorage.getItem('ckbpulse.ui')) === 'next') h.classList.add('next'); view = localStorage.getItem('ckbpulse.view') } catch {}
+    // without WebGL 2 there is no scene, but the bars need none: the trial layout, which has bars on every screen
+    const nogl = h.classList.contains('nogl')
+    if (nogl) h.classList.add('next')
     const fp = () => h.classList.toggle('fpop', innerWidth < 1340 || h.classList.contains('next'))
     fp(); addEventListener('resize', fp)
-    if (h.classList.contains('nogl')) return
     // bars on a phone and in the trial, unless the viewer picked the scene; the scene asks for three.js now, with the
     // page's own files, and the bars never do. The state is asked for here too, and the page shows outlines until it is in
-    h.dataset.firstView = (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
+    h.dataset.firstView = nogl ? 'bars' : (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
     if (h.dataset.firstView === '3d') for (const f of ['three.module.js', 'three.core.js']) document.head.append(Object.assign(document.createElement('link'), { rel: 'modulepreload', href: `vendor/__VENDOR__/${f}` }))
     h.classList.add('wait')
     window.pulseState = fetch('api/state').catch(() => null)
@@ -161,13 +163,6 @@
   </div>
 </div>
 
-<div class="nogl-msg" role="alert">
-  <h1>CKB Pulse</h1>
-  <p lang="en">This page is drawn in 3D and this browser cannot show it. An up-to-date Chrome, Edge, Firefox or Safari can.</p>
-  <p lang="pt">Esta página é desenhada em 3D e este navegador não a consegue mostrar. Um Chrome, Edge, Firefox ou Safari atualizado consegue.</p>
-  <p lang="zh-CN">这个页面以 3D 绘制，当前浏览器无法显示。请使用最新版的 Chrome、Edge、Firefox 或 Safari。</p>
-</div>
-
 <div class="hud toasts" id="toasts">
   <div class="toast" id="update" role="status" hidden><span class="updot" aria-hidden="true"></span><span data-t="u.msg"></span><button type="button" id="update-go" class="go" data-t="u.go"></button><button type="button" id="update-x" class="x" data-t-label="close">×</button></div>
   <div class="toast news-toast" id="news-toast" role="status" hidden></div>
@@ -175,6 +170,6 @@
 
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <p class="sr-only" id="sr" aria-live="polite"></p>
-<script type="module">if (!document.documentElement.classList.contains('nogl')) import('./pulse3d.js')</script>
+<script type="module">import('./pulse3d.js')</script>
 </body>
 </html>

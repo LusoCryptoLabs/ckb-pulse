@@ -294,7 +294,6 @@ body.drawer-open .side { visibility: hidden; }
 /* keyboard and screen readers: a link to the list comes first, and whatever has the focus wears a ring */
 .skip { position: fixed; top: 8px; left: 8px; z-index: 30; background: var(--lime); color: #07090a; font-weight: 800; padding: 10px 14px; border-radius: 10px; text-decoration: none; transform: translateY(-200%); }
 .skip:focus { transform: none; }
-.nogl .skip { display: none; }
 :focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 .drawer h2:focus { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -393,11 +392,8 @@ body.bars .now .ticker { white-space: nowrap; }
 .drawer details.dev summary { cursor: pointer; color: var(--mut); font-size: 13px; }
 .drawer details.dev[open] summary { margin-bottom: 8px; }
 
-/* no WebGL 2 */
-.nogl-msg { display: none; }
-.nogl .hud, .nogl #stage { display: none; }
-.nogl .nogl-msg { display: grid; place-content: center; gap: 4px; position: fixed; inset: 0; padding: 24px; text-align: center; max-width: 560px; margin: auto; }
-.nogl .nogl-msg p { color: #d6dec8; font-size: 15px; line-height: 1.5; margin: 6px 0; }
+/* no WebGL 2: the bars only (index.html picks them), with no way to the scene */
+.nogl #stage, .nogl .vb-seg { display: none; }
 
 /* medium screens */
 @media (max-width: 1599px) { :root { --side: 340px; } }
