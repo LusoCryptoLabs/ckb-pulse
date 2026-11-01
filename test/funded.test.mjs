@@ -103,6 +103,7 @@ test('the page names every grant in every language', () => {
     const html = fundedPage({ lang, grants: [g], base: 'https://x', url: 'https://x/funded', readAt: NOW })
     assert.match(html, /<h2>Test<\/h2>/)
     assert.match(html, />M2</)
-    assert.doesNotMatch(html, /\{\w+\}|f\.\w+/)
+    assert.doesNotMatch(html, /\{\w+\}|f\.\w+|>by</)
+    assert.match(html, /lusocryptolabs\.com">[^<]*LusoCryptoLabs[^<]*<\/a> · <a href="https:\/\/x\.com\/lusocryptolabs">X<\/a> · <a href="https:\/\/github\.com\/LusoCryptoLabs\/ckb-pulse">GitHub/)
   }
 })

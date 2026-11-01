@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { FUNDED } from './config.mjs'
 import { words } from './cards.mjs'
-import { CSS } from './digest.mjs'
+import { CSS, maker } from './digest.mjs'
 
 const TALK = 'https://talk.nervos.org'
 const DAY = 864e5, WEEK = 7 * DAY
@@ -158,6 +158,7 @@ ${g.nonCode ? `<p class="note">${esc(t('f.nonCode'))}</p>` : ''}${g.counting ? `
 <header><i></i><h1>${esc(t('f.title'))}</h1></header><p class="sub">${esc(desc)} · <a href="${esc(base)}/?lang=${lang}">CKB Pulse</a></p>
 ${grants.map(card).join('\n')}
 <footer><p>${esc(t('f.about'))}</p><p>${esc(t('f.read', { date: fmt(readAt ? new Date(readAt).toISOString() : null, t) || t('f.none') }))} <a href="${esc(base)}/api/funded">api/funded</a></p>
+${maker(t)}
 <p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(url)}?lang=${l}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
 </main></body></html>`
 }

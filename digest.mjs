@@ -11,6 +11,8 @@ const DAY = 864e5
 const KEEP = 53
 let file = ''
 let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], newest last
+// who made the page, where it is posted about and its source, at the foot of every plain page
+export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
 
 export function loadDigests(dir) {
   file = path.join(dir, 'digests.json')
@@ -95,6 +97,7 @@ ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).ma
 ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs: cur.devs, month: cur.month, newDevs: cur.newDevs, yearAgo: ago?.devs ?? 0 }))}</p></section>` : ''}
 <footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed.xml">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
+${maker(t)}
 <p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(q(period, l))}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
 </main></body></html>`
 }

@@ -315,6 +315,7 @@ body.drawer-open .side { visibility: hidden; }
 .intro .primary { display: block; width: 100%; background: var(--lime); color: #07090a; border: 0; border-radius: 12px; padding: 13px 20px; font-weight: 800; font-size: 16px; cursor: pointer; }
 .intro .primary:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .intro .fine { margin: 14px 0 0; text-align: center; font-size: 13px; color: var(--mut); }
+.intro .fine.by { margin-top: 6px; }
 /* floated, so the title wraps around it on a phone instead of running under it */
 .intro .langs { float: right; margin: -6px -6px 10px 14px; display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .intro .langs button { background: none; border: 0; padding: 6px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--mut); }
