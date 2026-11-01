@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -31,6 +31,9 @@ export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
 export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, fundedAt: 0, agentRule: 0, startedAt: Date.now() }
 const ids = new Set()
+// commits counted from a repository's commits list rather than from a push (readCommits)
+const commitShas = new Set()
+function readShas() { commitShas.clear(); for (const e of state.events) for (const s of e.shas || []) commitShas.add(s) }
 
 // ---------- persistence ----------
 export function load() {
@@ -45,6 +48,7 @@ export function load() {
     }
     state.events.sort((a, b) => a.at.localeCompare(b.at))
     for (const e of state.events) ids.add(e.id)
+    readShas()
     health.lastEventAt = Date.parse(state.events.at(-1)?.at || 0) || 0
     // discover again once when the rules change: 1, the ckb-context rule (topic-only false friends drop out);
     // 2, fourteen more searches (2026-10-10); 3, the fiber-network topic asks for chain words too (2026-10-29)
@@ -79,6 +83,7 @@ function repoEntry(full, meta) {
     if (meta.owner?.type) r.ownerType = meta.owner.type
     if (meta.created_at) r.createdAt = meta.created_at
     if ('fork' in meta) r.fork = !!meta.fork
+    if (meta.default_branch) r.branch = meta.default_branch
     // asked by an old name, GitHub answers with the new one (renamed or moved): the old name is only an alias
     if (meta.full_name && meta.full_name.toLowerCase() !== full.toLowerCase()) r.movedTo = meta.full_name
     else delete r.movedTo
@@ -127,6 +132,8 @@ async function normalise(e) {
     case 'PushEvent': {
       ref = (p.ref || '').replace('refs/heads/', '')
       if (ref === 'gh-pages') return null
+      // already counted from the commits list (readCommits): the push came late
+      if (p.head && commitShas.has(p.head)) return null
       kind = 'push'
       agent = !bot && isAgentBranch(ref)
       if (p.head) {
@@ -184,21 +191,25 @@ async function normalise(e) {
 
 // ---------- intake ----------
 async function intake(raw, source) {
-  const fresh = []
-  let added = 0
+  const list = []
   for (const e of raw.slice().reverse()) {
     if (ids.has(e.id)) continue
     ids.add(e.id)
     let n = null
     try { n = await normalise(e) } catch (err) { console.warn('skip event', e.id, err.message) }
-    if (!n) continue
+    if (n) list.push(n)
+  }
+  admit(list, source)
+}
+function admit(list, source) {
+  const fresh = []
+  for (const n of list) {
     state.events.push(n)
-    added++
     health.lastEventAt = Math.max(health.lastEventAt, Date.parse(n.at))
     // only events from the last few minutes pulse live; the backfill just fills the page
     if (Date.now() - new Date(n.at) < 15 * 60e3) fresh.push(n)
   }
-  if (added) { state.events.sort((a, b) => a.at.localeCompare(b.at)); markSchedules() }
+  if (list.length) { state.events.sort((a, b) => a.at.localeCompare(b.at)); markSchedules() }
   if (fresh.length) {
     for (const n of fresh) bus.emit('event', n)
     console.log(`${new Date().toISOString().slice(11, 19)} ${source}: ${fresh.length} new`)
@@ -210,6 +221,7 @@ function trim() {
   if (state.events.length && (state.events[0].at < cut || state.events.length > POLL.maxEvents)) {
     state.events.sort((a, b) => a.at.localeCompare(b.at))
     state.events = state.events.filter((e) => e.at >= cut).slice(-POLL.maxEvents)
+    readShas()
   }
 }
 
@@ -263,6 +275,76 @@ async function builderLoop() {
       } catch (err) { console.warn('repo', full, err.message) }
       await sleep(Math.max(0, gap - (Date.now() - t0)))
     }
+  }
+}
+
+// ---------- commits, for when GitHub stops sending pushes ----------
+// From about 11:00 UTC on 2026-10-30 nervosnetwork's and ckb-devrel's feeds carried no push for two days while pull
+// requests and comments kept coming, and nervosnetwork/fiber took a commit. So the main branch of every repository with
+// recent work by people is read as a list of commits too. A commit dated after the repository's last push (any branch)
+// that is still not brought in commitsGraceMin later counts as a push of its own, one per author; a push that arrives
+// after that with one of those commits as its head is dropped (normalise), so the work counts once.
+export function commitWatch(now = Date.now()) {
+  const from = new Date(now - POLL.commitsDays * DAY).toISOString()
+  const list = new Set(), lastPush = new Map(), heads = new Set()
+  for (const e of state.events) {
+    if (!e.bot && e.at >= from) list.add(e.repo)
+    if (e.kind === 'push' && !e.shas) {
+      if (e.at > (lastPush.get(e.repo) || '')) lastPush.set(e.repo, e.at)
+      // a push's own head is never counted again, whatever the clock of the machine that made it said
+      const head = /\/commit\/([0-9a-f]{40})$/.exec(e.url || '')?.[1]
+      if (head) heads.add(head)
+    }
+  }
+  return { repos: [...list].filter((f) => isPublic(f) && !moved(f) && !blocked.has(ownerOf(f).toLowerCase())), lastPush, heads }
+}
+export async function readCommits(full, { lastPush, heads }, now = Date.now()) {
+  const r = state.repos[full]
+  // a 304 answers with the list read before, so commits still waiting for their push are looked at again
+  const res = await gh(`/repos/${full}/commits?per_page=100`, { conditional: true })
+  if (!r || !Array.isArray(res.body)) return []
+  const after = Math.max(Date.parse(lastPush.get(full) || 0), now - 7 * DAY)
+  const ripe = now - POLL.commitsGraceMin * 60e3
+  const by = new Map()
+  for (const c of res.body) {
+    const date = c.commit?.committer?.date || c.commit?.author?.date
+    const at = Date.parse(date || 0)
+    if (!(at > after && at <= ripe) || commitShas.has(c.sha) || heads.has(c.sha)) continue
+    // merges made on github.com are committed by web-flow: the author is the person
+    const actor = c.author?.login || (c.committer?.login !== 'web-flow' ? c.committer?.login : '')
+    if (!actor) continue
+    if (!by.has(actor)) by.set(actor, { avatar: c.author?.avatar_url || c.committer?.avatar_url || '', list: [] })
+    by.get(actor).list.push({ c, date })
+  }
+  const out = []
+  for (const [actor, g] of by) {
+    const top = g.list[0] // the list comes newest first
+    const id = `c:${full}@${top.c.sha}`
+    if (ids.has(id)) continue
+    const bot = isAutomaticAuthor(actor)
+    const title = (top.c.commit?.message || '').split('\n')[0]
+    const n = { id, kind: 'push', repo: full, group: r.group, actor, avatar: g.avatar, title, url: top.c.html_url || `https://github.com/${full}/commit/${top.c.sha}`, ref: r.branch || '', at: top.date, tags: tagsFor(r, title), bot, ...(bot ? {} : { commits: g.list.length }), shas: g.list.map((x) => x.c.sha) }
+    ids.add(id)
+    for (const s of n.shas) commitShas.add(s)
+    out.push(n)
+  }
+  if (out.length) admit(out, `${full} commits`)
+  return out
+}
+async function commitLoop() {
+  await sleep(120e3) // after the first feeds are in
+  for (;;) {
+    const watch = commitWatch()
+    const { repos } = watch
+    if (!repos.length) { await sleep(60e3); continue }
+    const gap = (POLL.commitsCycleMin * 60e3) / repos.length
+    let n = 0
+    for (const full of repos) {
+      const t0 = Date.now()
+      try { n += (await readCommits(full, watch)).length } catch (err) { console.warn('commits', full, err.message) }
+      await sleep(Math.max(0, gap - (Date.now() - t0)))
+    }
+    if (n) console.log(`commits: ${n} pushes counted from ${repos.length} repositories' commit lists`)
   }
 }
 
@@ -682,6 +764,7 @@ export function start() {
   ownerLoop().catch((e) => console.error('owner loop died', e))
   builderLoop().catch((e) => console.error('builder loop died', e))
   discoverLoop().catch((e) => console.error('discovery loop died', e))
+  commitLoop().catch((e) => console.error('commit loop died', e))
 }
 
 // ---------- what the page needs ----------
@@ -812,7 +895,7 @@ export function snapshot() {
     leaders: leaders(ev, now),
     news: news(now),
     trends: trends(knownRepos()),
-    events: human.slice(-150).reverse(),
+    events: human.slice(-150).reverse().map(({ shas, ...e }) => e),
     // the last 24 hours, oldest first, for the replay and the timeline
     day: ev.filter((e) => e.at >= d1).map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: (e.title || '').slice(0, 90), bot: !!e.bot })),
     // the last 7 days in compact rows for the 3D page: [unix seconds, kind, repo index, actor index, bot, title, commits]

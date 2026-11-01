@@ -88,6 +88,11 @@ export const POLL = {
   discoverEveryHours: 6,
   keepDays: 30,
   maxEvents: 12000,
+  // the main branch of each repository with work in the last commitsDays is read every commitsCycleMin; a commit that
+  // no push brought in after commitsGraceMin counts as a push of its own (GitHub's feeds can stop sending pushes)
+  commitsCycleMin: 15,
+  commitsGraceMin: 45,
+  commitsDays: 14,
 }
 
 // Automation: kept as quiet sparks on the grid, never in the feed or the main counters (releases excepted)
