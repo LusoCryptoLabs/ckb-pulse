@@ -5,8 +5,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos } from './pulse.mjs'
-import { trends } from './history.mjs'
+import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, fundedRepos, peopleEvents } from './pulse.mjs'
+import { trends, repoRows } from './history.mjs'
+import { loadFunded, startFunded, grantView, fundedPage, fundedRead } from './funded.mjs'
+import { FUNDED } from './config.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml } from './digest.mjs'
@@ -135,6 +137,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data')
 initPush(DATA_DIR)
 initVisits(DATA_DIR)
 loadDigests(DATA_DIR)
+loadFunded(DATA_DIR)
+startFunded()
 startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
@@ -163,6 +167,13 @@ const server = http.createServer((req, res) => {
     hit('digest', ipOf(req), req.headers['user-agent'])
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q)
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+  }
+  // the grants the Community Fund DAO pays for: their code next to their reports, as a page and as JSON
+  if (url.pathname === '/funded' || url.pathname === '/api/funded') {
+    const events = peopleEvents(), grants = FUNDED.map((f) => grantView(f, { repos: fundedRepos(f.follow), rows: repoRows, events }))
+    if (url.pathname === '/api/funded') return sendJson(req, res, { readAt: fundedRead() ? new Date(fundedRead()).toISOString() : null, grants })
+    hit('funded', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, fundedPage({ lang: langOf(url.searchParams), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead() }))
   }
   if (url.pathname === '/feed.xml') {
     hit('feed', ipOf(req), req.headers['user-agent'])

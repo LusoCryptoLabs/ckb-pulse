@@ -42,16 +42,19 @@ export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-networ
 export const BLOCKED = []
 
 // Projects the CKB Community Fund DAO pays for, by proposal (talk.nervos.org/t/<topic>), followed whatever discovery
-// finds. Checked 2026-11-01: discovery missed three of the six at work, since none carries a CKB topic and GitHub's code
-// search finds no CKB dependency in them (a pnpm catalog, a manifest four folders deep, none yet). An owner alone means
-// all its public repositories. Rosen Bridge (9756) stays out: its CKB work shares repositories with its other chains.
+// finds and shown side by side with their reports at /funded. Checked 2026-11-01: discovery missed three of the six at
+// work, since none carries a CKB topic and GitHub's code search finds no CKB dependency in them (a pnpm catalog, a
+// manifest four folders deep, none yet). An owner alone means all its public repositories. `since` is the day the vote
+// was declared passed in the thread, or the first payment where no one declared it; `team` adds the people who post the
+// reports besides the proposal's author. Rosen Bridge (9756) stays out: its CKB work shares repositories with its
+// other chains. Fiber Desktop shipped as Fiber Studio.
 export const FUNDED = [
-  { topic: 8369, follow: ['ickb'] }, // iCKB
-  { topic: 8832, follow: ['Alive24/CKBoost'] },
-  { topic: 9845, follow: ['Keith-CY/fiber-link'] },
-  { topic: 9879, follow: ['RaheemJnr/pocket-node'] },
-  { topic: 10015, follow: ['invisibook-lab/invisibook'] },
-  { topic: 10317, follow: ['chukwuma619/fiber-desktop'] },
+  { topic: 8369, name: 'iCKB', follow: ['ickb'], since: '2024-11-02', grant: '673,400 CKB', nonCode: true },
+  { topic: 8832, name: 'CKBoost', follow: ['Alive24/CKBoost'], since: '2025-08-08', grant: '$20,000' },
+  { topic: 9845, name: 'Fiber Link', follow: ['Keith-CY/fiber-link'], since: '2026-02-07', grant: '$20,000', team: ['Akane'] },
+  { topic: 9879, name: 'Pocket Node', follow: ['RaheemJnr/pocket-node'], since: '2026-02-11', grant: '$15,000' },
+  { topic: 10015, name: 'Invisibook', follow: ['invisibook-lab/invisibook'], since: '2026-03-26', grant: '$24,000' },
+  { topic: 10317, name: 'Fiber Studio', follow: ['chukwuma619/fiber-studio'], since: '2026-06-11', grant: '$6,000' },
 ]
 
 // Vetting an owner nobody listed (found among the people at work, or suggested on the page): it joins when it has a

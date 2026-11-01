@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
-import { loadHistory, refreshHistory, trends, repoMonths } from './history.mjs'
+import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
 import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
@@ -59,7 +59,7 @@ export function load() {
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, historyAt: state.historyAt, onchainAt: state.onchainAt, agentRule: state.agentRule }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, moveRule: state.moveRule, historyAt: state.historyAt, onchainAt: state.onchainAt, agentRule: state.agentRule }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -79,6 +79,9 @@ function repoEntry(full, meta) {
     if (meta.owner?.type) r.ownerType = meta.owner.type
     if (meta.created_at) r.createdAt = meta.created_at
     if ('fork' in meta) r.fork = !!meta.fork
+    // asked by an old name, GitHub answers with the new one (renamed or moved): the old name is only an alias
+    if (meta.full_name && meta.full_name.toLowerCase() !== full.toLowerCase()) r.movedTo = meta.full_name
+    else delete r.movedTo
     // only an explicit "false" from GitHub makes a repository public here
     r.private = meta.private === false ? false : true
   }
@@ -245,7 +248,8 @@ async function ownerLoop() {
 const extraRepos = () => Object.values(state.extra || {}).flatMap((o) => o.repos)
 // every public repository known as CKB work, quiet or not: the long history counts those that have since gone quiet too
 export const knownRepos = () => [...new Set([...(state.orgRepos || []), ...pollSet()])].filter((f) => isPublic(f))
-const pollSet = () => [...new Set([...state.builders, ...extraRepos()])].filter((f) => !blocked.has(ownerOf(f).toLowerCase()))
+const moved = (f) => !!state.repos[f]?.movedTo
+const pollSet = () => [...new Set([...state.builders, ...extraRepos()])].filter((f) => !blocked.has(ownerOf(f).toLowerCase()) && !moved(f))
 async function builderLoop() {
   for (;;) {
     const list = pollSet()
@@ -538,12 +542,15 @@ async function discoverLoop() {
   await fillOwnerTypes()
   await backfillCommits()
   await markAgentProposals()
+  if (state.moveRule !== 1) { try { await findMoves([...knownRepos(), ...historyNames()]); state.moveRule = 1; save() } catch (err) { console.warn('moves', err.message) } }
   if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
-    if (Date.now() - (state.onchainAt || 0) > DAY) { try { await refreshOnchain(knownRepos()); await followOnchain(); state.onchainAt = Date.now(); save() } catch (err) { console.warn('onchain', err.message) } }
+    if (Date.now() - (state.onchainAt || 0) > DAY) { try { await refreshOnchain(knownRepos()); await followOnchain(); await findMoves([]); state.onchainAt = Date.now(); save() } catch (err) { console.warn('onchain', err.message) } }
     // fundedAt is not saved: a deploy that adds a project to FUNDED follows it at once
-    if (Date.now() - (state.fundedAt || 0) > DAY) { try { await followFunded(); state.fundedAt = Date.now(); save() } catch (err) { console.warn('funded', err.message) } }
+    if (Date.now() - (state.fundedAt || 0) > DAY) {
+      try { await followFunded(); await refreshHistory(FUNDED.flatMap((f) => fundedRepos(f.follow))); state.fundedAt = Date.now(); save() } catch (err) { console.warn('funded', err.message) }
+    }
     if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } await verifyEventRepos() }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
     if (Date.now() - (state.crawledAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await crawlPeople(); state.crawledAt = Date.now() } catch (err) { console.warn('crawl', err.message) } }
@@ -603,10 +610,12 @@ export { ckbContext, vetRepo, leaders, manifestOk, normalise, newsWorthy }
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
 async function followOnchain() {
   const known = new Set(knownRepos().map((f) => f.toLowerCase()))
-  for (const full of onchainRepos()) {
+  for (let full of onchainRepos()) {
     const owner = ownerOf(full), key = owner.toLowerCase()
     if (known.has(full.toLowerCase()) || blocked.has(key)) continue
-    const r = await ensureMeta(full)
+    let r = await ensureMeta(full)
+    // the explorer may still name a repository by its old name: follow the new one
+    if (r.movedTo) { full = r.movedTo; if (known.has(full.toLowerCase())) continue; r = await ensureMeta(full) }
     if (r.private !== false) continue
     const prev = state.extra[key]
     if (prev?.repos.includes(full)) continue
@@ -615,6 +624,24 @@ async function followOnchain() {
     await addOwner({ login: owner, type: r.ownerType || 'User', repos: [full] }, 'onchain')
   }
 }
+
+// Renamed or moved repositories: their old names answer with the new one, and GitHub's statistics for both are the
+// same rows. Found 2026-11-01: cryptape/omnilock (now nervosnetwork/omnilock) and ickb/v1-core (now ickb/contracts) were
+// counted twice in the monthly history. The old name stops being polled and its stored rows go; the new one is counted.
+export async function findMoves(names) {
+  for (const full of new Set(names)) { try { await ensureMeta(full, true) } catch (err) { console.warn('moves', full, err.message) } }
+  const old = Object.values(state.repos).filter((r) => r.movedTo).map((r) => r.name)
+  const n = forgetRepos(old)
+  if (names.length || n) console.log(`moves: ${old.length} old names known${n ? `, ${n} dropped from the history` : ''}`)
+  return old
+}
+
+// the public repositories behind a FUNDED entry: the ones it names, or every known one of an owner named alone
+export function fundedRepos(follow) {
+  const known = knownRepos(), key = (s) => s.toLowerCase()
+  return [...new Set(follow.flatMap((n) => known.filter((f) => (n.includes('/') ? key(f) === key(n) : key(ownerOf(f)) === key(n)))))]
+}
+export const peopleEvents = () => state.events.filter((e) => !e.bot)
 
 // projects the Community Fund DAO pays for (FUNDED in config.mjs), followed like an owner someone suggested. An owner
 // alone brings its public repositories pushed in the last year, so a new one joins at the next daily look.

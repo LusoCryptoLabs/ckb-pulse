@@ -86,3 +86,16 @@ export function repoMonths(full, months = 24) {
   for (const [w, login, c] of r.rows) { if (isAutomaticAuthor(login)) continue; const m = monthOf(w); let p = per.get(m); if (!p) per.set(m, (p = { devs: new Set(), commits: 0 })); p.devs.add(login); p.commits += c }
   return lastMonths(months).map((m) => ({ month: m, devs: per.get(m)?.devs.size || 0, commits: per.get(m)?.commits || 0 }))
 }
+// one repository's rows, [week start (unix s), login, commits], or null when GitHub has not counted it yet
+export function repoRows(full) {
+  const r = H.repos[full]
+  return r ? r.rows.filter(([, login]) => !isAutomaticAuthor(login)) : null
+}
+// every repository the history holds, and a way to drop the ones that turned out to be another's old name
+export const historyNames = () => Object.keys(H.repos)
+export function forgetRepos(names) {
+  let n = 0
+  for (const f of names) if (H.repos[f]) { delete H.repos[f]; n++ }
+  if (n) { save(); memo = null }
+  return n
+}

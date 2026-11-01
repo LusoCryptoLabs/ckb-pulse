@@ -54,7 +54,7 @@ async function telegram(w, groupOf, publicUrl) {
 }
 
 // ---------- the page ----------
-const CSS = `:root{color-scheme:dark}body{margin:0;background:#07090a;color:#eef3e2;font:16px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,'WenQuanYi Zen Hei','Microsoft YaHei',sans-serif}
+export const CSS = `:root{color-scheme:dark}body{margin:0;background:#07090a;color:#eef3e2;font:16px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,'WenQuanYi Zen Hei','Microsoft YaHei',sans-serif}
 a{color:#cbf34d}main{max-width:760px;margin:0 auto;padding:28px 16px 48px}header{display:flex;align-items:center;gap:12px;margin-bottom:6px}header i{width:12px;height:12px;border-radius:50%;background:#cbf34d;box-shadow:0 0 12px #cbf34d}
 h1{font-size:28px;margin:0}h2{font-size:15px;color:#9aa38e;margin:28px 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}p.sub{color:#9aa38e;margin:0 0 20px}
 nav.p a,nav.p b{display:inline-block;padding:6px 12px;border:1px solid #26331a;border-radius:999px;margin:0 6px 6px 0;text-decoration:none;font-size:14px}nav.p b{background:#cbf34d;color:#1a2208;font-weight:700}

@@ -47,3 +47,62 @@ test('funded projects are followed, private ones and old or archived repositorie
   // not newcomers: the iCKB group is there, never marked new
   assert.equal(state.groupsSeen.ickb, 0)
 })
+
+// ---------- the page: reports sorted by their first words, code since the vote, the status ----------
+const { classify, grantView, fundedPage } = await import('../funded.mjs')
+
+test('reports are sorted by their first words, as the teams wrote them', () => {
+  const seen = {
+    'Milestone 1 Completion Report Project: Pocket Node: Mobile CKB Light Client Wallet': { kind: 'milestone', m: 1 },
+    'milestone.1 已完成 代码仓库： GitHub - invisibook-lab/invisibook': { kind: 'milestone', m: 1 },
+    'Milestone 3 complete: Fiber Studio v1.0.0 is live Hi everyone': { kind: 'milestone', m: 3 },
+    'Milestone 2 Report for CKBoost Preface Milestone 2 focuses on': { kind: 'milestone', m: 2 },
+    '[Weekly Update] Fiber Link (Milestone 2) / 周报(里程碑 2) Quick update': { kind: 'update' },
+    '周报 2026.5.10 完成 Invisibook 下单、结算的zk电路': { kind: 'update' },
+    'Progress update: Fiber Studio v0.1.9, upgrade when you can': { kind: 'update' },
+    'Fiber Studio, DAO Grant Completion Report 1. Executive Summary': { kind: 'delivered' },
+    'Pocket Node Completion Report General Pocket Node: DAO Grant Completion Report (Milestones 1 to 4)': { kind: 'delivered' },
+    'Fiber Link Product Delivery Report 1. Project Overview': { kind: 'delivered' },
+    'CKBoost Milestone 1 Testing Guideline Preface As we are still': { kind: 'post' },
+    'Milestone 1 Follow Ups UX Improvements': { kind: 'post' },
+    'Thank you all for your continued support!!': { kind: 'post' },
+    '@zz_tovarishch Thanks, just to clarify, we already revealed the repo URL in the M1 report.': { kind: 'post' },
+  }
+  for (const [text, want] of Object.entries(seen)) assert.deepEqual(classify(text), want, text)
+})
+
+const NOW = Date.parse('2026-11-01T12:00:00Z'), wk = (iso) => Math.floor(Date.parse(iso) / 1000)
+const grant = { topic: 1, name: 'Test', follow: ['a/b'], since: '2026-06-11', grant: '$6,000' }
+const view = (posts, rows, events = []) => grantView(grant, { repos: ['a/b'], rows: () => rows, events, now: NOW, thread: { posts } })
+
+test('code counts from the vote on, by people', () => {
+  const g = view([], [[wk('2026-05-01'), 'x', 50], [wk('2026-06-15'), 'x', 3], [wk('2026-08-03'), 'y', 4]])
+  assert.equal(g.commits, 7)
+  assert.equal(g.people, 2)
+  assert.equal(g.bars.reduce((a, b) => a + b, 0), 7)
+  assert.equal(g.bars.length, Math.floor((NOW - Math.floor(Date.parse('2026-06-11') / 6048e5) * 6048e5) / 6048e5) + 1)
+  assert.equal(view([], null).counting, true)
+})
+
+test('delivered, in progress, quiet', () => {
+  const old = [[wk('2026-08-03'), 'y', 4]]
+  assert.equal(view([{ n: 9, at: '2026-09-08T10:00:00Z', kind: 'delivered' }], old).status, 'delivered')
+  assert.equal(view([{ n: 3, at: '2026-10-25T10:00:00Z', kind: 'update' }], old).status, 'progress')
+  assert.equal(view([{ n: 3, at: '2026-08-25T10:00:00Z', kind: 'update' }], old).status, 'quiet')
+  // work on any branch in the last 30 days keeps it in progress
+  assert.equal(view([], old, [{ repo: 'a/b', actor: 'y', at: '2026-10-28T10:00:00Z' }]).status, 'progress')
+  // a post before the vote is not a report on this grant
+  assert.equal(view([{ n: 2, at: '2026-05-01T10:00:00Z', kind: 'delivered' }], old).delivered, null)
+  // a plain post is not a report
+  assert.equal(view([{ n: 4, at: '2026-10-30T10:00:00Z', kind: 'post' }], old).status, 'quiet')
+})
+
+test('the page names every grant in every language', () => {
+  const g = view([{ n: 5, at: '2026-07-05T10:00:00Z', kind: 'milestone', m: 2 }], [[wk('2026-07-06'), 'y', 4]])
+  for (const lang of ['en', 'pt', 'zh']) {
+    const html = fundedPage({ lang, grants: [g], base: 'https://x', url: 'https://x/funded', readAt: NOW })
+    assert.match(html, /<h2>Test<\/h2>/)
+    assert.match(html, />M2</)
+    assert.doesNotMatch(html, /\{\w+\}|f\.\w+/)
+  }
+})
