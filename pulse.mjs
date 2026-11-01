@@ -542,7 +542,8 @@ async function discoverLoop() {
   await fillOwnerTypes()
   await backfillCommits()
   await markAgentProposals()
-  if (state.moveRule !== 1) { try { await findMoves([...knownRepos(), ...historyNames()]); state.moveRule = 1; save() } catch (err) { console.warn('moves', err.message) } }
+  // 2: the new names are followed too (2026-11-01)
+  if (state.moveRule !== 2) { try { await findMoves([...knownRepos(), ...historyNames()]); state.moveRule = 2; save() } catch (err) { console.warn('moves', err.message) } }
   if (Date.now() - (state.filledAt || 0) > DAY) { try { await fillWeek() } catch (err) { console.warn('fill', err.message) } }
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
@@ -611,12 +612,12 @@ export { ckbContext, vetRepo, leaders, manifestOk, normalise, newsWorthy }
 async function followOnchain() {
   const known = new Set(knownRepos().map((f) => f.toLowerCase()))
   for (let full of onchainRepos()) {
-    const owner = ownerOf(full), key = owner.toLowerCase()
-    if (known.has(full.toLowerCase()) || blocked.has(key)) continue
+    if (known.has(full.toLowerCase()) || blocked.has(ownerOf(full).toLowerCase())) continue
     let r = await ensureMeta(full)
     // the explorer may still name a repository by its old name: follow the new one
     if (r.movedTo) { full = r.movedTo; if (known.has(full.toLowerCase())) continue; r = await ensureMeta(full) }
-    if (r.private !== false) continue
+    const owner = ownerOf(full), key = owner.toLowerCase()
+    if (r.private !== false || blocked.has(key)) continue
     const prev = state.extra[key]
     if (prev?.repos.includes(full)) continue
     // a script already on chain is not a newcomer: its group is never marked new
@@ -627,13 +628,23 @@ async function followOnchain() {
 
 // Renamed or moved repositories: their old names answer with the new one, and GitHub's statistics for both are the
 // same rows. Found 2026-11-01: cryptape/omnilock (now nervosnetwork/omnilock) and ickb/v1-core (now ickb/contracts) were
-// counted twice in the monthly history. The old name stops being polled and its stored rows go; the new one is counted.
+// counted twice in the monthly history. The repository is followed and counted under its new name from then on, its
+// rows read again from GitHub when the history has none under that name yet (the explorer still named ckb-cell/unique-cell
+// and ckb-ecofund/ckb-proxy-locks by their old names, and nothing followed the new ones).
 export async function findMoves(names) {
   for (const full of new Set(names)) { try { await ensureMeta(full, true) } catch (err) { console.warn('moves', full, err.message) } }
-  const old = Object.values(state.repos).filter((r) => r.movedTo).map((r) => r.name)
-  const n = forgetRepos(old)
-  if (names.length || n) console.log(`moves: ${old.length} old names known${n ? `, ${n} dropped from the history` : ''}`)
-  return old
+  const moves = Object.values(state.repos).filter((r) => r.movedTo)
+  const to = new Map(moves.map((r) => [r.name, r.movedTo]))
+  const swap = (list) => [...new Set(list.map((f) => to.get(f) || f))]
+  state.builders = swap(state.builders)
+  for (const o of Object.values(state.extra || {})) o.repos = swap(o.repos)
+  for (const r of moves) { try { await ensureMeta(r.movedTo) } catch (err) { console.warn('moves', r.movedTo, err.message) } }
+  const n = forgetRepos([...to.keys()]), have = new Set(historyNames())
+  const missing = [...new Set(to.values())].filter((f) => !have.has(f) && isPublic(f) && !moved(f))
+  if (missing.length) await refreshHistory(missing)
+  if (names.length || n || missing.length) console.log(`moves: ${moves.length} old names known${n ? `, ${n} dropped from the history` : ''}${missing.length ? `, ${missing.length} read under the new name` : ''}`)
+  save()
+  return moves.map((r) => r.name)
 }
 
 // the public repositories behind a FUNDED entry: the ones it names, or every known one of an owner named alone
