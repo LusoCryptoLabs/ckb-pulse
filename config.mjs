@@ -41,6 +41,19 @@ export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-networ
 // Owners never shown, whatever discovery or a suggestion finds (GitHub logins, any case)
 export const BLOCKED = []
 
+// Projects the CKB Community Fund DAO pays for, by proposal (talk.nervos.org/t/<topic>), followed whatever discovery
+// finds. Checked 2026-11-01: discovery missed three of the six at work, since none carries a CKB topic and GitHub's code
+// search finds no CKB dependency in them (a pnpm catalog, a manifest four folders deep, none yet). An owner alone means
+// all its public repositories. Rosen Bridge (9756) stays out: its CKB work shares repositories with its other chains.
+export const FUNDED = [
+  { topic: 8369, follow: ['ickb'] }, // iCKB
+  { topic: 8832, follow: ['Alive24/CKBoost'] },
+  { topic: 9845, follow: ['Keith-CY/fiber-link'] },
+  { topic: 9879, follow: ['RaheemJnr/pocket-node'] },
+  { topic: 10015, follow: ['invisibook-lab/invisibook'] },
+  { topic: 10317, follow: ['chukwuma619/fiber-desktop'] },
+]
+
 // Vetting an owner nobody listed (found among the people at work, or suggested on the page): it joins when it has a
 // public repository pushed in the last 30 days that is plainly CKB work, by topic, by name or description, or (for
 // suggestions) by a CKB dependency found with code search. "fiber" and "ccc" alone are too common elsewhere.

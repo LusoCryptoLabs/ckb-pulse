@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -29,7 +29,7 @@ export const bus = new EventEmitter()
 // how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
 export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, agentRule: 0, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, fundedAt: 0, agentRule: 0, startedAt: Date.now() }
 const ids = new Set()
 
 // ---------- persistence ----------
@@ -542,6 +542,8 @@ async function discoverLoop() {
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
     if (Date.now() - (state.onchainAt || 0) > DAY) { try { await refreshOnchain(knownRepos()); await followOnchain(); state.onchainAt = Date.now(); save() } catch (err) { console.warn('onchain', err.message) } }
+    // fundedAt is not saved: a deploy that adds a project to FUNDED follows it at once
+    if (Date.now() - (state.fundedAt || 0) > DAY) { try { await followFunded(); state.fundedAt = Date.now(); save() } catch (err) { console.warn('funded', err.message) } }
     if (Date.now() - (state.orgReposAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await listOwnerRepos() } catch (err) { console.warn('owner repos', err.message) } await verifyEventRepos() }
     if (Date.now() - state.discoveredAt > POLL.discoverEveryHours * 3600e3) { try { await discover() } catch (err) { console.warn('discovery', err.message) } }
     if (Date.now() - (state.crawledAt || 0) > POLL.discoverEveryHours * 3600e3) { try { await crawlPeople(); state.crawledAt = Date.now() } catch (err) { console.warn('crawl', err.message) } }
@@ -611,6 +613,26 @@ async function followOnchain() {
     // a script already on chain is not a newcomer: its group is never marked new
     if (state.groupsSeen && !(r.group in state.groupsSeen)) state.groupsSeen[r.group] = 0
     await addOwner({ login: owner, type: r.ownerType || 'User', repos: [full] }, 'onchain')
+  }
+}
+
+// projects the Community Fund DAO pays for (FUNDED in config.mjs), followed like an owner someone suggested. An owner
+// alone brings its public repositories pushed in the last year, so a new one joins at the next daily look.
+export async function followFunded(list = FUNDED) {
+  for (const name of list.flatMap((f) => f.follow)) {
+    const owner = ownerOf(name), key = owner.toLowerCase()
+    if (blocked.has(key) || ownerSet.has(key)) continue
+    let repos = [name]
+    if (!name.includes('/')) {
+      const res = await gh(`/users/${owner}/repos?type=owner&sort=pushed&per_page=100`)
+      const year = Date.now() - 365 * DAY
+      repos = (res.body || []).filter((m) => m.private === false && !m.fork && !m.archived && Date.parse(m.pushed_at) > year).map((m) => repoEntry(m.full_name, m).name)
+    } else if ((await ensureMeta(name)).private !== false) continue
+    const fresh = repos.filter((f) => !state.extra[key]?.repos.includes(f))
+    if (!fresh.length) continue
+    // paid for by the community, so not newcomers: their groups are never marked new
+    for (const f of fresh) { const g = state.repos[f].group; if (state.groupsSeen && !(g in state.groupsSeen)) state.groupsSeen[g] = 0 }
+    await addOwner({ login: owner, type: state.repos[fresh[0]].ownerType || 'User', repos: fresh }, 'funded')
   }
 }
 
