@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { digestPage, feedXml, loadDigests, weeks } from '../digest.mjs'
+import { digestPage, feedXml, loadDigests, weeks, digestDue } from '../digest.mjs'
 
 const period = (n) => ({ stats: { updates: 120, people: 14, projects: 9 }, bars: Array.from({ length: n }, (_, i) => (i * 7) % 11), repos: [['ckb-devrel/ccc', 30], ['nervosnetwork/ckb', 12]], commits: [['ckb-devrel/ccc', 44]], pushes: [], people: [['alice', 20, ''], ['bob', 9, '']], peopleCommits: [], orgs: [['ckb-devrel', 40]] })
 const leaders = { day: period(24), week: period(7), month: period(30) }
@@ -37,4 +37,23 @@ test('the feed lists the kept weeks and the new projects', () => {
   assert.ok(xml.indexOf('new/someone') < xml.indexOf('digest/week'), 'newest first')
   assert.doesNotMatch(xml, /\{\w+\}/)
   assert.match(xml, /&amp;lt;on&amp;gt;/) // html inside xml, escaped twice
+})
+
+test('the trend line reads the last whole month, as the page does', () => {
+  // as on 2026-11-01: November had one person so far, October 87
+  const t2 = { ...trends, months: [...trends.months.slice(0, 22), { month: '2026-10', devs: 87, newDevs: 9, commits: 1775 }, { month: '2026-11', devs: 1, newDevs: 0, commits: 3 }] }
+  const html = digestPage({ period: 'week', lang: 'en', leaders, news, trends: t2, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' })
+  assert.match(html, /87 people committed in October 2026, 9 for the first time\. A year earlier: 40\./)
+  assert.doesNotMatch(html, /2026-11/)
+})
+
+test('a digest every Monday, even the one after a first digest on a Thursday', () => {
+  const thursday = [{ at: Date.parse('2026-10-22T09:00:00Z') }]
+  assert.equal(digestDue([], Date.parse('2026-10-22T09:00:00Z')), true) // the first one, whatever the day
+  assert.equal(digestDue(thursday, Date.parse('2026-10-26T07:59:00Z')), false) // Monday, before 08:00
+  assert.equal(digestDue(thursday, Date.parse('2026-10-26T08:01:00Z')), true) // four days after the first: still due
+  const monday = [...thursday, { at: Date.parse('2026-10-26T08:01:00Z') }]
+  assert.equal(digestDue(monday, Date.parse('2026-10-26T09:00:00Z')), false) // kept already
+  assert.equal(digestDue(monday, Date.parse('2026-10-27T08:30:00Z')), false) // Tuesday
+  assert.equal(digestDue(monday, Date.parse('2026-11-02T08:00:00Z')), true)
 })

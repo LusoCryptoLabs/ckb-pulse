@@ -21,12 +21,17 @@ export function loadDigests(dir) {
 const save = () => { const tmp = file + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(D)); fs.renameSync(tmp, file) }
 export const weeks = () => D.weeks
 
-// Monday 08:00 UTC, once a week; the first one as soon as the page has a week of data, so the feed is never empty
+// Monday 08:00 UTC, once a week; the first one as soon as the page has a week of data, so the feed is never empty.
+// Each Monday counts on its own: the first one, kept on Thursday 2026-10-22, made "six days since the last" skip 10-26
+export function digestDue(kept, now = Date.now()) {
+  if (!kept.length) return true
+  const d = new Date(now)
+  if (d.getUTCDay() !== 1 || d.getUTCHours() < 8) return false
+  return kept.at(-1).at < Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 8)
+}
 export function startDigest({ leaders, news, groupOf, publicUrl }) {
   const tick = async () => {
-    const now = new Date(), last = D.weeks.at(-1)?.at || 0
-    const monday = now.getUTCDay() === 1 && now.getUTCHours() >= 8
-    if (D.weeks.length && (!monday || Date.now() - last < 6 * DAY)) return
+    if (!digestDue(D.weeks)) return
     const L = leaders().week
     if (!D.weeks.length && L.stats.updates < 50) return // not yet a week's worth
     const w = { at: Date.now(), stats: L.stats, repos: L.repos, commits: L.commits, people: L.people.map(([l, n]) => [l, n]), orgs: L.orgs, news: news().slice(0, 10).map((n) => ({ name: n.name, group: n.group, desc: n.desc })) }
@@ -77,7 +82,9 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   const list = (title, rows, fmt) => rows.length ? `<section><h2>${esc(title)}</h2><ol>${rows.map((r) => `<li><span>${fmt(r)}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''
   const max = Math.max(1, ...L.bars)
   const medals = [L.repos[0] && ['b.repos.' + period, link(L.repos[0][0])], L.people[0] && ['b.people.' + period, person(L.people[0][0])], L.orgs[0] && ['b.orgs.' + period, esc(t.group(L.orgs[0][0]))]].filter(Boolean)
-  const m = trends?.months || [], cur = m.at(-1), ago = m.at(-13)
+  // the last whole month, as on the page: the current one has only begun
+  const m = trends?.months || [], cur = m.at(-2), ago = m.at(-14)
+  const month = cur ? new Date(`${cur.month}-15T00:00:00Z`).toLocaleDateString(t('locale'), { month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
   const title = `CKB Pulse · ${t('mode.' + period)}`
   const desc = t('og.desc', { updates: t.cnt('upd', s.updates), people: t.cnt('ppl', s.people), projects: t.cnt('prj', s.projects), when: t('when.' + period) })
   const img = `${base}/og/highlights.png?p=${period}&lang=${lang}`
@@ -94,7 +101,7 @@ ${medals.length ? `<section><h2>${esc(t('dg.medals'))}</h2><ol class="medals">${
 ${L.commits.length ? `<section><h2>${esc(t('h.commits'))}</h2><ol>${L.commits.map((r) => `<li><span>${link(r[0])}</span><b>${r[1]}</b></li>`).join('')}</ol></section>` : ''}
 ${L.orgs.length ? `<section><h2>${esc(t('h.orgs'))}</h2><ol>${L.orgs.map((r) => `<li><span>${esc(t.group(r[0]))}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}</div>
 ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).map((n) => `<li><span>${link(n.name)}${n.desc ? `<br><small>${esc(n.desc.slice(0, 120))}</small>` : ''}</span></li>`).join('')}</ol></section>` : ''}
-${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs: cur.devs, month: cur.month, newDevs: cur.newDevs, yearAgo: ago?.devs ?? 0 }))}</p></section>` : ''}
+${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs: cur.devs, month, newDevs: cur.newDevs, yearAgo: ago?.devs ?? 0 }))}</p></section>` : ''}
 <footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed.xml">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
 ${maker(t)}
