@@ -21,6 +21,8 @@ for (const lang of ['en', 'pt', 'zh']) {
       assert.match(html, /&lt;on&gt;/) // descriptions are text, not markup
       assert.doesNotMatch(html.replace(/<style>[\s\S]*?<\/style>/, ''), /\{\w+\}/)
       assert.match(html, /badge\/ckb\.svg/); assert.match(html, /feed\.xml/)
+      // a long name gives way to its count: on a 320 phone "55 atualizações" pushed the page to 330
+      assert.match(html, /ol li span\{min-width:0;overflow-wrap:anywhere\}/)
     }
   })
 }
