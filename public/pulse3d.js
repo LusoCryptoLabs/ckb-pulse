@@ -609,8 +609,12 @@ function openFromLink() {
     sheetUp?.()
     if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
   }
-  // the New tab (notices, new projects, suggestions), linked from /use
-  else if (tab === 'new') { document.querySelector('.tabs [data-tab="add"]').click(); sheetUp?.() }
+  // the New tab (notices, new projects, suggestions), linked from /use; ?tab=suggest also brings the form into view,
+  // which sat below a long list of new projects (2026-11-02, y 1300 on an 800 px phone)
+  else if (tab === 'new' || tab === 'suggest') {
+    document.querySelector('.tabs [data-tab="add"]').click(); sheetUp?.()
+    if (tab === 'suggest') requestAnimationFrame(() => document.querySelector('#add .suggest')?.scrollIntoView({ block: 'start' }))
+  }
 }
 
 // ================= follow, on this device =================

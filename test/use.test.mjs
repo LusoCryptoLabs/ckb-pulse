@@ -11,7 +11,7 @@ for (const lang of ['en', 'pt', 'zh']) {
   test(`the ${lang} page lists every feature and every MCP tool`, () => {
     const html = usePage({ lang, base, url: `${base}/use` })
     for (const id of ['watch', 'follow', 'badge', 'add', 'fiber', 'funded', 'data', 'ai']) assert.match(html, new RegExp(`<section class="use" id="${id}">`))
-    for (const path of ['/digest?p=week', '/?tab=new', '/feed.xml', '/fiber', '/funded', '/api/state', '/badge/ckb.svg', '/llms.txt']) assert.ok(html.includes(base + path), path)
+    for (const path of ['/digest?p=week', '/?tab=new', '/?tab=suggest', '/feed.xml', '/fiber', '/funded', '/api/state', '/badge/ckb.svg', '/llms.txt']) assert.ok(html.includes(base + path), path)
     assert.ok(html.includes(`claude mcp add --transport http ckb-pulse ${base}/mcp`))
     for (const { name } of TOOL_INFO) assert.ok(html.includes(`<code>${name}</code>`), name)
     assert.doesNotMatch(html, /\buse\.[a-z_.]+\b(?![^<]*>)/, 'a word is missing and shows its key')
