@@ -5,51 +5,60 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fiber Pulse</title>
 <meta name="description" content="The Fiber payment network on CKB, live: its nodes, its public channels, and every channel opened or closed on chain.">
-<meta name="theme-color" content="#07090a">
+<meta name="theme-color" content="#0a0907">
 <meta name="build" content="__BUILD__">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CKB Pulse">
 <meta property="og:title" content="Fiber Pulse">
 <meta property="og:description" content="The Fiber payment network on CKB, live: its nodes, its public channels, and every channel opened or closed on chain.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="fiber.css">
 <link rel="stylesheet" href="menu.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand"><span class="live" id="live"></span><div><h1>Fiber Pulse</h1><p data-t="fb.tagline"></p></div></div>
-    <nav class="right">
-      <div class="seg" id="nets" role="group" data-t-label="fb.net"><button type="button" data-net="mainnet" data-t="fb.mainnet"></button><button type="button" data-net="testnet" data-t="fb.testnet"></button></div>
-      <span class="views-slot" id="views-slot"></span>
-      <span class="menu-slot" id="menu-slot"></span>
-    </nav>
-  </header>
+<!-- the network fills the screen; the words sit in its corners, as on the LSP's live view -->
+<canvas id="graph" role="img" data-t-label="fb.map"></canvas>
+<p class="empty" id="empty" hidden></p>
+<div class="tip" id="tip" hidden></div>
 
-  <section class="stats" id="stats"></section>
+<header class="hud top">
+  <p class="eyebrow"><span class="live" id="live"></span><span>Fiber</span> · <span id="eyebrow-net"></span> · <span data-t="fb.live"></span></p>
+  <h1 data-t="fb.title"></h1>
+  <p class="stats" id="stats"></p>
+  <p class="lead" data-t="fb.lead"></p>
+  <p class="lead hint" data-t="fb.hint"></p>
+</header>
+<nav class="hud corner" data-t-label="m.views">
+  <span class="views-slot" id="views-slot"></span>
+  <span class="menu-slot" id="menu-slot"></span>
+</nav>
 
-  <div class="main">
-    <div class="stage" id="stage">
-      <canvas id="graph" role="img" data-t-label="fb.map"></canvas>
-      <p class="now" id="now" hidden></p>
-      <p class="empty" id="empty" hidden></p>
-      <div class="tip" id="tip" hidden></div>
-      <p class="hint" data-t="fb.hint"></p>
-    </div>
-    <aside class="panel" id="panel">
-      <div id="detail" hidden></div>
-      <section>
-        <h3 data-t="fb.latest"></h3>
-        <p class="day" id="day"></p>
-        <ol class="feed" id="feed"></ol>
-        <button type="button" class="more" id="more" hidden></button>
-      </section>
-      <div id="overview"></div>
-    </aside>
+<ol class="hud log" id="log" aria-hidden="true"></ol>
+<div class="hud controls">
+  <div class="seg" id="nets" role="group" data-t-label="fb.net"><button type="button" data-net="mainnet" data-t="fb.mainnet"></button><button type="button" data-net="testnet" data-t="fb.testnet"></button></div>
+  <div class="row">
+    <div class="seg" id="modes" role="group" data-t-label="fb.v"><button type="button" data-mode="alive" data-t="fb.v.alive"></button><button type="button" data-mode="simple" data-t="fb.v.simple"></button></div>
+    <button type="button" class="pill" id="open-panel" aria-expanded="false" aria-controls="panel" data-t="fb.latest"></button>
   </div>
-
-  <footer class="note"><p data-t="fb.note1"></p><p data-t="fb.note2"></p><p><a href="use" data-href="use" data-t="use.nav"></a></p><p><a href="https://lusocryptolabs.com" target="_blank" rel="noopener" data-t="by"></a> · <a href="https://x.com/lusocryptolabs" target="_blank" rel="noopener">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse" target="_blank" rel="noopener">GitHub</a></p></footer>
+  <p class="slow" id="slow" hidden></p>
 </div>
+
+<aside class="hud card" id="detail" hidden></aside>
+<aside class="hud panel" id="panel" hidden>
+  <button type="button" class="x" id="close-panel" data-t-label="close">×</button>
+  <section>
+    <h3 data-t="fb.latest"></h3>
+    <p class="day" id="day"></p>
+    <ol class="feed" id="feed"></ol>
+    <button type="button" class="more" id="more" hidden></button>
+  </section>
+  <div id="overview"></div>
+  <footer class="note"><p data-t="fb.note1"></p><p data-t="fb.note2"></p><p><a href="use" data-href="use" data-t="use.nav"></a></p><p><a href="https://lusocryptolabs.com" target="_blank" rel="noopener" data-t="by"></a> · <a href="https://x.com/lusocryptolabs" target="_blank" rel="noopener">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse" target="_blank" rel="noopener">GitHub</a></p></footer>
+</aside>
+
 <div class="toast" id="update" role="status" hidden><span data-t="u.msg"></span><button type="button" id="update-go" data-t="u.go"></button></div>
 <p class="sr-only" id="sr" aria-live="polite"></p>
 <script src="vendor/__VENDOR__/d3.min.js"></script>

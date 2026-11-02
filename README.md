@@ -57,6 +57,8 @@ Once a day: every script the CKB explorer knows with a source repository (its re
 
 Gossip fills in slowly. Measured on testnet on 2026-10-10: a new listening node had 317 channels after 2 minutes and 537 more when their nodes announced them again 20 minutes later (that wave carried updates 41 minutes old). Outside the wave, channel updates reached it 14 to 62 s after their own timestamp (6 in 90 minutes). Openings and closings come from the chain, which is the fast path.
 
+The page draws the network the way the LSP live view draws one LSP: each announced node a cell (a hub, 8 or more neighbours, with a nucleus of squares), each pair of nodes with channels a root, thicker with more CKB. Only real changes move it: a new channel grows a root, one that leaves the map withers, a sign of life lights a root and rings its ends, a new node swells in. "Simple" keeps the plain map; the page switches to it by itself when it cannot keep 20 drawings a second (measured on testnet with Chrome's CPU throttling: 30 a second up to 6x slower, Simple at 20x).
+
 ## New projects and following
 
 A followed public repository created in the last 14 days is a new project: it is listed under New and announced once to the open pages. Forks are not. Outside the followed organisations, a new repository needs chain words in its name, description or topics. "ckb" alone does not make a repository CKB work (it is also Central Kurdish and a Codebase Knowledge Base format), and neither does the fiber-network topic, which optical fibre projects use too.
