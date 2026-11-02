@@ -105,7 +105,7 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   $('stage').appendChild(labelRenderer.domElement)
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color('#07090a')
+  scene.background = new THREE.Color('#0a0907')
   scene.fog = new THREE.FogExp2('#07090a', 0.011)
   camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 600)
   // the view only moves when the viewer moves it (or opens something to look at)

@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { FUNDED } from './config.mjs'
 import { words } from './cards.mjs'
-import { CSS, maker, useLink, pageBar, menuHead, menuScript } from './digest.mjs'
+import { CSS, maker, useLink, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 
 const TALK = 'https://talk.nervos.org'
 const DAY = 864e5, WEEK = 7 * DAY
@@ -119,12 +119,12 @@ export function grantView(f, { repos, rows, events, now = Date.now(), thread = F
 export const fundedRead = () => F.at
 
 // ---------- the page ----------
-const PAGE_CSS = `.grant{background:#0f140c;border:1px solid #26331a;border-radius:16px;padding:16px 18px;margin:16px 0}.grant h2{margin:0;font-size:20px;color:#eef3e2;text-transform:none;letter-spacing:0}
-.grant .meta{color:#9aa38e;font-size:14px;margin:2px 0 10px}.st{display:inline-block;font-size:13px;font-weight:700;border-radius:999px;padding:3px 10px;margin:0 0 10px}
+const PAGE_CSS = `.grant{background:#14120e;border:1px solid #36322a;border-radius:20px;padding:16px 18px;margin:16px 0}.grant h2{margin:0;font:600 21px var(--font-ui,sans-serif);letter-spacing:-.01em;color:#f0ece2;text-transform:none}
+.grant .meta{color:#9a9486;font-size:14px;margin:2px 0 10px}.st{display:inline-block;font-size:13px;font-weight:700;border-radius:999px;padding:3px 10px;margin:0 0 10px}
 .st.delivered{background:#cbf34d;color:#1a2208}.st.progress{background:#16301f;color:#9be5b0;border:1px solid #2d5a3a}.st.quiet{background:#3a2412;color:#ffc58a;border:1px solid #7a4a1f}
-.nums{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0;font-size:14px;color:#9aa38e}.nums b{color:#eef3e2;font-size:18px;margin-right:4px}
+.nums{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0;font-size:14px;color:#9a9486}.nums b{color:#f0ece2;font:600 18px var(--font-num,monospace);margin-right:4px}
 .ch{position:relative;padding-top:16px;margin:6px 0 4px}.ch .mk{position:absolute;top:0;transform:translateX(-50%);font-size:11px;font-weight:700;line-height:14px}svg.wk{display:block;width:100%;height:56px}
-.legend{font-size:12px;color:#9aa38e;margin:0}.legend span{white-space:nowrap;margin-right:12px}.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.legend{font-size:12px;color:#9a9486;margin:0}.legend span{white-space:nowrap;margin-right:12px}.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
 .links{font-size:14px;margin-top:8px;overflow-wrap:anywhere}.links a{margin-right:12px}.note{font-size:13px;color:#ffc58a;margin:6px 0 0}`
 const fmt = (iso, t) => (iso ? new Date(iso).toLocaleDateString(t('locale'), { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 
@@ -156,7 +156,7 @@ ${g.nonCode ? `<p class="note">${esc(t('f.nonCode'))}</p>` : ''}${g.counting ? `
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
 <link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'funded', here: '/funded' })}
-<header><i></i><h1>${esc(t('f.title'))}</h1></header><p class="sub">${esc(desc)} · <a href="${esc(base)}/?lang=${lang}">CKB Pulse</a></p>
+${pageHead({ eyebrow: t('f.eyebrow'), title: t('f.h1'), lede: esc(desc) })}
 ${grants.map(card).join('\n')}
 <footer><p>${esc(t('f.about'))}</p><p>${esc(t('f.read', { date: fmt(readAt ? new Date(readAt).toISOString() : null, t) || t('f.none') }))} <a href="${esc(base)}/api/funded">api/funded</a></p>
 ${useLink(t, base, lang)}${maker(t)}
