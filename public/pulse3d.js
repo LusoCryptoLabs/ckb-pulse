@@ -579,7 +579,8 @@ function closeShare() { shareMenu?.remove(); shareMenu = null }
 function openShare(anchor, { params, image, title }) {
   if (shareMenu && shareMenu.previousElementSibling === anchor) { closeShare(); return }
   closeShare()
-  const url = withParams(location.pathname, params), img = withParams(image, {}), enc = encodeURIComponent
+  // the day in the link: X and Telegram keep a preview per address, so each day's share is fetched afresh
+  const url = withParams(location.pathname, { ...params, d: new Date().toISOString().slice(0, 10) }), img = withParams(image, {}), enc = encodeURIComponent
   const m = document.createElement('div')
   m.className = 'share-menu'
   m.innerHTML = (navigator.share ? `<button type="button" data-act="native">${esc(t('sh.native'))}</button>` : '') +
