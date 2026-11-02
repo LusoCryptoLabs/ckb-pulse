@@ -529,12 +529,14 @@ function vetRepo(m) {
   const onlyCkb = topics.every((x) => x === 'ckb') && !/nervos|rgb\+\+|rgbpp|spore/i.test(`${m.name} ${m.description || ''}`)
   return onlyCkb ? ckbContext(m) : true
 }
-async function codeHits(login, type) {
+// the first search that finds one of the repositories asked about (live): a hit in an older one does not end it
+// (chukwuma619 on 2026-11-02: CCC in repositories untouched for months, the Fiber app 22 searches further down)
+async function codeHits(login, type, live) {
   const scope = type === 'Organization' ? 'org' : 'user'
   for (const [q, pathOk] of SEARCHES) {
     const r = await gh(`/search/code?q=${encodeURIComponent(`${q} ${scope}:${login}`)}&per_page=20`, { search: true })
     await sleep(POLL.codeSearchMs)
-    const items = (r.body?.items || []).filter((it) => it.repository && pathOk(it.path))
+    const items = (r.body?.items || []).filter((it) => it.repository && pathOk(it.path) && live.has(it.repository.full_name))
     if (items.length) return items.map((it) => it.repository.full_name)
   }
   return []
@@ -552,7 +554,7 @@ export async function vetOwner(login, { deep = false } = {}) {
   const live = (res.body || []).filter((m) => m.private === false && !m.fork && !m.archived && Date.parse(m.pushed_at) > since)
   let hits = live.filter(vetRepo).map((m) => m.full_name)
   if (deep && !hits.length && live.length) {
-    const found = new Set(await codeHits(name, type))
+    const found = new Set(await codeHits(name, type, new Set(live.map((m) => m.full_name))))
     hits = live.filter((m) => found.has(m.full_name)).map((m) => m.full_name)
   }
   hits = hits.slice(0, VET.maxRepos)
