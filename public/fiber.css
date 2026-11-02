@@ -40,6 +40,9 @@ h1 { font-size: clamp(22px, 3.4vw, 34px); line-height: 1.05; margin: 0 0 10px; f
 /* top right: the views and the menu, as on every Pulse page */
 .corner { top: var(--top); right: var(--edge-r); display: flex; gap: 8px; align-items: center; }
 .menu-slot, .views-slot { display: inline-flex; }
+/* an open menu lifts its corner above the log, the switches and the cards, so they neither show through it nor take
+   its taps (they did on a phone, 2026-11-02) */
+.corner:has(details.pmenu[open]) { z-index: 20; }
 
 /* bottom left: what just happened */
 .log { left: var(--edge); bottom: var(--bot); margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; max-width: min(46ch, 42vw); font-size: 13px; pointer-events: none; }
