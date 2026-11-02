@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, fundedRepos, peopleEvents } from './pulse.mjs'
+import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, fundedRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows } from './history.mjs'
 import { loadFunded, startFunded, grantView, fundedPage, fundedRead } from './funded.mjs'
 import { FUNDED } from './config.mjs'
@@ -17,6 +17,7 @@ import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { etag, notModified, shared } from './cache.mjs'
+import { makeMcp, mcpHttp } from './mcp.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
@@ -150,6 +151,9 @@ function readJson(req, max, done) {
   req.on('end', () => { let j = null; try { j = JSON.parse(body) } catch {} done(j) })
 }
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
+// the same data for AI agents, as MCP tools (mcp.mjs)
+const fundedNow = () => ({ readAt: fundedRead() ? new Date(fundedRead()).toISOString() : null, grants: FUNDED.map((f) => grantView(f, { repos: fundedRepos(f.follow), rows: repoRows, events: peopleEvents() })) })
+const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, funded: fundedNow, trends: () => trends(knownRepos()) })
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x')
@@ -170,8 +174,8 @@ const server = http.createServer((req, res) => {
   }
   // the grants the Community Fund DAO pays for: their code next to their reports, as a page and as JSON
   if (url.pathname === '/funded' || url.pathname === '/api/funded') {
-    const events = peopleEvents(), grants = FUNDED.map((f) => grantView(f, { repos: fundedRepos(f.follow), rows: repoRows, events }))
-    if (url.pathname === '/api/funded') return sendJson(req, res, { readAt: fundedRead() ? new Date(fundedRead()).toISOString() : null, grants })
+    const { readAt, grants } = fundedNow()
+    if (url.pathname === '/api/funded') return sendJson(req, res, { readAt, grants })
     hit('funded', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, fundedPage({ lang: langOf(url.searchParams), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead() }))
   }
@@ -190,6 +194,7 @@ const server = http.createServer((req, res) => {
     return sendText(req, res, 200, { 'content-type': TYPES['.svg'], 'cache-control': 'public, max-age=600' }, svg)
   }
   if (url.pathname === '/api/visits') return sendJson(req, res, visits(30))
+  if (url.pathname === '/mcp') { if (req.method === 'POST') hit('mcp', ipOf(req), req.headers['user-agent']); return mcpHttp(req, res, mcp, baseOf(req)) }
   if (url.pathname === '/api/fiber') {
     const d = fiberState(url.searchParams.get('net') || 'mainnet')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"unknown network"}') }

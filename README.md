@@ -109,6 +109,26 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /digest?p=day|week|month&lang=`: the highlights as a page; `GET /feed.xml?lang=`: the Atom feed
 - `GET /badge/repo.svg?name=`, `/badge/person.svg?login=`, `/badge/ckb.svg`, each with `lang=`: badges
 - `GET /api/visits`: views and visitors per day, 30 days
+- `POST /mcp`: the same data for AI agents, see below
+
+## MCP
+
+Pulse is also a [Model Context Protocol](https://modelcontextprotocol.io) server at `/mcp` (Streamable HTTP, no session, nothing to install):
+
+```sh
+claude mcp add --transport http ckb-pulse https://pulse-lab.lusocryptolabs.com/mcp
+```
+
+Its tools only read what Pulse already stores (no GitHub call), people only, over the last 30 days:
+
+- `overview`: updates, people and projects in a day, week or month, the most active, and the projects new to Pulse
+- `find_projects`: the followed projects by words and by area (`ckb`, `fiber`, `dob/spore`, `rgb++`, `ccc`, `nervos`)
+- `project`: one project, its activity, months, people and latest updates
+- `person`: one person's projects, the areas and languages of those projects, and the kinds of updates they make
+- `who_works_on`: the people most active in an area or in the projects that match some words
+- `recent_updates`: the latest updates, everywhere, in one project or by one person
+- `dao_funded`: the Community Fund DAO grants, code next to reports
+- `trends`: developers, new developers and commits per month
 
 ## Another ecosystem
 

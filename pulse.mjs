@@ -964,3 +964,64 @@ export function repoDetail(asked) {
     events: list.filter((e) => !e.bot).slice(-40).reverse().map((e) => ({ at: e.at, kind: e.kind, actor: e.actor, avatar: e.avatar || '', title: e.title, url: e.url, ref: e.ref, commits: e.commits || 0 })),
   }
 }
+
+// for the MCP tools (mcp.mjs): the followed projects over the kept days, one person's profile over the same days, the
+// people at work in a set of projects, and the latest updates. People only, read from what is stored (no GitHub call)
+const keptFrom = (now) => new Date(now - POLL.keepDays * DAY).toISOString()
+export function projectsNow() {
+  const now = Date.now(), followed = followedNow(now), from = keptFrom(now), per = new Map()
+  for (const e of state.events) {
+    if (e.bot || e.at < from || !followed(e.repo)) continue
+    const p = per.get(e.repo) || { updates: 0, commits: 0, people: new Set(), lastAt: null }
+    p.updates++; if (e.kind === 'push') p.commits += e.commits || 1
+    p.people.add(e.actor); if (!p.lastAt || e.at > p.lastAt) p.lastAt = e.at
+    per.set(e.repo, p)
+  }
+  const all = [...new Set([...per.keys(), ...(state.orgRepos || []), ...pollSet()])].filter((f) => state.repos[f] && followed(f))
+  return all.map((full) => {
+    const r = state.repos[full], a = per.get(full)
+    return { name: full, group: r.group, desc: r.desc || '', lang: r.lang || '', stars: r.stars || 0, topics: r.topics || [], tags: tagsFor(r, ''), updates: a?.updates || 0, commits: a?.commits || 0, people: a?.people.size || 0, lastAt: a?.lastAt || null }
+  })
+}
+export function personProfile(login) {
+  const now = Date.now(), followed = followedNow(now), from = keptFrom(now), key = String(login).toLowerCase()
+  const list = state.events.filter((e) => !e.bot && e.at >= from && e.actor.toLowerCase() === key && followed(e.repo))
+  if (!list.length) return null
+  const projects = new Map(), areas = {}, languages = {}, kinds = {}
+  let avatar = '', firstAt = list[0].at, lastAt = list[0].at
+  for (const e of list) {
+    const p = projects.get(e.repo) || { name: e.repo, updates: 0, commits: 0, lastAt: null }
+    p.updates++; if (e.kind === 'push') p.commits += e.commits || 1; if (!p.lastAt || e.at > p.lastAt) p.lastAt = e.at
+    projects.set(e.repo, p)
+    kinds[e.kind] = (kinds[e.kind] || 0) + 1
+    if (e.avatar) avatar = e.avatar
+    if (e.at < firstAt) firstAt = e.at
+    if (e.at > lastAt) lastAt = e.at
+  }
+  // the areas and languages of the projects a person works on, weighted by their updates there
+  for (const p of projects.values()) {
+    const r = state.repos[p.name] || { name: p.name }
+    for (const t of tagsFor(r, '')) areas[t] = (areas[t] || 0) + p.updates
+    if (r.lang) languages[r.lang] = (languages[r.lang] || 0) + p.updates
+  }
+  return { login: list[0].actor, avatar, days: POLL.keepDays, updates: list.length, firstAt, lastAt, projects: [...projects.values()].sort((a, b) => b.updates - a.updates || a.name.localeCompare(b.name)), areas, languages, kinds }
+}
+export function peopleIn(match, limit = 15) {
+  const now = Date.now(), followed = followedNow(now), from = keptFrom(now), per = new Map()
+  for (const e of state.events) {
+    if (e.bot || e.at < from || !followed(e.repo) || !match(e.repo)) continue
+    const p = per.get(e.actor) || { login: e.actor, updates: 0, commits: 0, projects: new Map() }
+    p.updates++; if (e.kind === 'push') p.commits += e.commits || 1
+    p.projects.set(e.repo, (p.projects.get(e.repo) || 0) + 1)
+    per.set(e.actor, p)
+  }
+  return [...per.values()].sort((a, b) => b.updates - a.updates || a.login.localeCompare(b.login)).slice(0, limit)
+    .map((p) => ({ login: p.login, updates: p.updates, commits: p.commits, projects: [...p.projects].sort((a, b) => b[1] - a[1]).map(([name, updates]) => ({ name, updates })) }))
+}
+export function latestUpdates({ repo = '', actor = '', limit = 20 } = {}) {
+  // newest first by time: a commit read late can be stored after newer events
+  const followed = followedNow(Date.now()), r = repo.toLowerCase(), a = actor.toLowerCase()
+  return state.events.filter((e) => !e.bot && followed(e.repo) && (!r || e.repo.toLowerCase() === r) && (!a || e.actor.toLowerCase() === a))
+    .sort((x, y) => y.at.localeCompare(x.at)).slice(0, limit)
+    .map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: e.title || '', url: e.url || '', commits: e.commits || 0 }))
+}
