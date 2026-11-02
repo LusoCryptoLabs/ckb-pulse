@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { FUNDED } from './config.mjs'
 import { words } from './cards.mjs'
-import { CSS, maker, useLink } from './digest.mjs'
+import { CSS, maker, useLink, pageBar, menuHead, menuScript } from './digest.mjs'
 
 const TALK = 'https://talk.nervos.org'
 const DAY = 864e5, WEEK = 7 * DAY
@@ -154,11 +154,12 @@ ${g.nonCode ? `<p class="note">${esc(t('f.nonCode'))}</p>` : ''}${g.counting ? `
 <p class="links"><a href="${TALK}/t/${g.topic}">${esc(t('f.thread'))}</a>${g.repos.map((r) => `<a href="${esc(base)}/?repo=${encodeURIComponent(r)}&lang=${lang}">${esc(r)}</a>`).join('')}</p></article>`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
-<link rel="icon" href="${esc(base)}/icon-192.png"><style>${CSS}${PAGE_CSS}</style></head><body><main>
+<link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
+${pageBar(t, { base, lang, current: 'funded', here: '/funded' })}
 <header><i></i><h1>${esc(t('f.title'))}</h1></header><p class="sub">${esc(desc)} · <a href="${esc(base)}/?lang=${lang}">CKB Pulse</a></p>
 ${grants.map(card).join('\n')}
 <footer><p>${esc(t('f.about'))}</p><p>${esc(t('f.read', { date: fmt(readAt ? new Date(readAt).toISOString() : null, t) || t('f.none') }))} <a href="${esc(base)}/api/funded">api/funded</a></p>
 ${useLink(t, base, lang)}${maker(t)}
 <p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(url)}?lang=${l}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
-</main></body></html>`
+</main>${menuScript(base)}</body></html>`
 }

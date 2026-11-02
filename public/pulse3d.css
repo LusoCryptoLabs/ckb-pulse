@@ -46,7 +46,18 @@ button, select, input { font: inherit; color: inherit; }
 .icon { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 38px; height: 38px; padding: 0 9px; background: var(--glass); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; text-decoration: none; font-size: 13px; }
 .icon svg { width: 18px; height: 18px; }
 .icon:hover, .icon[aria-expanded="true"] { border-color: var(--lime); }
-.icon.help { font-size: 17px; font-weight: 800; color: var(--lime); }
+/* the menu (menu.css) in the header: its button is one of the icons, and an open menu lifts the header above the
+   panels, the bars switch and the toasts, so its dimmed layer covers them */
+.menu-slot { display: inline-flex; }
+.top:has(details.pmenu[open]) { z-index: 15; }
+.views-slot { display: none; align-self: center; margin-left: 10px; }
+/* in the panels: the next step where the person already is */
+.keep-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 12px 0 0; font-size: 12.5px; color: var(--mut); }
+.keep-row .chip { font: 600 12.5px/1 inherit; color: var(--lime); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; cursor: pointer; text-decoration: none; }
+.keep-row .chip:hover { border-color: var(--lime); }
+.suggest-jump { display: flex; align-items: center; gap: 8px; width: 100%; margin: 2px 0 10px; padding: 9px 12px; background: none; border: 1px dashed rgba(203, 243, 77, 0.32); border-radius: 10px; color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.suggest-jump b { margin-left: auto; color: var(--lime); }
+.suggest-jump:hover { border-color: var(--lime); }
 .icon.only-narrow { display: none; }
 .filt-btn b { background: var(--lime); color: #07090a; border-radius: 999px; font-size: 11px; min-width: 17px; height: 17px; display: inline-grid; place-items: center; padding: 0 4px; }
 
@@ -318,8 +329,6 @@ body.drawer-open .side { visibility: hidden; }
 .intro .primary:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .intro .fine { margin: 14px 0 0; text-align: center; font-size: 13px; color: var(--mut); }
 .intro .fine.by { margin-top: 6px; }
-/* the other pages, under the button: each link stays whole when the line wraps */
-.intro .fine.more a { white-space: nowrap; }
 /* floated, so the title wraps around it on a phone instead of running under it */
 .intro .langs { float: right; margin: -6px -6px 10px 14px; display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .intro .langs button { background: none; border: 0; padding: 6px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--mut); }
@@ -400,6 +409,9 @@ body.bars .now .ticker { white-space: nowrap; }
 /* no WebGL 2: the bars only (index.html picks them), with no way to the scene */
 .nogl #stage, .nogl .vb-seg { display: none; }
 
+/* the three views next to the name where the header has room for them (measured at 1280 and wider) */
+@media (min-width: 1280px) { .views-slot { display: inline-flex; } }
+
 /* medium screens */
 @media (max-width: 1599px) { :root { --side: 340px; } }
 @media (min-width: 861px) and (max-width: 1199px) {
@@ -421,6 +433,7 @@ body.bars .now .ticker { white-space: nowrap; }
   .only-narrow, .icon.only-narrow { display: inline-flex; }
   .icon.full, .filt-btn .lbl-txt { display: none; }
   .icon { min-width: 36px; height: 36px; padding: 0 8px; }
+  .top .pm-btn { width: 36px; height: 36px; }
   .search { display: none; }
   .search.open { display: block; position: fixed; top: 54px; left: 12px; right: 12px; z-index: 12; }
   /* the header is its own layer: while the search is open it goes above the bars switch, or the switch takes the taps
@@ -451,6 +464,7 @@ body.bars .now .ticker { white-space: nowrap; }
 @media (max-width: 520px) { .tl-hint { display: none; } }
 @media (max-width: 360px) {
   .icon { min-width: 33px; height: 33px; padding: 0 6px; }
+  .top .pm-btn { width: 33px; height: 33px; }
   .kpis { gap: 4px; } .kpis .kpi { padding: 4px 3px; } .kpis b { font-size: 16px; } .kpis span { font-size: 10.5px; }
   .brand h1 { font-size: 16px; }
   .periods button { padding: 5px 8px; font-size: 12.5px; }

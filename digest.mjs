@@ -4,6 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
+import { barHtml } from './public/menu.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const short = (name) => String(name || '').split('/').pop()
@@ -12,6 +13,10 @@ const KEEP = 53
 let file = ''
 let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], newest last
 // who made the page, where it is posted about and its source, at the foot of every plain page
+// the bar every server page opens with (the name, the three views, the menu), and its style and script
+export const pageBar = barHtml
+export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/menu.css">`
+export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // the page that lists everything Pulse does, linked from the other pages' footers
 export const useLink = (t, base, lang) => `<p><a href="${esc(base)}/use?lang=${lang}">${esc(t('use.nav'))}</a></p>`
 export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
@@ -92,8 +97,9 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   const img = `${base}/og/highlights.png?p=${period}&lang=${lang}`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
-<link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png"><style>${CSS}</style></head><body><main>
-<header><i></i><h1>CKB Pulse</h1></header><p class="sub">${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a></p>
+<link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
+${pageBar(t, { base, lang, current: 'digest', here: `/digest?p=${period}` })}
+<header><i></i><h1>${esc(t('tab.top'))}</h1></header><p class="sub">${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a></p>
 <nav class="p">${['day', 'week', 'month'].map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
 <p class="sub">${esc(t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
@@ -108,7 +114,7 @@ ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
 ${useLink(t, base, lang)}${maker(t)}
 <p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(q(period, l))}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
-</main></body></html>`
+</main>${menuScript(base)}</body></html>`
 }
 
 // ---------- the feed ----------
