@@ -28,7 +28,7 @@ export function usePage({ lang, base, url }) {
     ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/?${L}`, 'use.watch.a']])}`],
     ['follow', `<p>${esc(t('use.follow.p'))}</p>${go([[`${base}/digest?p=week&${L}`, 'use.follow.digest'], [`${base}/?tab=new&${L}`, 'use.follow.notify', 1], [`${base}/feed.xml?${L}`, 'use.follow.feed', 1]])}`],
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
-    ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=new&${L}`, 'use.add.a']])}`],
+    ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
     ['fiber', `<p>${esc(t('use.fiber.p'))}</p>${go([[`${base}/fiber`, 'use.fiber.a']])}`],
     ['funded', `<p>${esc(t('use.funded.p'))}</p>${go([[`${base}/funded?${L}`, 'use.funded.a']])}`],
     ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul>`],

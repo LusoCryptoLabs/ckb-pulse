@@ -110,7 +110,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /badge/repo.svg?name=`, `/badge/person.svg?login=`, `/badge/ckb.svg`, each with `lang=`: badges
 - `GET /api/visits`: views and visitors per day, 30 days
 - `POST /mcp`: the same data for AI agents, see below
-- `GET /use?lang=`: everything Pulse does, as a page for people, linked from the welcome card and the other pages' footers; `GET /llms.txt`: the same for AI agents
+- `GET /use?lang=`: everything Pulse does, as a page for people, linked from the welcome card and the other pages' footers (`/?tab=new` and `/?tab=suggest` open the New tab); `GET /llms.txt`: the same for AI agents
 
 ## MCP
 
