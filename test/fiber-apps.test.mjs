@@ -13,25 +13,29 @@ POLL.codeSearchMs = 0
 POLL.repoSearchMs = 0
 
 // GitHub as it answered on 2026-11-02, cut down: chukwuma619/twine is a Rust app with no topic, no description and no
-// CKB crate in its Cargo.toml; it calls a Fiber node from a file five folders deep
+// CKB crate in its Cargo.toml; it calls a Fiber node from a file five folders deep. The first search, for CCC, finds
+// only his older repositories (chukwuma619/cvent, last pushed in February).
 const recent = new Date(Date.now() - 864e5).toISOString()
-const meta = (full) => ({ full_name: full, name: full.split('/')[1], description: null, topics: [], private: false, fork: false, archived: false, pushed_at: recent, created_at: '2026-09-12T01:06:18Z', owner: { type: 'User' } })
+const meta = (full, pushed = recent) => ({ full_name: full, name: full.split('/')[1], description: null, topics: [], private: false, fork: false, archived: false, pushed_at: pushed, created_at: '2026-01-12T01:06:18Z', owner: { type: 'User' } })
 const hits = [
   { repository: { full_name: 'chukwuma619/twine' }, path: 'crates/server/src/fiber/rpc.rs' },
   { repository: { full_name: 'someone/vendored' }, path: 'node_modules/fiber-client/rpc.js' },
 ]
 const GH = {
   '/repos/chukwuma619/twine': meta('chukwuma619/twine'),
+  '/repos/chukwuma619/cvent': meta('chukwuma619/cvent', '2026-02-25T10:00:00Z'),
   '/repos/someone/vendored': meta('someone/vendored'),
   '/users/chukwuma619': { login: 'chukwuma619', type: 'User' },
-  '/users/chukwuma619/repos': [meta('chukwuma619/twine'), meta('chukwuma619/personal-portfolio')],
+  '/users/chukwuma619/repos': [meta('chukwuma619/twine'), meta('chukwuma619/personal-portfolio'), meta('chukwuma619/cvent', '2026-02-25T10:00:00Z')],
 }
 globalThis.fetch = async (url) => {
   const u = new URL(url)
   let body = GH[u.pathname]
   if (u.pathname === '/search/code') {
     const q = u.searchParams.get('q')
-    const items = SOURCE_SEARCHES.some((s) => q.startsWith(s)) ? hits.filter((h) => !q.includes(' user:') || q.endsWith(`user:${h.repository.full_name.split('/')[0]}`)) : []
+    const mine = (h) => !q.includes(' user:') || q.endsWith(`user:${h.repository.full_name.split('/')[0]}`)
+    const items = SOURCE_SEARCHES.some((s) => q.startsWith(s)) ? hits.filter(mine)
+      : q.startsWith('"@ckb-ccc/core"') ? [{ repository: { full_name: 'chukwuma619/cvent' }, path: 'package.json' }].filter(mine) : []
     body = { total_count: items.length, items }
   }
   if (u.pathname === '/search/repositories') body = { total_count: 0, items: [] }
