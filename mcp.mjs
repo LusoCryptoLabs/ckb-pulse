@@ -127,6 +127,8 @@ const TOOLS = [
   },
 ]
 const LIST = TOOLS.map(({ run, ...t }) => ({ ...t, annotations: { readOnlyHint: true, openWorldHint: false } }))
+// the tools by name, for the pages that tell people and agents what Pulse can answer (/use, /llms.txt)
+export const TOOL_INFO = TOOLS.map(({ name, description }) => ({ name, description }))
 
 // api: highlights, news, projects, project, person, peopleIn, updates, funded, trends (the server's own readers)
 export function makeMcp(api) {
@@ -177,9 +179,11 @@ export function makeMcp(api) {
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, accept, mcp-protocol-version, mcp-session-id', 'access-control-expose-headers': 'mcp-session-id' }
 const HELP = 'CKB Pulse as a Model Context Protocol server. Connect an MCP client to this address (Streamable HTTP, POST), e.g.\n  claude mcp add --transport http ckb-pulse <this address>\n'
-// the HTTP side: POST carries JSON-RPC; no event stream is offered, so GET is 405 as the transport allows
+// the HTTP side: POST carries JSON-RPC; no event stream is offered, so GET is 405 as the transport allows. A browser
+// that opens the address (it asks for HTML) is sent to the page that explains how to connect
 export function mcpHttp(req, res, handle, base) {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
+  if (req.method === 'GET' && /text\/html/.test(req.headers.accept || '')) { res.writeHead(303, { location: `${base}/use#ai`, 'cache-control': 'no-store' }); return res.end() }
   if (req.method !== 'POST') { res.writeHead(405, { ...CORS, allow: 'POST, OPTIONS', 'content-type': 'text/plain; charset=utf-8' }); return res.end(HELP) }
   const send = (status, json) => {
     res.writeHead(status, { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' })

@@ -18,6 +18,7 @@ import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } 
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp } from './mcp.mjs'
+import { usePage, llmsTxt } from './use.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
@@ -178,6 +179,15 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/api/funded') return sendJson(req, res, { readAt, grants })
     hit('funded', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, fundedPage({ lang: langOf(url.searchParams), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead() }))
+  }
+  // everything Pulse does, for people and for AI agents
+  if (url.pathname === '/use') {
+    hit('use', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, usePage({ lang: langOf(url.searchParams), base: baseOf(req), url: `${baseOf(req)}/use` }))
+  }
+  if (url.pathname === '/llms.txt') {
+    hit('llms', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' }, llmsTxt({ base: baseOf(req) }))
   }
   if (url.pathname === '/feed.xml') {
     hit('feed', ipOf(req), req.headers['user-agent'])
