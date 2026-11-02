@@ -73,4 +73,21 @@ if (typeof document !== 'undefined') {
     if (d) { d.open = false; d.querySelector('summary')?.focus() }
   })
   document.addEventListener('toggle', (e) => { if (e.target.matches?.('details.pmenu, details.pshare') && e.target.open) shut(e.target) }, true)
+  // a share panel stays on the screen on a narrow phone. A phone that lays it out across the right edge even once zooms
+  // the whole page out and stays there, and the tap that opens it lays the page out before any script runs, so the
+  // panel opens parked far to the left, where nothing widens the page, and is measured and placed from there
+  const PARK = '-10000px 0'
+  document.addEventListener('click', (e) => {
+    const d = e.target.closest?.('details.pshare')
+    if (d && !d.open && e.target.closest('.ps-btn')) d.querySelector(':scope > .ps-panel').style.translate = PARK
+  }, true)
+  const keep = (d) => {
+    const pn = d.querySelector(':scope > .ps-panel')
+    pn.style.translate = PARK
+    const vw = document.documentElement.clientWidth, q = pn.getBoundingClientRect(), left = q.left + 10000, right = q.right + 10000
+    const dx = right > vw - 8 ? vw - 8 - right : left < 8 ? 8 - left : 0
+    pn.style.translate = dx ? `${Math.round(dx)}px 0` : ''
+  }
+  new MutationObserver((ms) => { for (const m of ms) if (m.target.open && m.target.matches('details.pshare')) keep(m.target) })
+    .observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['open'] })
 }
