@@ -19,6 +19,7 @@ import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
+import { withStamp } from './og.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
@@ -71,13 +72,13 @@ function page(req, url) {
   const d = q.get('repo') ? repoDetail(q.get('repo')) : null
   const p = !d && q.get('person') ? personDetail(q.get('person')) : null
   let title, desc, img
-  if (d) { title = t('og.repo', { name: short(d.name) }); desc = d.desc || t('d.noDesc'); img = `/og/repo.png?name=${encodeURIComponent(d.name)}` }
-  else if (p) { title = t('og.person', { login: p.login }); desc = t('p.sum', { updates: t.cnt('upd', p.updates), projects: t.cnt('prj', p.projects.length) }); img = `/og/person.png?login=${encodeURIComponent(p.login)}` }
+  if (d) { title = t('og.repo', { name: short(d.name) }); desc = d.desc || t('d.noDesc'); img = withStamp(`/og/repo.png?name=${encodeURIComponent(d.name)}`, d) }
+  else if (p) { title = t('og.person', { login: p.login }); desc = t('p.sum', { updates: t.cnt('upd', p.updates), projects: t.cnt('prj', p.projects.length) }); img = withStamp(`/og/person.png?login=${encodeURIComponent(p.login)}`, p) }
   else {
     const h = PERIODS.includes(q.get('h')) ? q.get('h') : 'week', s = highlightsNow()[h].stats
     title = `CKB Pulse · ${t('mode.' + h)}`
     desc = t('og.desc', { updates: t.cnt('upd', s.updates), people: t.cnt('ppl', s.people), projects: t.cnt('prj', s.projects), when: t('when.' + h) })
-    img = `/og/highlights.png?p=${h}`
+    img = withStamp(`/og/highlights.png?p=${h}`, highlightsNow()[h])
   }
   img = `${base}${img}&lang=${lang}`
   const tags = [['og:type', 'website'], ['og:site_name', 'CKB Pulse'], ['og:title', title], ['og:description', desc], ['og:image', img], ['og:image:width', '1200'], ['og:image:height', '630'], ['og:url', base + url.pathname + url.search]]
@@ -88,9 +89,9 @@ function page(req, url) {
 async function shareCard(req, res, url) {
   const q = url.searchParams, lang = LANGS.includes(q.get('lang')) ? q.get('lang') : 'en', host = req.headers.host || 'localhost'
   let png = null
-  if (url.pathname === '/og/highlights.png') { const p = PERIODS.includes(q.get('p')) ? q.get('p') : 'week'; png = await card(`h|${p}|${lang}|${host}`, () => highlightsCard({ leaders: highlightsNow(), period: p, lang, host, groupOf })) }
-  if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
-  if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
+  if (url.pathname === '/og/highlights.png') { const p = PERIODS.includes(q.get('p')) ? q.get('p') : 'week'; png = await card(`h|${p}|${lang}|${host}|${q.get('v') || ''}`, () => highlightsCard({ leaders: highlightsNow(), period: p, lang, host, groupOf })) }
+  if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
+  if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}|${q.get('v') || ''}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
   if (!png) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
   res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=600' })
   res.end(png)

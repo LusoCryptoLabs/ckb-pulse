@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
 import { barHtml } from './public/menu.js'
+import { withStamp } from './og.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const short = (name) => String(name || '').split('/').pop()
@@ -63,7 +64,7 @@ async function telegram(w, groupOf, publicUrl) {
   lines.push(`${publicUrl}/digest?p=week&lang=${lang}`)
   const md = (s) => s.replace(/[_*[\]()~`>#+=|{}.!\\-]/g, (c) => '\\' + c)
   const caption = lines.map((l, i) => (i === 0 ? l.replace(/^\*([^*]*)\*(.*)$/, (_, a, b) => `*${md(a)}*${md(b)}`) : md(l))).join('\n')
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: chat, photo: `${publicUrl}/og/highlights.png?p=week&lang=${lang}`, caption, parse_mode: 'MarkdownV2' }), signal: AbortSignal.timeout(20000) })
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: chat, photo: withStamp(`${publicUrl}/og/highlights.png?p=week&lang=${lang}`, w), caption, parse_mode: 'MarkdownV2' }), signal: AbortSignal.timeout(20000) })
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`)
 }
 
@@ -94,7 +95,7 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   const month = cur ? new Date(`${cur.month}-15T00:00:00Z`).toLocaleDateString(t('locale'), { month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
   const title = `CKB Pulse · ${t('mode.' + period)}`
   const desc = t('og.desc', { updates: t.cnt('upd', s.updates), people: t.cnt('ppl', s.people), projects: t.cnt('prj', s.projects), when: t('when.' + period) })
-  const img = `${base}/og/highlights.png?p=${period}&lang=${lang}`
+  const img = withStamp(`${base}/og/highlights.png?p=${period}&lang=${lang}`, L)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
