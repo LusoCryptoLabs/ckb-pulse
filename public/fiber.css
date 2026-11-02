@@ -30,9 +30,8 @@ h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }
 .seg button { background: none; border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer; color: var(--mut); font-weight: 600; }
 .seg button[aria-pressed="true"] { background: var(--lime); color: #07090a; }
 .seg.small button { padding: 7px 9px; font-size: 12.5px; }
-.to-ckb { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--glass); text-decoration: none; font-weight: 600; font-size: 13px; }
-.to-ckb:hover { border-color: var(--lime); }
-.to-ckb::after { content: " \2197"; color: var(--mut); }
+/* the views and the menu (menu.css), as on every Pulse page; the views where there is room */
+.menu-slot, .views-slot { display: inline-flex; }
 
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .stat { background: var(--glass); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; min-width: 0; }
@@ -92,6 +91,7 @@ canvas:active { cursor: grabbing; }
 .toast button { background: var(--lime); color: #07090a; border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 800; cursor: pointer; }
 
 @media (max-width: 900px) {
+  .views-slot { display: none; }
   .main { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stage { height: 58vh; height: 58svh; min-height: 330px; }
@@ -100,6 +100,5 @@ canvas:active { cursor: grabbing; }
   h1 { font-size: 19px; }
   .stat { padding: 9px 11px; } .stat b { font-size: 20px; }
   .seg button { padding: 7px 11px; } .seg.small button { padding: 7px 7px; }
-  .to-ckb { padding: 8px 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .live.on, .now, .feed li.new { animation: none; } }

@@ -2,7 +2,7 @@
 // watched the scene and left; the digest, the feed, notices, badges, the Fiber map, the funded projects, the API and
 // the MCP server could only be found by knowing their address (2026-11-02).
 import { words } from './cards.mjs'
-import { CSS, maker } from './digest.mjs'
+import { CSS, maker, pageBar, menuHead, menuScript } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -39,13 +39,14 @@ export function usePage({ lang, base, url }) {
   ]
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
-<link rel="icon" href="${esc(base)}/icon-192.png"><link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt"><style>${CSS}${PAGE_CSS}</style></head><body><main>
+<link rel="icon" href="${esc(base)}/icon-192.png"><link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
+${pageBar(t, { base, lang, current: '', here: '/use' })}
 <header><i></i><h1>${esc(t('use.title'))}</h1></header><p class="sub">${esc(desc)} · <a href="${esc(base)}/?${L}">CKB Pulse</a></p>
 <nav class="jump">${parts.map(([id]) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</nav>
 ${parts.map(([id, body]) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${body}</section>`).join('\n')}
 <footer>${maker(t)}
 <p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(url)}?lang=${l}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
-</main></body></html>`
+</main>${menuScript(base)}</body></html>`
 }
 
 // llms.txt (llmstxt.org): what an AI agent needs to use Pulse, in English
