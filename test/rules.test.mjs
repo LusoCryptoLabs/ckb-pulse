@@ -29,13 +29,13 @@ test('news: no forks, and a followed person needs chain words', () => {
   assert.equal(newsWorthy('nervosnetwork/ckb-tools', { desc: '', topics: [] }), true)
 })
 
-test("news: GitHub's own repositories are not projects, and the owner's name in a description is no chain word", () => {
-  // announced as a new CKB project on 2026-11-02
+test("news: a .github repository is not a project, and the projects new on 2026-11-02 stay", () => {
+  // the lab's new projects that day, as GitHub described them
   assert.equal(newsWorthy('LusoCryptoLabs/.github', { desc: 'Default community files and the pull request check for LusoCryptoLabs repositories', topics: [] }), false)
-  assert.equal(newsWorthy('LusoCryptoLabs/notes', { desc: 'Notes kept by LusoCryptoLabs', topics: [] }), false)
   assert.equal(newsWorthy('nervosnetwork/.github', { desc: '', topics: [] }), false)
-  assert.equal(newsWorthy('nervosnetwork/nervosnetwork', { desc: 'Profile', topics: [] }), false)
-  assert.equal(newsWorthy('LusoCryptoLabs/cells-wallet', { desc: 'A wallet for LusoCryptoLabs on CKB', topics: [] }), true)
+  assert.equal(newsWorthy('gpBlockchain/ckb-contract-flow-html', { desc: ' https://gpblockchain.github.io/ckb-contract-flow-html/', topics: [] }), true)
+  assert.equal(newsWorthy('UTXOPlay/UTXOPlay', { desc: 'UTXOPlay game store: CKB wallet login, four playable games, Myelin replay integration and developer tools.', topics: [] }), true)
+  assert.equal(newsWorthy('toastmanAu/ckb-watch-visualiser', { desc: 'Nervos Network (CKB) blockchain visualizers housing for Wear OS (Pixel Watch 3) & Three.js mobile-first exhibits', topics: [] }), true)
 })
 
 test('vetting asks for more than the word ckb', () => {

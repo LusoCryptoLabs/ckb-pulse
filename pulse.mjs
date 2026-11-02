@@ -672,15 +672,14 @@ async function discoverLoop() {
 const NEWS_DAYS = 14
 // a fork is not a new project, and only a followed organisation is CKB by default: a followed person also keeps other
 // work (LusoCryptoLabs' fork of fiber and its test suite for a personal site were both listed, 2026-10-29). The
-// owner's name stays out of the text: "LusoCryptoLabs" says crypto, which passed every one of its repositories, and
-// in the description too (LusoCryptoLabs/.github, "Default community files ... for LusoCryptoLabs repositories", was
-// announced on 2026-11-02). GitHub's own repositories are never a project: .github holds an account's community files,
-// owner/owner its profile page
+// owner's name stays out of the text: "LusoCryptoLabs" says crypto, which passed every one of its repositories. A
+// .github repository holds an account's community files, never a project (LusoCryptoLabs/.github was announced on
+// 2026-11-02). Dropping the owner's name from descriptions too, or owner/owner repositories, also dropped two real
+// projects that day (gpBlockchain/ckb-contract-flow-html, whose description is its own link, and UTXOPlay/UTXOPlay)
 function newsWorthy(full, r) {
   const [owner, name] = full.split('/')
-  if (r.fork || name.toLowerCase() === '.github' || name.toLowerCase() === owner.toLowerCase()) return false
-  const desc = String(r.desc || '').replace(new RegExp(owner, 'gi'), ' ') // a GitHub login is letters, digits and hyphens
-  return orgSet.has(owner.toLowerCase()) || ckbContext({ name, description: desc, topics: r.topics })
+  if (r.fork || name.toLowerCase() === '.github') return false
+  return orgSet.has(owner.toLowerCase()) || ckbContext({ name, description: r.desc, topics: r.topics })
 }
 export function news(now = Date.now()) {
   const followed = followedNow(now)
