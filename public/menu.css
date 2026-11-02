@@ -63,3 +63,16 @@
   .pm-group p { margin: 3px 8px 2px; }
 }
 @media print { .pmenu, .pm-views { display: none; } }
+
+/* sharing (shareHtml in menu.js): a pill that opens a small list of where to share */
+.pshare { position: relative; display: inline-block; }
+.ps-btn { list-style: none; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: 500 13px var(--font-ui, system-ui, sans-serif); color: #f0ece2; border: 1px solid #36322a; border-radius: 999px; padding: 6px 13px; background: rgba(20, 18, 14, 0.8); -webkit-tap-highlight-color: transparent; }
+.ps-btn::-webkit-details-marker { display: none; } .ps-btn::marker { content: ""; }
+.ps-btn svg { width: 15px; height: 15px; }
+.ps-btn:hover, .pshare[open] > .ps-btn { border-color: #cbf34d; color: #cbf34d; }
+.ps-btn:focus-visible, .ps-panel a:focus-visible, .ps-panel button:focus-visible { outline: 2px solid #cbf34d; outline-offset: 2px; }
+.ps-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 31; min-width: 190px; display: grid; gap: 2px; padding: 6px; background: #121009; border: 1px solid #36322a; border-radius: 14px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7); }
+.ps-panel a, .ps-panel button { display: block; text-align: left; padding: 8px 10px; border-radius: 9px; font: 14px var(--font-ui, system-ui, sans-serif); color: #f0ece2; text-decoration: none; background: none; border: 0; cursor: pointer; white-space: nowrap; }
+.ps-panel a:hover, .ps-panel button:hover { background: rgba(203, 243, 77, 0.08); }
+.pshare.up .ps-panel { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
+@media print { .pshare { display: none; } }

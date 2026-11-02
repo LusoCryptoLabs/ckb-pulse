@@ -13,11 +13,11 @@ import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml } from './digest.mjs'
 import { limits } from './github.mjs'
-import { highlightsCard, repoCard, personCard, words, rasterise } from './cards.mjs'
+import { highlightsCard, repoCard, personCard, fundedCard, fundedPageCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { etag, notModified, shared } from './cache.mjs'
-import { makeMcp, mcpHttp } from './mcp.mjs'
+import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { withStamp } from './og.mjs'
 
@@ -65,6 +65,11 @@ async function card(key, make) {
   cards.set(key, { png, at: Date.now() })
   return png
 }
+// what the /use card draws: the tools, how many projects Pulse follows, the last 30 days
+const useFacts = () => ({ tools: TOOL_INFO.map((x) => x.name), repos: knownRepos().length, month: highlightsNow().month.stats })
+// preview tags for a page whose picture is drawn here (/fiber, /funded, /use)
+const previewTags = ({ title, desc, img, url }) => [['og:type', 'website'], ['og:site_name', 'CKB Pulse'], ['og:title', title], ['og:description', desc], ['og:image', img], ['og:image:width', '1200'], ['og:image:height', '630'], ['og:url', url]]
+  .map(([k, v]) => `<meta property="${k}" content="${attr(v)}">`).join('\n') + `\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="${attr(title)}">\n<meta name="twitter:description" content="${attr(desc)}">\n<meta name="twitter:image" content="${attr(img)}">`
 // the page, with link-preview tags for what is shared: a period's highlights, a project or a person
 function page(req, url) {
   const q = url.searchParams, base = baseOf(req)
@@ -92,6 +97,13 @@ async function shareCard(req, res, url) {
   if (url.pathname === '/og/highlights.png') { const p = PERIODS.includes(q.get('p')) ? q.get('p') : 'week'; png = await card(`h|${p}|${lang}|${host}|${q.get('v') || ''}`, () => highlightsCard({ leaders: highlightsNow(), period: p, lang, host, groupOf })) }
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}|${q.get('v') || ''}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
+  // the cards added on 2026-11-02: a funded project or the funded page, the Fiber network, /use
+  if (url.pathname === '/og/funded.png') {
+    const { grants } = fundedNow(), g = grants.find((x) => String(x.topic) === q.get('topic'))
+    png = await card(`f|${g?.topic || 'all'}|${lang}|${host}|${q.get('v') || ''}`, () => (g ? fundedCard({ g, lang, host }) : fundedPageCard({ grants, lang, host })))
+  }
+  if (url.pathname === '/og/fiber.png') { const d = fiberState(q.get('net') === 'testnet' ? 'testnet' : 'mainnet'); if (d) png = await card(`fb|${d.net}|${lang}|${host}|${q.get('v') || ''}`, () => fiberCard({ d, lang, host })) }
+  if (url.pathname === '/og/use.png') png = await card(`u|${lang}|${host}|${q.get('v') || ''}`, () => useCard({ ...useFacts(), lang, host }))
   if (!png) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
   res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=600' })
   res.end(png)
@@ -167,7 +179,7 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, fiber: fiberHealth(), visits: visits(1).days[0], build: BUILD }))
   }
   if (url.pathname === '/' || url.pathname === '/index.html') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
-  if (url.pathname === '/fiber' || url.pathname === '/fiber.html') { hit('fiber', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, FIBER, 'fiber.html') }
+  if (url.pathname === '/fiber' || url.pathname === '/fiber.html') { hit('fiber', ipOf(req), req.headers['user-agent']); const net = url.searchParams.get('net') === 'testnet' ? 'testnet' : 'mainnet', d = fiberState(net), lang = langOf(url.searchParams), t = words(lang), base = baseOf(req); const tags = previewTags({ title: `${t('fb.title')} · ${t('fb.' + net)}`, desc: t('fb.tagline'), img: withStamp(`${base}/og/fiber.png?net=${net}&lang=${lang}`, d && [d.nodes.length, d.channels.length, d.chain, d.block]), url: `${base}/fiber?net=${net}` }); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, FIBER.replace('<!--og-->', tags)) }
   // the digest as a page and as a feed; badges for READMEs. GitHub's image proxy keeps a badge for its max-age
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
@@ -179,12 +191,12 @@ const server = http.createServer((req, res) => {
     const { readAt, grants } = fundedNow()
     if (url.pathname === '/api/funded') return sendJson(req, res, { readAt, grants })
     hit('funded', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, fundedPage({ lang: langOf(url.searchParams), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead() }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, fundedPage({ lang: langOf(url.searchParams), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead(), g: url.searchParams.get('g') }))
   }
   // everything Pulse does, for people and for AI agents
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, usePage({ lang: langOf(url.searchParams), base: baseOf(req), url: `${baseOf(req)}/use` }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, usePage({ lang: langOf(url.searchParams), base: baseOf(req), url: `${baseOf(req)}/use`, img: withStamp(`${baseOf(req)}/og/use.png?lang=${langOf(url.searchParams)}`, useFacts()) }))
   }
   if (url.pathname === '/llms.txt') {
     hit('llms', ipOf(req), req.headers['user-agent'])

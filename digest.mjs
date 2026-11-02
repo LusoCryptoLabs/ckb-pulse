@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
-import { barHtml } from './public/menu.js'
+import { barHtml, shareHtml, today } from './public/menu.js'
 import { withStamp } from './og.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -76,7 +76,7 @@ a{color:#cbf34d}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
 .hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:#9a9486;border:1px solid #36322a;border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:#cbf34d}
 h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:#cbf34d}.lede{color:#9a9486;font-size:17px;margin:0;max-width:62ch}
 h2{font:500 11px var(--font-num,monospace);color:#9a9486;margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em}p.sub{color:#9a9486;margin:0 0 20px}
-nav.p a,nav.p b{display:inline-block;padding:6px 13px;border:1px solid #36322a;border-radius:999px;margin:0 6px 6px 0;text-decoration:none;font-size:14px}nav.p b{background:#cbf34d;color:#1a2208;font-weight:600}
+nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{display:inline-block;padding:6px 13px;border:1px solid #36322a;border-radius:999px;margin:0;text-decoration:none;font-size:14px}nav.p>b{background:#cbf34d;color:#1a2208;font-weight:600}
 .kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:#14120e;border:1px solid #36322a;border-radius:20px;padding:14px 16px}.kpis b{display:block;font:600 34px/1.15 var(--font-num,monospace);letter-spacing:-.02em;color:#cbf34d}.kpis span{color:#9a9486;font-size:14px}
 .bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:#14120e;border:1px solid #36322a;border-radius:18px;padding:10px}.bars i{flex:1;background:linear-gradient(#e2ff7a,#8fb81f);border-radius:3px 3px 0 0;min-height:2px}
 ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #2a2720}ol li b{color:#cbf34d;white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:#9a9486;margin-left:8px}
@@ -105,7 +105,7 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'digest', here: `/digest?p=${period}` })}
 ${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a>` })}
-<nav class="p">${['day', 'week', 'month'].map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
+<nav class="p">${['day', 'week', 'month'].map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}${shareHtml(t, { url: `${q(period, lang)}&d=${today()}`, title, image: img })}</nav>
 <p class="sub">${esc(t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
 <div class="bars" role="img" aria-label="${esc(t('h.note'))}">${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>

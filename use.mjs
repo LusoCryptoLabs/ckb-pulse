@@ -20,7 +20,7 @@ pre code{background:none;border:0;padding:0;font-size:13px;font-family:var(--fon
 ul.api li:last-child,ul.tools li:last-child{border:0}ul.api span,ul.tools span{color:#9a9486}h3{font-size:15px;margin:14px 0 4px;color:#9a9486}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid #62c9f5;color:#f0ece2;background:#0a0907;border-radius:0 8px 8px 0}
 .badge img{display:block;margin:10px 0 4px;max-width:100%;height:auto}`
 
-export function usePage({ lang, base, url }) {
+export function usePage({ lang, base, url, img = '' }) {
   const t = words(lang), L = `lang=${lang}`
   const title = `CKB Pulse · ${t('use.title')}`, desc = t('use.lead')
   const go = (links) => `<p class="go">${links.map(([href, k, alt]) => `<a${alt ? ' class="alt"' : ''} href="${esc(href)}">${esc(t(k))}</a>`).join('')}</p>`
@@ -38,7 +38,7 @@ export function usePage({ lang, base, url }) {
 <p>${esc(t('use.ai.llms', { url: `${base}/llms.txt` }))}</p>`],
   ]
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
+<meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 <link rel="icon" href="${esc(base)}/icon-192.png"><link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/use' })}
 ${pageHead({ eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}

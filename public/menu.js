@@ -37,6 +37,20 @@ export function menuHtml(t, { base = '', lang = 'en', current = '', here = '' } 
 <span class="pm-by"><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></span></div></div></details>`
 }
 
+// sharing, the same everywhere: copy the link, X, Telegram, WhatsApp, and the picture the link shows. The link carries
+// the day, since X and Telegram keep a preview per address
+const SHARE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 10v5.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+export const today = () => new Date().toISOString().slice(0, 10)
+export function shareHtml(t, { url, title, image }) {
+  const enc = encodeURIComponent, out = 'target="_blank" rel="noopener"'
+  return `<details class="pshare"><summary class="ps-btn">${SHARE_ICON}<span>${esc(t('sh.share'))}</span></summary><div class="ps-panel">`
+    + `<button type="button" data-copy="${esc(url)}" data-copied="${esc(t('sh.copied'))}">${esc(t('sh.copy'))}</button>`
+    + `<a href="https://x.com/intent/post?text=${enc(title)}&amp;url=${enc(url)}" ${out}>X</a>`
+    + `<a href="https://t.me/share/url?url=${enc(url)}&amp;text=${enc(title)}" ${out}>Telegram</a>`
+    + `<a href="https://wa.me/?text=${enc(`${title} ${url}`)}" ${out}>WhatsApp</a>`
+    + (image ? `<a href="${esc(image)}" ${out}>${esc(t('sh.image'))}</a>` : '') + '</div></details>'
+}
+
 // the bar the server pages share: the name back to the live page, the views, the menu
 export function barHtml(t, { base = '', lang = 'en', current = '', here = '' } = {}) {
   return `<div class="pm-bar"><a class="pm-brand" href="${esc(href(base, '/', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${viewsHtml(t, { base, lang, current })}${menuHtml(t, { base, lang, current, here })}</div>`
@@ -44,16 +58,19 @@ export function barHtml(t, { base = '', lang = 'en', current = '', here = '' } =
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links
 if (typeof document !== 'undefined') {
-  const shut = (except) => { for (const d of document.querySelectorAll('details.pmenu[open]')) if (d !== except) d.open = false }
-  document.addEventListener('click', (e) => {
-    const d = e.target.closest?.('details.pmenu')
+  const OPEN = 'details.pmenu[open], details.pshare[open]'
+  const shut = (except) => { for (const d of document.querySelectorAll(OPEN)) if (d !== except) d.open = false }
+  document.addEventListener('click', async (e) => {
+    const d = e.target.closest?.('details.pmenu, details.pshare')
     shut(d)
-    if (d && e.target.closest('.pm-panel a, .pm-panel button')) d.open = false
+    const copy = e.target.closest?.('[data-copy]')
+    if (copy) { e.preventDefault(); try { await navigator.clipboard.writeText(copy.dataset.copy); copy.textContent = copy.dataset.copied } catch { prompt('', copy.dataset.copy) } setTimeout(() => { if (d) d.open = false }, 900); return }
+    if (d && e.target.closest('.pm-panel a, .pm-panel button, .ps-panel a')) d.open = false
   })
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return
-    const d = document.querySelector('details.pmenu[open]')
+    const d = document.querySelector(OPEN)
     if (d) { d.open = false; d.querySelector('summary')?.focus() }
   })
-  document.addEventListener('toggle', (e) => { if (e.target.matches?.('details.pmenu') && e.target.open) shut(e.target) }, true)
+  document.addEventListener('toggle', (e) => { if (e.target.matches?.('details.pmenu, details.pshare') && e.target.open) shut(e.target) }, true)
 }
