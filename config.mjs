@@ -36,6 +36,13 @@ export const CODE_SEARCHES = [
   '"ckb-types" filename:Cargo.toml', // 525
   '"ckb-testtool" filename:Cargo.toml', // 189
 ]
+// Fiber apps call a Fiber node over its RPC and often declare no CKB library, topic or description (chukwuma619/twine,
+// 2026-11-02). These field names are Fiber's own: on 2026-11-02 the two searches found 58 repositories, all Fiber work,
+// 41 of them not followed. They match source files, so any depth counts.
+export const SOURCE_SEARCHES = [
+  '"udt_type_script" "new_invoice"', // 152
+  '"funding_udt_type_script"', // 266
+]
 export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-network', 'topic:nervos-ckb', 'topic:ckb-blockchain', 'topic:spore-protocol', 'topic:rgbpp', 'topic:fiber-network', 'topic:ckb-contract', 'topic:ckb-script', 'topic:nervos-dao', 'topic:joyid']
 
 // Owners never shown, whatever discovery or a suggestion finds (GitHub logins, any case)
@@ -86,6 +93,8 @@ export const POLL = {
   orgsEverySec: 60, // GitHub asks for X-Poll-Interval 60 on org events
   buildersCycleMin: 10, // every builder repo is checked once per cycle, spread evenly
   discoverEveryHours: 6,
+  codeSearchMs: 6500, // code search allows 10 requests a minute
+  repoSearchMs: 2200,
   keepDays: 30,
   maxEvents: 12000,
   // the main branch of each repository with work in the last commitsDays is read every commitsCycleMin; a commit that

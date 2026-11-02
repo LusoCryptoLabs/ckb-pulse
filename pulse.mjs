@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -72,8 +72,9 @@ export function load() {
     readShas()
     health.lastEventAt = Date.parse(state.events.at(-1)?.at || 0) || 0
     // discover again once when the rules change: 1, the ckb-context rule (topic-only false friends drop out);
-    // 2, fourteen more searches (2026-10-10); 3, the fiber-network topic asks for chain words too (2026-10-29)
-    if (state.ctxRule !== 3) { state.discoveredAt = 0; state.ctxRule = 3 }
+    // 2, fourteen more searches (2026-10-10); 3, the fiber-network topic asks for chain words too (2026-10-29);
+    // 4, apps that call a Fiber node (2026-11-02)
+    if (state.ctxRule !== 4) { state.discoveredAt = 0; state.ctxRule = 4 }
     // work by AI agents on their own branches became automatic on 2026-10-10: stored pushes and branches carry their
     // branch; stored proposals are looked up once (markAgentProposals)
     // 2 (2026-10-19): ccr- branches, Claude Code's cloud sessions
@@ -396,24 +397,28 @@ export async function listOwnerRepos() {
 // copy of someone else's (the AppImage catalogue keeps Neuron's package.json under database/Neuron/, measured 2026-10-09)
 const SKIP_DIRS = /(^|\/)(node_modules|vendor|third_party|database|data|fixtures?|test-fixtures|testdata|\.github)\//i
 function manifestOk(p) { return !!p && p.split('/').length <= 3 && !SKIP_DIRS.test(p) }
+// a source file that calls Fiber lives at any depth (app/src-tauri/src/fnn/rpc.rs), but still not in someone else's copy
+function sourceOk(p) { return !!p && !SKIP_DIRS.test(p) }
+const SEARCHES = [...CODE_SEARCHES.map((q) => [q, manifestOk]), ...SOURCE_SEARCHES.map((q) => [q, sourceOk])]
 
 const LOOSE_TOPICS = ['topic:ckb', 'topic:fiber-network']
-// builders: public repositories that depend on CKB libraries or carry CKB topics, outside the followed owners
+// builders: public repositories that depend on CKB libraries, call a Fiber node or carry CKB topics, outside the
+// followed owners
 export async function discover() {
   const found = new Map()
-  for (const q of CODE_SEARCHES) {
+  for (const [q, pathOk] of SEARCHES) {
     for (let page = 1; page <= 10; page++) {
       const r = await gh(`/search/code?q=${encodeURIComponent(q)}&per_page=100&page=${page}`, { search: true })
-      await sleep(6500) // code search allows 10 requests a minute
+      await sleep(POLL.codeSearchMs)
       const items = r.body?.items || []
-      for (const it of items) if (it.repository && manifestOk(it.path)) found.set(it.repository.full_name, { meta: null, code: true })
+      for (const it of items) if (it.repository && pathOk(it.path)) found.set(it.repository.full_name, { meta: null, code: true })
       if (items.length < 100) break
     }
   }
   for (const q of TOPIC_SEARCHES) {
     for (let page = 1; page <= 5; page++) {
       const r = await gh(`/search/repositories?q=${encodeURIComponent(q)}&per_page=100&page=${page}&sort=updated`, { search: true })
-      await sleep(2200)
+      await sleep(POLL.repoSearchMs)
       const items = r.body?.items || []
       for (const it of items) { const f = found.get(it.full_name); found.set(it.full_name, { meta: it, code: !!f?.code, topics: [...(f?.topics || []), q] }) }
       if (items.length < 100) break
@@ -526,10 +531,10 @@ function vetRepo(m) {
 }
 async function codeHits(login, type) {
   const scope = type === 'Organization' ? 'org' : 'user'
-  for (const q of CODE_SEARCHES) {
+  for (const [q, pathOk] of SEARCHES) {
     const r = await gh(`/search/code?q=${encodeURIComponent(`${q} ${scope}:${login}`)}&per_page=20`, { search: true })
-    await sleep(6500) // code search allows 10 requests a minute
-    const items = (r.body?.items || []).filter((it) => it.repository && manifestOk(it.path))
+    await sleep(POLL.codeSearchMs)
+    const items = (r.body?.items || []).filter((it) => it.repository && pathOk(it.path))
     if (items.length) return items.map((it) => it.repository.full_name)
   }
   return []
