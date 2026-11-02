@@ -542,8 +542,9 @@ async function codeHits(login, type, live) {
   return []
 }
 // does this owner have public CKB work from the last 30 days? deep adds the code search, used for suggestions
+const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/ // what GitHub allows in a login
 export async function vetOwner(login, { deep = false } = {}) {
-  if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(login)) return { ok: false, reason: 'invalid' }
+  if (!LOGIN_RE.test(login)) return { ok: false, reason: 'invalid' }
   if (blocked.has(login.toLowerCase())) return { ok: false, reason: 'none', login }
   const u = await gh(`/users/${login}`)
   if (!u.body) return { ok: false, reason: 'missing', login }
@@ -598,6 +599,7 @@ let askedAll = []
 let line = Promise.resolve()
 export function propose(raw, ip) {
   const login = String(raw || '').trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?github\.com\//i, '').split(/[/?#\s]/)[0]
+  if (!LOGIN_RE.test(login)) return { status: 'invalid', login }
   const now = Date.now()
   const mine = (asked.get(ip) || []).filter((x) => now - x < 3600e3)
   askedAll = askedAll.filter((x) => now - x < 3600e3)
