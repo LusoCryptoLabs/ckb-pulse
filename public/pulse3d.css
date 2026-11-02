@@ -318,6 +318,8 @@ body.drawer-open .side { visibility: hidden; }
 .intro .primary:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .intro .fine { margin: 14px 0 0; text-align: center; font-size: 13px; color: var(--mut); }
 .intro .fine.by { margin-top: 6px; }
+/* the other pages, under the button: each link stays whole when the line wraps */
+.intro .fine.more a { white-space: nowrap; }
 /* floated, so the title wraps around it on a phone instead of running under it */
 .intro .langs { float: right; margin: -6px -6px 10px 14px; display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .intro .langs button { background: none; border: 0; padding: 6px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--mut); }

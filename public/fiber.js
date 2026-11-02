@@ -325,6 +325,7 @@ for (const b of document.querySelectorAll('[data-net]')) b.addEventListener('cli
 function applyLang() {
   document.documentElement.lang = t('locale')
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t)
+  for (const el of document.querySelectorAll('a[data-href]')) el.href = `${el.dataset.href}${el.dataset.href.includes('?') ? '&' : '?'}lang=${LANG}`
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
   if (D && M) { stats(); detail(); feed(); overview(); empty() }

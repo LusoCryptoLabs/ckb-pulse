@@ -595,7 +595,7 @@ $('drawer-body').addEventListener('click', (e) => {
 // a shared link opens on what was shared
 function openFromLink() {
   const q = new URLSearchParams(location.search)
-  const repo = q.get('repo'), person = q.get('person'), h = q.get('h')
+  const repo = q.get('repo'), person = q.get('person'), h = q.get('h'), tab = q.get('tab')
   if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; openRepo(i) } }
   else if (person) {
     // GitHub logins ignore case, and so does the link preview: ?person=raheemjnr is RaheemJnr
@@ -608,6 +608,12 @@ function openFromLink() {
     // a shared week is its medals: on a phone the half sheet left them below its edge
     sheetUp?.()
     if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
+  }
+  // the New tab (notices, new projects, suggestions), linked from /use; ?tab=suggest also brings the form into view,
+  // which sat below a long list of new projects (2026-11-02, y 1300 on an 800 px phone)
+  else if (tab === 'new' || tab === 'suggest') {
+    document.querySelector('.tabs [data-tab="add"]').click(); sheetUp?.()
+    if (tab === 'suggest') requestAnimationFrame(() => document.querySelector('#add .suggest')?.scrollIntoView({ block: 'start' }))
   }
 }
 
@@ -1481,6 +1487,7 @@ function connect() {
 function applyLang() {
   document.documentElement.lang = t('locale')
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t)
+  for (const el of document.querySelectorAll('a[data-href]')) el.href = `${el.dataset.href}${el.dataset.href.includes('?') ? '&' : '?'}lang=${LANG}`
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
   $('q').placeholder = innerWidth <= 860 ? t('search') : innerWidth < 1200 ? t('searchShort') : t('search')
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
