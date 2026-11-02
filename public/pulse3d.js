@@ -320,7 +320,7 @@ function computeWindow() {
     else { c.base.copy(DORMANT); c.hT = 0.22 }
   })
   applyFilter()
-  kpis(); filterCounts(); if (VIEW === '3d') people()
+  filterCounts(); if (VIEW === '3d') people()
   if (listShown && T.period !== listPeriod && !$('drawer').hidden) renderList()
 }
 function matches(ri, k, a) {
@@ -332,7 +332,7 @@ function matches(ri, k, a) {
   return true
 }
 const filtering = () => !!(filt.tag || filt.fam || filt.mine)
-function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }); renderBars() }
+function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }); renderBars(); kpis() }
 
 // ================= numbers =================
 const tween = new Map()
@@ -349,8 +349,18 @@ function stepTweens(now) {
   }
 }
 function kpis() {
-  setNum('k-day', W.day); setNum('k-people', W.people.size); setNum('k-active', W.n.filter(Boolean).length)
-  $('k-cap').textContent = shown('k.')
+  if (!filtering()) {
+    setNum('k-day', W.day); setNum('k-people', W.people.size); setNum('k-active', W.n.filter(Boolean).length)
+    $('k-cap').textContent = shown('k.')
+    return
+  }
+  // with a filter on, the counts are what it keeps, and the line under them says of how many (until 2026-11-02 they
+  // stayed at the whole while the filter was on)
+  const t1 = T.t, t0 = t1 - span(), people = new Set(), projects = new Set()
+  let day = 0
+  for (const w of rows) { if (w.t > t1) break; if (w.t < t0 || w.r < 0 || w.b || !matches(w.r, w.k, w.a)) continue; day++; people.add(w.a); projects.add(w.r) }
+  setNum('k-day', day); setNum('k-people', people.size); setNum('k-active', projects.size)
+  $('k-cap').textContent = `${t('k.of', { n: W.day.toLocaleString(t('locale')) })} · ${shown('k.')}`
 }
 
 // ================= filters =================
@@ -536,10 +546,14 @@ function badgesFor(name, cats, extra = '') {
 // ================= suggest an organisation or a person =================
 // the server checks GitHub (CKB topics, names, or a CKB dependency, and work in the last 30 days) and adds them on its own
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms))
+const GH_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/
 $('add-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const login = $('add-login').value.trim(), out = $('add-result'), btn = $('add-form').querySelector('button')
   if (!login) return
+  // the server reads the name the same way; a name GitHub would never give is refused here, without a wait
+  const name = login.replace(/^@/, '').replace(/^https?:\/\/(www\.)?github\.com\//i, '').split(/[/?#\s]/)[0]
+  if (!GH_LOGIN.test(name)) { out.className = 'no'; out.textContent = t('a.invalid'); return }
   btn.disabled = true
   out.className = 'checking'; out.textContent = t('a.checking')
   let j = null
@@ -1112,7 +1126,7 @@ ${d.daily.people.some(Boolean) || d.daily.bots.some(Boolean) ? `<h3>${esc(t('d.m
 <p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>` : `<p class="sub quiet">${esc(t('d.monthNone'))}</p>`}
 ${onchainBlock(d.onchain)}
 ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
-${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
+${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => actorIdx.has(p.login) ? `<button type="button" data-person="${actorIdx.get(p.login)}"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></button>` : `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
 <h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kcol(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
 ${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`
     focusDrawer(true)
@@ -1410,7 +1424,8 @@ function play(period, { auto = false, from = null } = {}) {
   if (from == null) T.holdTicker = performance.now() + 4500 // say what is playing before the first update takes the line
   setPlay(true)
 }
-// the trial: the whole period at once, held still; the play button replays it
+// a period at once, held still; the play button replays it (the trial's way, for everyone since 2026-11-02: replayed
+// from its start, 7 days read "4 updates" for the first seconds)
 function whole(period) {
   T.period = period; T.mode = 'done'; T.auto = false; T.doneAt = Infinity; T.t = Date.now(); T.holdTicker = 0
   seekPtr(); computeWindow(); feed(); drawHead()
@@ -1420,7 +1435,7 @@ function whole(period) {
 $('periods').addEventListener('click', (e) => {
   const b = e.target.closest('[data-p]'); if (!b) return
   T.lastUser = Date.now(); T.chosen = true
-  if (b.dataset.p === 'live') goLive(true); else if (NEXT) whole(b.dataset.p); else play(b.dataset.p)
+  if (b.dataset.p === 'live') goLive(true); else whole(b.dataset.p)
 })
 $('btn-play').addEventListener('click', () => {
   T.lastUser = Date.now(); T.chosen = true

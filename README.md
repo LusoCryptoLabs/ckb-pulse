@@ -91,7 +91,7 @@ On a phone the projects are bars by default: one row per project with work by pe
 
 In the scene, a phone frames it into whatever the panels leave free, and the panel is a sheet at the bottom: drag its bar to a peek, to half the screen or to the top; past half, the ticker steps aside. The timeline and the sheet keep clear of the home indicator.
 
-A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, 24 hours and 7 days show the whole period at once while the play button replays it, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
+24 hours and 7 days show the whole period at once, and the play button replays it. With a filter on, the counts are what it keeps ("filtered, of 247 updates"). A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
 
 ## Menu
 

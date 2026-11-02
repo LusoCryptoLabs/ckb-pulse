@@ -90,3 +90,10 @@ test('the same push on many days is a schedule, a busy person is not', () => {
   for (let d = 0; d < 20; d++) ev.push({ kind: 'push', actor: 'untitled', repo: 'u/v', title: '', at: day(d, 12) })
   assert.deepEqual([...scheduled(ev)], ['cron|cron/x|Update README.md'])
 })
+
+test('a name GitHub would never give is refused at once, and does not count against the hourly limit', async () => {
+  const { propose } = await import('../pulse.mjs')
+  // 2026-11-02: "--not a login--" was queued as "--not", counted, and refused only after its turn
+  for (let i = 0; i < 7; i++) assert.equal(propose('--not a login--', '203.0.113.9').status, 'invalid')
+  assert.equal(propose('https://github.com/-bad-', '203.0.113.9').status, 'invalid')
+})
