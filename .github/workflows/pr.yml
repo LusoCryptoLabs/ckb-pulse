@@ -1,0 +1,15 @@
+name: pr
+
+# Checks each pull request's title and description before review.
+# The check lives in LusoCryptoLabs/.github (pr-check.yml).
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    uses: LusoCryptoLabs/.github/.github/workflows/pr-check.yml@main
