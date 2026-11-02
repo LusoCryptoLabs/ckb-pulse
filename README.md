@@ -132,6 +132,8 @@ claude mcp add --transport http ckb-pulse https://pulse-lab.lusocryptolabs.com/m
 
 A browser that opens `/mcp` is sent to `/use#ai`, which shows how to connect.
 
+It is listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.LusoCryptoLabs/ckb-pulse` (`server.json`, published with `mcp-publisher publish`).
+
 Its tools only read what Pulse already stores (no GitHub call), people only, over the last 30 days:
 
 - `overview`: updates, people and projects in a day, week or month, the most active, and the projects new to Pulse

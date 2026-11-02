@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.LusoCryptoLabs/ckb-pulse",
+  "title": "CKB Pulse",
+  "description": "Who builds on Nervos CKB, from public GitHub: projects, people, updates, DAO-funded work. Read-only.",
+  "websiteUrl": "https://pulse-lab.lusocryptolabs.com/use#ai",
+  "repository": {
+    "url": "https://github.com/LusoCryptoLabs/ckb-pulse",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://pulse-lab.lusocryptolabs.com/mcp"
+    }
+  ]
+}
