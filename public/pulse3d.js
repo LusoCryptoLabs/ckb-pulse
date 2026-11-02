@@ -605,9 +605,10 @@ $('hl-share').addEventListener('click', () => { const h = hlKey(); openShare($('
 $('drawer-body').addEventListener('click', (e) => {
   const b = e.target.closest('.share-btn'); if (!b) return
   if (b.dataset.badgeRepo || b.dataset.badgePerson) return copyBadge(b)
-  if (b.dataset.shareRepo) openShare(b, { params: { repo: b.dataset.shareRepo }, image: `og/repo.png?name=${encodeURIComponent(b.dataset.shareRepo)}`, title: t('og.repo', { name: short(b.dataset.shareRepo) }) })
+  if (b.dataset.shareRepo) shareRepo(b)
   if (b.dataset.sharePerson) openShare(b, { params: { person: b.dataset.sharePerson }, image: `og/person.png?login=${encodeURIComponent(b.dataset.sharePerson)}`, title: t('og.person', { login: b.dataset.sharePerson }) })
 })
+function shareRepo(b) { openShare(b, { params: { repo: b.dataset.shareRepo }, image: `og/repo.png?name=${encodeURIComponent(b.dataset.shareRepo)}`, title: t('og.repo', { name: short(b.dataset.shareRepo) }) }) }
 // a shared link opens on what was shared
 function openFromLink() {
   const q = new URLSearchParams(location.search)
@@ -707,14 +708,14 @@ const seenNews = (() => { try { return new Set(JSON.parse(store.get('seenNews') 
 const markSeen = (name) => { seenNews.add(name); store.set('seenNews', JSON.stringify([...seenNews].slice(-200))) }
 function renderNews() {
   const list = S?.news || []
-  $('news').innerHTML = list.slice(0, 20).map((n) => `<li><div class="n-head"><b>${esc(short(n.name))}</b><small>${esc(gname(n.group))} · ${esc(t('n.created', { ago: ago(Date.parse(n.createdAt)) }))}</small></div>${n.desc ? `<p>${esc(n.desc)}</p>` : ''}<div class="n-act"><button type="button" data-see="${esc(n.name)}">${esc(t('n.see'))}</button>${followBtn('repo', n.name)}</div></li>`).join('') || `<li class="none">${esc(t('n.none'))}</li>`
+  $('news').innerHTML = list.slice(0, 20).map((n) => `<li><div class="n-head"><b>${esc(short(n.name))}</b><small>${esc(gname(n.group))} · ${esc(t('n.created', { ago: ago(Date.parse(n.createdAt)) }))}</small></div>${n.desc ? `<p>${esc(n.desc)}</p>` : ''}<div class="n-act"><button type="button" data-see="${esc(n.name)}">${esc(t('n.see'))}</button>${followBtn('repo', n.name)}<button type="button" class="share-btn" data-share-repo="${esc(n.name)}">${esc(t('sh.share'))}</button></div></li>`).join('') || `<li class="none">${esc(t('n.none'))}</li>`
   $('news-dot').hidden = !list.some((n) => !seenNews.has(n.name) && Date.now() - Date.parse(n.createdAt) < 3 * DAY)
 }
 function seeProject(name) {
   const i = repos.findIndex((r) => r.name === name)
   if (i >= 0) openRepo(i); else window.open(`https://github.com/${name}`, '_blank', 'noopener')
 }
-$('news').addEventListener('click', (e) => { const b = e.target.closest('[data-see]'); if (b) { markSeen(b.dataset.see); seeProject(b.dataset.see); renderNews() } })
+$('news').addEventListener('click', (e) => { const sb = e.target.closest('.share-btn[data-share-repo]'); if (sb) { shareRepo(sb); return } const b = e.target.closest('[data-see]'); if (b) { markSeen(b.dataset.see); seeProject(b.dataset.see); renderNews() } })
 function showNewsToast(n) {
   const el = $('news-toast')
   el.innerHTML = `<span class="tag">${esc(t('new.repo'))}</span><span class="what">${esc(t('n.title'))}: <b>${esc(short(n.name))}</b></span><button type="button" class="go" data-see="${esc(n.name)}">${esc(t('n.see'))}</button>${followBtn('repo', n.name)}<button type="button" class="x" aria-label="${esc(t('close'))}">×</button>`

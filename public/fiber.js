@@ -6,7 +6,7 @@
 // a sign of life lights a root and rings its two ends, a new node swells into a cell. The plain map of before stays
 // as "Simple", for anyone who prefers it and for devices that cannot draw the cells fast enough.
 import { WORDS } from './words.js'
-import { menuHtml, viewsHtml } from './menu.js'
+import { menuHtml, viewsHtml, shareHtml, today } from './menu.js'
 
 const d3 = globalThis.d3
 const DAY = 864e5
@@ -34,7 +34,8 @@ const EXPLORER = { mainnet: 'https://explorer.nervos.org/transaction/', testnet:
 const HUB = 8 // a node with this many neighbours is drawn as a hub, with a nucleus of squares
 
 // ================= data =================
-let NET = ['mainnet', 'testnet'].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get('fiberNet') === 'testnet' ? 'testnet' : 'mainnet'
+const linked = location.hash.slice(1) || new URLSearchParams(location.search).get('net') // a shared link names its network
+let NET = ['mainnet', 'testnet'].includes(linked) ? linked : store.get('fiberNet') === 'testnet' ? 'testnet' : 'mainnet'
 let D = null // what the server sent for NET, kept up to date by the stream
 let M = null // the map built from it
 const places = { mainnet: new Map(), testnet: new Map() } // where each node sits, so the map keeps its shape as it changes
@@ -341,6 +342,8 @@ function size() {
   makeDust()
 }
 new ResizeObserver(() => { size(); if (!moved) fit(); draw() }).observe(canvas)
+// on a phone what happened sits above the switches, which may take one line or two
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--ctl', `${Math.ceil(e.target.getBoundingClientRect().height)}px`)).observe(document.querySelector('.controls'))
 
 // ================= pointing =================
 function nodeAt(ev) {
@@ -504,11 +507,14 @@ function show(net) {
   if (location.hash.slice(1) !== net) history.replaceState(null, '', '#' + net)
   for (const b of document.querySelectorAll('[data-net]')) b.setAttribute('aria-pressed', String(b.dataset.net === net))
   $('eyebrow-net').textContent = t('fb.' + net)
+  shareSlot()
   detail()
   load(false).catch((err) => { console.warn(err); $('empty').textContent = t('err.load'); $('empty').hidden = false; setTimeout(() => { if (NET === net && !D) show(net) }, 10000) })
 }
 for (const b of document.querySelectorAll('[data-net]')) b.addEventListener('click', () => { if (b.dataset.net !== NET) show(b.dataset.net) })
 addEventListener('hashchange', () => { const n = location.hash.slice(1); if (['mainnet', 'testnet'].includes(n) && n !== NET) show(n) })
+// the share for the network on screen; its link names the network so the preview shows that map
+function shareSlot() { $('share-slot').innerHTML = shareHtml(t, { url: `${location.origin}/fiber?net=${NET}&lang=${LANG}&d=${today()}#${NET}`, title: `${t('fb.title')} · ${t('fb.' + NET)}`, image: `${location.origin}/og/fiber.png?net=${NET}&lang=${LANG}` }); $('share-slot').querySelector('details')?.classList.add('up') }
 function applyLang() {
   document.documentElement.lang = t('locale')
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t)
@@ -517,6 +523,7 @@ function applyLang() {
   $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'fiber' })
   $('views-slot').innerHTML = viewsHtml(t, { lang: LANG, current: 'fiber' })
   $('slow').textContent = t('fb.slow')
+  shareSlot()
   $('eyebrow-net').textContent = t('fb.' + NET)
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
   if (D && M) { stats(); detail(); feed(); overview(); empty() }

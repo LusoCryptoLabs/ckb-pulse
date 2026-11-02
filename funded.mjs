@@ -6,6 +6,8 @@ import path from 'node:path'
 import { FUNDED } from './config.mjs'
 import { words } from './cards.mjs'
 import { CSS, maker, useLink, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { shareHtml, today } from './public/menu.js'
+import { withStamp } from './og.mjs'
 
 const TALK = 'https://talk.nervos.org'
 const DAY = 864e5, WEEK = 7 * DAY
@@ -125,7 +127,7 @@ const PAGE_CSS = `.grant{background:#14120e;border:1px solid #36322a;border-radi
 .nums{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0;font-size:14px;color:#9a9486}.nums b{color:#f0ece2;font:600 18px var(--font-num,monospace);margin-right:4px}
 .ch{position:relative;padding-top:16px;margin:6px 0 4px}.ch .mk{position:absolute;top:0;transform:translateX(-50%);font-size:11px;font-weight:700;line-height:14px}svg.wk{display:block;width:100%;height:56px}
 .legend{font-size:12px;color:#9a9486;margin:0}.legend span{white-space:nowrap;margin-right:12px}.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
-.links{font-size:14px;margin-top:8px;overflow-wrap:anywhere}.links a{margin-right:12px}.note{font-size:13px;color:#ffc58a;margin:6px 0 0}`
+.links{font-size:14px;margin-top:8px;overflow-wrap:anywhere;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}.links>a{margin-right:0}.share-top{margin:-8px 0 18px}:target{scroll-margin-top:12px;border-color:#cbf34d}.note{font-size:13px;color:#ffc58a;margin:6px 0 0}`
 const fmt = (iso, t) => (iso ? new Date(iso).toLocaleDateString(t('locale'), { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 
 // weekly commits as bars; the vote at the left edge, a mark per milestone report and the completion report. The marks'
@@ -141,22 +143,26 @@ function chart(g, t) {
   return `<div class="ch">${labels}<svg class="wk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><line x1="0" x2="${W}" y1="${H - 1}" y2="${H - 1}" stroke="#26331a" vector-effect="non-scaling-stroke"/>${bars}${lines}</svg></div>`
 }
 
-export function fundedPage({ lang, grants, base, url, readAt }) {
+export function fundedPage({ lang, grants, base, url, readAt, g: chosen = null }) {
   const t = words(lang)
-  const title = `CKB Pulse · ${t('f.title')}`
+  const one = grants.find((x) => String(x.topic) === String(chosen))
+  const title = one ? `${one.name} · ${t('f.title')}` : `CKB Pulse · ${t('f.title')}`
   const desc = t('f.lead')
-  const card = (g) => `<article class="grant"><h2>${esc(g.name)}</h2><p class="meta">${esc(t('f.grant', { grant: g.grant, since: fmt(g.since, t) }))}</p>
+  // the picture of the one grant a shared link names, or of them all; each named after what it draws
+  const img = one ? withStamp(`${base}/og/funded.png?topic=${one.topic}&lang=${lang}`, one) : withStamp(`${base}/og/funded.png?lang=${lang}`, grants.map((x) => [x.topic, x.commits, x.status, x.updates]))
+  const shareOf = (x) => shareHtml(t, { url: `${url}?g=${x.topic}&lang=${lang}&d=${today()}#g-${x.topic}`, title: `${x.name} · ${t('f.title')}`, image: withStamp(`${base}/og/funded.png?topic=${x.topic}&lang=${lang}`, x) })
+  const card = (g) => `<article class="grant" id="g-${g.topic}"><h2>${esc(g.name)}</h2><p class="meta">${esc(t('f.grant', { grant: g.grant, since: fmt(g.since, t) }))}</p>
 <span class="st ${g.status}">${esc(g.status === 'delivered' ? t('f.delivered', { date: fmt(g.delivered.at, t) }) : g.status === 'quiet' ? t('f.quiet', { date: fmt(g.lastWork || g.since, t) }) : t('f.progress'))}</span>
 ${chart(g, t)}<p class="legend">${[['#cbf34d', 'f.lCommits'], ['#62c9f5', 'f.lMilestone'], ['#ffd166', 'f.lDelivered']].map(([c, k]) => `<span><i style="background:${c}"></i>${esc(t(k))}</span>`).join('')}</p>
 <div class="nums"><span><b>${g.counting && !g.commits ? '…' : g.commits}</b>${esc(t.cnt('f.commits', g.commits))}</span><span><b>${g.people}</b>${esc(t.cnt('f.people', g.people))}</span><span><b>${g.updates}</b>${esc(t.cnt('f.reports', g.updates))}</span></div>
 <div class="nums"><span>${esc(t('f.lastWork'))}: ${esc(fmt(g.lastWork, t) || t('f.none'))}</span><span>${esc(t('f.lastReport'))}: ${esc(fmt(g.lastReport, t) || t('f.none'))}</span></div>
 ${g.nonCode ? `<p class="note">${esc(t('f.nonCode'))}</p>` : ''}${g.counting ? `<p class="note">${esc(t('f.counting'))}</p>` : ''}
-<p class="links"><a href="${TALK}/t/${g.topic}">${esc(t('f.thread'))}</a>${g.repos.map((r) => `<a href="${esc(base)}/?repo=${encodeURIComponent(r)}&lang=${lang}">${esc(r)}</a>`).join('')}</p></article>`
+<div class="links">${shareOf(g)}<a href="${TALK}/t/${g.topic}">${esc(t('f.thread'))}</a>${g.repos.map((r) => `<a href="${esc(base)}/?repo=${encodeURIComponent(r)}&lang=${lang}">${esc(r)}</a>`).join('')}</div></article>`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
+<meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'funded', here: '/funded' })}
-${pageHead({ eyebrow: t('f.eyebrow'), title: t('f.h1'), lede: esc(desc) })}
+${pageHead({ eyebrow: t('f.eyebrow'), title: t('f.h1'), lede: esc(desc) })}<div class="share-top">${shareHtml(t, { url: `${url}?lang=${lang}&d=${today()}`, title: `CKB Pulse · ${t('f.title')}`, image: withStamp(`${base}/og/funded.png?lang=${lang}`, grants.map((x) => [x.topic, x.commits, x.status, x.updates])) })}</div>
 ${grants.map(card).join('\n')}
 <footer><p>${esc(t('f.about'))}</p><p>${esc(t('f.read', { date: fmt(readAt ? new Date(readAt).toISOString() : null, t) || t('f.none') }))} <a href="${esc(base)}/api/funded">api/funded</a></p>
 ${useLink(t, base, lang)}${maker(t)}

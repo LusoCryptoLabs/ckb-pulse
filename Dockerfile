@@ -6,6 +6,8 @@ COPY package.json package-lock.json ./
 RUN npm clean-install --omit=dev
 COPY *.mjs ./
 COPY public ./public
+# Space Grotesk and JetBrains Mono for the share cards (SIL Open Font License, texts beside them)
+COPY fonts ./fonts
 # the platform mounts a volume at /app/data; owned by node so the server can write its state there
 RUN mkdir -p /app/data && chown node:node /app/data
 ENV PORT=8080 DATA_DIR=/app/data

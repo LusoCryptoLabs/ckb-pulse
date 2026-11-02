@@ -103,7 +103,7 @@ Every page (the live page, `/fiber`, `/funded`, `/digest`, `/use`) has the same 
 
 ## Share
 
-A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
+A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. So do `/funded` (all grants, or one with `?g=<topic>`), `/fiber?net=mainnet|testnet` (the real graph) and `/use`, and a project created in the last 14 days carries a "new on CKB" ribbon. Each picture's address carries a stamp of what it draws (`v=`) and each shared link the day (`d=`), since X and Telegram keep a preview per address; a funded project's picture names its state only when it is in progress or delivered. The cards use the pages' fonts, from `fonts/`. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
 
 ## API
 

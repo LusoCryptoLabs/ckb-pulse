@@ -7,10 +7,7 @@
 <meta name="description" content="The Fiber payment network on CKB, live: its nodes, its public channels, and every channel opened or closed on chain.">
 <meta name="theme-color" content="#0a0907">
 <meta name="build" content="__BUILD__">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="CKB Pulse">
-<meta property="og:title" content="Fiber Pulse">
-<meta property="og:description" content="The Fiber payment network on CKB, live: its nodes, its public channels, and every channel opened or closed on chain.">
+<!--og-->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
 <link rel="preload" href="vendor/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="theme.css">
@@ -40,6 +37,7 @@
   <div class="seg" id="nets" role="group" data-t-label="fb.net"><button type="button" data-net="mainnet" data-t="fb.mainnet"></button><button type="button" data-net="testnet" data-t="fb.testnet"></button></div>
   <div class="row">
     <div class="seg" id="modes" role="group" data-t-label="fb.v"><button type="button" data-mode="alive" data-t="fb.v.alive"></button><button type="button" data-mode="simple" data-t="fb.v.simple"></button></div>
+    <div id="share-slot"></div>
     <button type="button" class="pill" id="open-panel" aria-expanded="false" aria-controls="panel" data-t="fb.latest"></button>
   </div>
   <p class="slow" id="slow" hidden></p>

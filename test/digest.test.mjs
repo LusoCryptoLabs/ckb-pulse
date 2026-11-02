@@ -44,7 +44,8 @@ test('the trend line reads the last whole month, as the page does', () => {
   const t2 = { ...trends, months: [...trends.months.slice(0, 22), { month: '2026-10', devs: 87, newDevs: 9, commits: 1775 }, { month: '2026-11', devs: 1, newDevs: 0, commits: 3 }] }
   const html = digestPage({ period: 'week', lang: 'en', leaders, news, trends: t2, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' })
   assert.match(html, /87 people committed in October 2026, 9 for the first time\. A year earlier: 40\./)
-  assert.doesNotMatch(html, /2026-11/)
+  // the share links carry the day they were drawn (d=2026-11-02), which is not the trend line
+  assert.doesNotMatch(html.replace(/<details class="pshare">[\s\S]*?<\/details>/g, ''), /2026-11/)
 })
 
 test('a digest every Monday, even the one after a first digest on a Thursday', () => {
