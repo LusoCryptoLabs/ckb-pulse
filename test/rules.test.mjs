@@ -29,6 +29,15 @@ test('news: no forks, and a followed person needs chain words', () => {
   assert.equal(newsWorthy('nervosnetwork/ckb-tools', { desc: '', topics: [] }), true)
 })
 
+test("news: GitHub's own repositories are not projects, and the owner's name in a description is no chain word", () => {
+  // announced as a new CKB project on 2026-11-02
+  assert.equal(newsWorthy('LusoCryptoLabs/.github', { desc: 'Default community files and the pull request check for LusoCryptoLabs repositories', topics: [] }), false)
+  assert.equal(newsWorthy('LusoCryptoLabs/notes', { desc: 'Notes kept by LusoCryptoLabs', topics: [] }), false)
+  assert.equal(newsWorthy('nervosnetwork/.github', { desc: '', topics: [] }), false)
+  assert.equal(newsWorthy('nervosnetwork/nervosnetwork', { desc: 'Profile', topics: [] }), false)
+  assert.equal(newsWorthy('LusoCryptoLabs/cells-wallet', { desc: 'A wallet for LusoCryptoLabs on CKB', topics: [] }), true)
+})
+
 test('vetting asks for more than the word ckb', () => {
   assert.equal(vetRepo({ name: 'ckb-skill', description: '', topics: [] }), false)
   assert.equal(vetRepo({ name: 'fiber-pay', description: 'pay over fiber', topics: ['nervos'] }), true)
