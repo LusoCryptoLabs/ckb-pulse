@@ -6,8 +6,7 @@
   --bg: #0a0907; --glass: rgba(20, 18, 14, 0.8); --glass2: rgba(20, 18, 14, 0.94);
   --line: #36322a; --fg: #f0ece2; --mut: #9a9486;
   --lime: #cbf34d; --pale: #d9d4c4; --blue: #62c9f5; --pink: #ff6b8b; --amber: #f2b84b; --off: #6b675c;
-  --ui: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --num: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --ui: var(--font-ui); --num: var(--font-num); /* theme.css */
   --edge: max(16px, env(safe-area-inset-left, 0px)); --edge-r: max(16px, env(safe-area-inset-right, 0px));
   --top: calc(env(safe-area-inset-top, 0px) + 16px); --bot: calc(env(safe-area-inset-bottom, 0px) + 16px);
   color-scheme: dark;

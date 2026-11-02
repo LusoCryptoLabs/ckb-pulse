@@ -16,8 +16,10 @@ let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], ne
 // who made the page, where it is posted about and its source, at the foot of every plain page
 // the bar every server page opens with (the name, the three views, the menu), and its style and script
 export const pageBar = barHtml
-export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/menu.css">`
+export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
+// a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
+export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
 // the page that lists everything Pulse does, linked from the other pages' footers
 export const useLink = (t, base, lang) => `<p><a href="${esc(base)}/use?lang=${lang}">${esc(t('use.nav'))}</a></p>`
 export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
@@ -69,17 +71,19 @@ async function telegram(w, groupOf, publicUrl) {
 }
 
 // ---------- the page ----------
-export const CSS = `:root{color-scheme:dark}body{margin:0;background:#07090a;color:#eef3e2;font:16px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,'WenQuanYi Zen Hei','Microsoft YaHei',sans-serif}
-a{color:#cbf34d}main{max-width:760px;margin:0 auto;padding:28px 16px 48px}header{display:flex;align-items:center;gap:12px;margin-bottom:6px}header i{width:12px;height:12px;border-radius:50%;background:#cbf34d;box-shadow:0 0 12px #cbf34d}
-h1{font-size:28px;margin:0}h2{font-size:15px;color:#9aa38e;margin:28px 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}p.sub{color:#9aa38e;margin:0 0 20px}
-nav.p a,nav.p b{display:inline-block;padding:6px 12px;border:1px solid #26331a;border-radius:999px;margin:0 6px 6px 0;text-decoration:none;font-size:14px}nav.p b{background:#cbf34d;color:#1a2208;font-weight:700}
-.kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:#0f140c;border:1px solid #26331a;border-radius:14px;padding:14px 16px}.kpis b{display:block;font-size:34px;color:#cbf34d}.kpis span{color:#9aa38e;font-size:14px}
-.bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:#0f140c;border:1px solid #26331a;border-radius:14px;padding:10px}.bars i{flex:1;background:#cbf34d;border-radius:2px 2px 0 0;min-height:2px}
-ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #18210f}ol li b{color:#cbf34d;white-space:nowrap}ol li small{color:#9aa38e;margin-left:8px}
-.medals li{border:0;background:#0f140c;border-radius:12px;padding:10px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:#9aa38e;margin:0}.medals strong{font-size:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:40px;color:#9aa38e;font-size:14px;border-top:1px solid #18210f;padding-top:16px}footer img{max-width:100%;height:auto}code{background:#0f140c;border:1px solid #26331a;border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
-.langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}h1{font-size:24px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}}
-@media print{body{background:#fff;color:#111}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print{display:none}}`
+export const CSS = `:root{color-scheme:dark}body{margin:0;background:#0a0907;color:#f0ece2;font:16px/1.55 var(--font-ui,system-ui,sans-serif);background-image:radial-gradient(circle,rgba(203,243,77,.07) 1px,transparent 1.4px);background-size:22px 22px}
+a{color:#cbf34d}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
+.hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:#9a9486;border:1px solid #36322a;border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:#cbf34d}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:#cbf34d}.lede{color:#9a9486;font-size:17px;margin:0;max-width:62ch}
+h2{font:500 11px var(--font-num,monospace);color:#9a9486;margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em}p.sub{color:#9a9486;margin:0 0 20px}
+nav.p a,nav.p b{display:inline-block;padding:6px 13px;border:1px solid #36322a;border-radius:999px;margin:0 6px 6px 0;text-decoration:none;font-size:14px}nav.p b{background:#cbf34d;color:#1a2208;font-weight:600}
+.kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:#14120e;border:1px solid #36322a;border-radius:20px;padding:14px 16px}.kpis b{display:block;font:600 34px/1.15 var(--font-num,monospace);letter-spacing:-.02em;color:#cbf34d}.kpis span{color:#9a9486;font-size:14px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:#14120e;border:1px solid #36322a;border-radius:18px;padding:10px}.bars i{flex:1;background:linear-gradient(#e2ff7a,#8fb81f);border-radius:3px 3px 0 0;min-height:2px}
+ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #2a2720}ol li b{color:#cbf34d;white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:#9a9486;margin-left:8px}
+.medals li{border:1px solid #36322a;background:#14120e;border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:#9a9486;margin:0}.medals strong{font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:44px;color:#9a9486;font-size:14px;border-top:1px solid #2a2720;padding-top:16px}footer img{max-width:100%;height:auto}code{font-family:var(--font-num,monospace);background:#14120e;border:1px solid #36322a;border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
+.langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}.lede{font-size:16px}}
+@media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
 export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url }) {
@@ -100,7 +104,7 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'digest', here: `/digest?p=${period}` })}
-<header><i></i><h1>${esc(t('tab.top'))}</h1></header><p class="sub">${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a></p>
+${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a>` })}
 <nav class="p">${['day', 'week', 'month'].map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
 <p class="sub">${esc(t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>

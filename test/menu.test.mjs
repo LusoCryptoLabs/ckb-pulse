@@ -68,3 +68,12 @@ test('the live and Fiber pages have a place for the menu and its style, and the 
     assert.ok(!html.includes('id="btn-help"'), f)
   }
 })
+
+test("every page loads Cellula's look, and a reading page's title lights its starred words", async () => {
+  const { pageHead } = await import('../digest.mjs')
+  assert.equal(pageHead({ eyebrow: 'E', title: 'a *b* <c>', lede: '' }), '<header class="hero"><span class="eyebrow">E</span><h1>a <em>b</em> &lt;c&gt;</h1></header>')
+  const html = usePage({ lang: 'en', base, url: `${base}/use` })
+  assert.ok(html.includes(`<link rel="stylesheet" href="${base}/theme.css">`))
+  for (const f of ['index.html', 'fiber.html']) assert.ok(fs.readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8').includes('href="theme.css"'), f)
+  for (const k of ['dg.h1.day', 'dg.h1.week', 'dg.h1.month', 'f.h1', 'use.h1']) assert.match(WORDS.en[k], /\*[^*]+\*/, k)
+})

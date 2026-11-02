@@ -93,6 +93,10 @@ In the scene, a phone frames it into whatever the panels leave free, and the pan
 
 24 hours and 7 days show the whole period at once, and the play button replays it. With a filter on, the counts are what it keeps ("filtered, of 247 updates"). A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
 
+## Look
+
+Every page shares `public/theme.css`, the look of the Cellula pages: Space Grotesk for words and JetBrains Mono for numbers and small labels, lime on a warm black. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/funded`, `/digest`, `/use`) open with a small label, a large title with its key words lit, and one line under it.
+
 ## Menu
 
 Every page (the live page, `/fiber`, `/funded`, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, Fiber, funded, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. On wide screens the three views (live, Fiber, funded) also sit side by side next to the name. Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.

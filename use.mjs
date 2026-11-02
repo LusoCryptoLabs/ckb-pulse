@@ -2,7 +2,7 @@
 // watched the scene and left; the digest, the feed, notices, badges, the Fiber map, the funded projects, the API and
 // the MCP server could only be found by knowing their address (2026-11-02).
 import { words } from './cards.mjs'
-import { CSS, maker, pageBar, menuHead, menuScript } from './digest.mjs'
+import { CSS, maker, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -12,12 +12,12 @@ const API = [
   ['/api/fiber?net=mainnet|testnet', 'use.api.fiber'], ['/api/stream', 'use.api.stream'],
 ]
 
-const PAGE_CSS = `nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}nav.jump a{padding:5px 11px;border:1px solid #26331a;border-radius:999px;text-decoration:none;font-size:14px}
-section.use{background:#0f140c;border:1px solid #26331a;border-radius:16px;padding:16px 18px;margin:16px 0;scroll-margin-top:12px}section.use h2{margin:0 0 6px;font-size:20px;color:#eef3e2;text-transform:none;letter-spacing:0}
+const PAGE_CSS = `nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}nav.jump a{padding:5px 11px;border:1px solid #36322a;border-radius:999px;text-decoration:none;font-size:14px}
+section.use{background:#14120e;border:1px solid #36322a;border-radius:20px;padding:16px 18px;margin:16px 0;scroll-margin-top:12px}section.use h2{margin:0 0 6px;font:600 21px var(--font-ui,sans-serif);letter-spacing:-.01em;color:#f0ece2;text-transform:none}
 section.use p{margin:8px 0}.go{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}.go a{display:inline-block;padding:7px 14px;border-radius:999px;background:#cbf34d;color:#1a2208;font-weight:700;text-decoration:none;font-size:14px}
-.go a.alt{background:none;color:#cbf34d;border:1px solid #3a4a26}pre{background:#07090a;border:1px solid #26331a;border-radius:10px;padding:10px 12px;margin:8px 0;overflow-x:auto;user-select:all;-webkit-user-select:all}
-pre code{background:none;border:0;padding:0;font-size:13px;overflow-wrap:normal;white-space:pre}ul.api,ul.tools{list-style:none;padding:0;margin:8px 0}ul.api li,ul.tools li{padding:6px 0;border-bottom:1px solid #18210f;overflow-wrap:anywhere}
-ul.api li:last-child,ul.tools li:last-child{border:0}ul.api span,ul.tools span{color:#9aa38e}h3{font-size:15px;margin:14px 0 4px;color:#9aa38e}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid #62c9f5;color:#eef3e2;background:#07090a;border-radius:0 8px 8px 0}
+.go a.alt{background:none;color:#cbf34d;border:1px solid #4a4536}pre{background:#0a0907;border:1px solid #36322a;border-radius:10px;padding:10px 12px;margin:8px 0;overflow-x:auto;user-select:all;-webkit-user-select:all}
+pre code{background:none;border:0;padding:0;font-size:13px;font-family:var(--font-num,monospace);overflow-wrap:normal;white-space:pre}ul.api,ul.tools{list-style:none;padding:0;margin:8px 0}ul.api li,ul.tools li{padding:6px 0;border-bottom:1px solid #2a2720;overflow-wrap:anywhere}
+ul.api li:last-child,ul.tools li:last-child{border:0}ul.api span,ul.tools span{color:#9a9486}h3{font-size:15px;margin:14px 0 4px;color:#9a9486}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid #62c9f5;color:#f0ece2;background:#0a0907;border-radius:0 8px 8px 0}
 .badge img{display:block;margin:10px 0 4px;max-width:100%;height:auto}`
 
 export function usePage({ lang, base, url }) {
@@ -41,7 +41,7 @@ export function usePage({ lang, base, url }) {
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
 <link rel="icon" href="${esc(base)}/icon-192.png"><link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/use' })}
-<header><i></i><h1>${esc(t('use.title'))}</h1></header><p class="sub">${esc(desc)} · <a href="${esc(base)}/?${L}">CKB Pulse</a></p>
+${pageHead({ eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}
 <nav class="jump">${parts.map(([id]) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</nav>
 ${parts.map(([id, body]) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${body}</section>`).join('\n')}
 <footer>${maker(t)}

@@ -1,7 +1,7 @@
 /* The menu, the views and the bar (menu.js), shared by every page. Self-contained: the server pages have none of the
    live page's styles. A menu opens under its button on wide screens and from the bottom on phones; the dimmed layer
    behind it belongs to the button, so a tap on it closes the menu even where no script runs. */
-.pmenu, .pm-bar, .pm-views { --pm-bg: #0c110a; --pm-glass: rgba(14, 18, 12, 0.76); --pm-line: rgba(203, 243, 77, 0.16); --pm-soft: rgba(203, 243, 77, 0.08); --pm-fg: #eef3e2; --pm-mut: #9aa38e; --pm-lime: #cbf34d; --pm-ink: #1a2208; }
+.pmenu, .pm-bar, .pm-views { --pm-bg: #121009; --pm-glass: rgba(20, 18, 14, 0.78); --pm-line: rgba(203, 243, 77, 0.16); --pm-soft: rgba(203, 243, 77, 0.08); --pm-fg: #f0ece2; --pm-mut: #9a9486; --pm-lime: #cbf34d; --pm-ink: #1a2208; }
 .pmenu { position: relative; display: inline-block; }
 .pm-btn { list-style: none; display: grid; place-items: center; width: 38px; height: 38px; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--pm-line); background: var(--pm-glass); color: var(--pm-fg); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .pm-btn::-webkit-details-marker { display: none; }
@@ -10,15 +10,15 @@
 .pm-btn:hover, .pmenu[open] > .pm-btn { border-color: var(--pm-lime); color: var(--pm-lime); }
 .pm-btn:focus-visible, .pm-panel a:focus-visible, .pm-panel button:focus-visible, .pm-views a:focus-visible, .pm-brand:focus-visible { outline: 2px solid var(--pm-lime); outline-offset: 2px; }
 .pmenu[open] > .pm-btn::before { content: ""; position: fixed; inset: 0; z-index: 30; cursor: default; }
-.pm-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 31; width: 300px; max-height: calc(100vh - 90px); overflow-y: auto; box-sizing: border-box; background: var(--pm-bg); border: 1px solid var(--pm-line); border-radius: 14px; padding: 8px; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.75); color: var(--pm-fg); font: 14px/1.35 Inter, system-ui, -apple-system, "Segoe UI", Roboto, "WenQuanYi Zen Hei", "Microsoft YaHei", sans-serif; text-align: left; }
+.pm-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 31; width: 300px; max-height: calc(100vh - 90px); overflow-y: auto; box-sizing: border-box; background: var(--pm-bg); border: 1px solid var(--pm-line); border-radius: 14px; padding: 8px; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.75); color: var(--pm-fg); font: 14px/1.35 var(--font-ui, system-ui, sans-serif); text-align: left; }
 .pm-group { display: grid; gap: 1px; padding: 2px 0 6px; }
-.pm-group p { margin: 4px 8px 3px; font-size: 10.5px; font-weight: 700; color: var(--pm-mut); text-transform: uppercase; letter-spacing: 0.08em; }
+.pm-group p { margin: 4px 8px 3px; font: 500 10.5px var(--font-num, monospace); color: var(--pm-mut); text-transform: uppercase; letter-spacing: 0.08em; }
 .pm-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 9px; color: var(--pm-fg); text-decoration: none; min-height: 34px; box-sizing: border-box; }
 .pm-row:hover { background: var(--pm-soft); }
 .pm-row[aria-current="page"] { background: rgba(203, 243, 77, 0.13); color: var(--pm-lime); font-weight: 700; }
 .pm-row span { min-width: 0; }
 .pm-row small { margin-left: auto; padding-left: 8px; color: var(--pm-mut); font-size: 11.5px; white-space: nowrap; }
-.pm-tile { flex: none; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font: 800 10px/1 Inter, system-ui, sans-serif; font-style: normal; background: rgba(203, 243, 77, 0.12); color: var(--pm-lime); }
+.pm-tile { flex: none; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font: 700 10px/1 var(--font-num, monospace); font-style: normal; background: rgba(203, 243, 77, 0.12); color: var(--pm-lime); }
 .pm-tile svg { width: 12px; height: 12px; }
 .pm-tile b { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pm-live { background: var(--pm-lime); color: var(--pm-ink); }
@@ -36,7 +36,7 @@
 
 /* the three views, side by side */
 .pm-views { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--pm-glass); border: 1px solid var(--pm-line); }
-.pm-views a { padding: 4px 11px; border-radius: 999px; font: 600 12.5px/1.4 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--pm-mut); text-decoration: none; white-space: nowrap; }
+.pm-views a { padding: 4px 11px; border-radius: 999px; font: 500 12.5px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--pm-mut); text-decoration: none; white-space: nowrap; }
 .pm-views a:hover { color: var(--pm-fg); }
 .pm-views a[aria-current="page"] { background: var(--pm-lime); color: var(--pm-ink); }
 
