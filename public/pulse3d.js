@@ -3,6 +3,7 @@
 // Data: /api/state (7 days of compact history, highlights, groups), /api/stream (live), /api/repo (one project).
 // three.js comes only when the scene is first shown (loadScene): the bars, what a phone shows, never need its 370 kB
 import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
+import { menuHtml, viewsHtml } from './menu.js'
 
 const DAY = 864e5
 const IDLE_MS = 15000
@@ -609,13 +610,19 @@ function openFromLink() {
     sheetUp?.()
     if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
   }
-  // the New tab (notices, new projects, suggestions), linked from /use; ?tab=suggest also brings the form into view,
-  // which sat below a long list of new projects (2026-11-02, y 1300 on an 800 px phone)
-  else if (tab === 'new' || tab === 'suggest') {
-    document.querySelector('.tabs [data-tab="add"]').click(); sheetUp?.()
-    if (tab === 'suggest') requestAnimationFrame(() => document.querySelector('#add .suggest')?.scrollIntoView({ block: 'start' }))
-  }
+  // the New tab, from /use and the menu of the other pages
+  else if (['new', 'notices', 'suggest'].includes(tab)) goTo(tab)
+  if (q.has('about')) openIntro()
 }
+
+// the New tab, at the part asked for: notices and the suggestion form sat below a long list of new projects (2026-11-02,
+// the form at y 1300 on an 800 px phone)
+function goTo(part) {
+  document.querySelector('.tabs [data-tab="add"]').click(); sheetUp?.()
+  const el = { notices: '#add .notify', suggest: '#add .suggest' }[part]
+  if (el) requestAnimationFrame(() => document.querySelector(el)?.scrollIntoView({ block: 'start' }))
+}
+for (const b of document.querySelectorAll('[data-goto]')) b.addEventListener('click', () => goTo(b.dataset.goto))
 
 // ================= follow, on this device =================
 // no account: what is followed lives in this browser; with notices allowed, the server is told so it can send them
@@ -1490,6 +1497,8 @@ function applyLang() {
   for (const el of document.querySelectorAll('a[data-href]')) el.href = `${el.dataset.href}${el.dataset.href.includes('?') ? '&' : '?'}lang=${LANG}`
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
   $('q').placeholder = innerWidth <= 860 ? t('search') : innerWidth < 1200 ? t('searchShort') : t('search')
+  $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'live' })
+  $('views-slot').innerHTML = viewsHtml(t, { lang: LANG, current: 'live' })
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
   $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automaticLong'))}</span>`
   for (const b of document.querySelectorAll('.kpi')) b.title = t('l.see.' + b.dataset.list)
@@ -1502,7 +1511,18 @@ function applyLang() {
   if (T.mode === 'live') setNow(fmtClock(Date.now()), liveText()); else setNow(T.mode === 'done' ? fmtClock(T.t) : fmtDay(T.t), null)
   updateLayout()
 }
-for (const b of document.querySelectorAll('[data-lang]')) b.addEventListener('click', () => { LANG = b.dataset.lang; store.set('lang', LANG); applyLang() })
+for (const b of document.querySelectorAll('#intro [data-lang]')) b.addEventListener('click', () => { LANG = b.dataset.lang; store.set('lang', LANG); applyLang() })
+// the menu: what belongs to this page happens in place, the rest are links
+$('menu-slot').addEventListener('click', (e) => {
+  const lb = e.target.closest('[data-lang]')
+  if (lb) { LANG = lb.dataset.lang; store.set('lang', LANG); applyLang(); return }
+  const a = e.target.closest('[data-act]'), act = a?.dataset.act
+  if (!['live', 'notices', 'add', 'about'].includes(act)) return
+  e.preventDefault(); a.closest('details').open = false
+  if (act === 'notices') goTo('notices')
+  else if (act === 'add') goTo('suggest')
+  else if (act === 'about') openIntro()
+})
 let introFrom = null
 function openIntro() {
   introFrom = document.activeElement
@@ -1546,7 +1566,6 @@ function closeIntro() {
   // a quiet hour would greet a newcomer with a still scene: start the day's replay almost at once, or after the tour
   if (T.mode === 'live' && quiet() && !T.chosen) T.autoAt = performance.now() + (touring ? 9500 : 1200)
 }
-$('btn-help').addEventListener('click', openIntro)
 $('intro-go').addEventListener('click', closeIntro)
 $('intro').addEventListener('click', (e) => { if (e.target === $('intro')) closeIntro() })
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && introOpen) closeIntro() })

@@ -10,6 +10,7 @@
 <!--og-->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="pulse3d.css">
+<link rel="stylesheet" href="menu.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script type="importmap">{ "imports": { "three": "./vendor/__VENDOR__/three.module.js", "three/addons/": "./vendor/__VENDOR__/addons/" } }</script>
@@ -60,6 +61,7 @@
   <div class="brand">
     <span class="live" id="live"></span>
     <div><h1>CKB Pulse</h1><p data-t="tagline"></p></div>
+    <span class="views-slot" id="views-slot"></span>
   </div>
   <div class="kpis">
     <button type="button" class="kpi" data-list="feed" aria-describedby="k-cap"><b id="k-day"><i class="sk-t" aria-hidden="true">000</i></b><span data-t="k.updates"></span></button>
@@ -72,7 +74,7 @@
     <button type="button" class="icon only-narrow" id="btn-search" data-t-label="searchShort"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <button type="button" class="icon filt-btn" id="btn-filters" aria-expanded="false" aria-controls="filters" data-t-label="filters"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M6 10h8M8.5 15h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="lbl-txt" data-t="filters"></span><b id="filt-n" hidden></b></button>
     <button type="button" class="icon" id="btn-home" data-t-label="home"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 10a5.5 5.5 0 1 0 1.8-4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 3.5v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button type="button" class="icon help" id="btn-help" data-t-label="help">?</button>
+    <span class="menu-slot" id="menu-slot"></span>
     <button type="button" class="icon full" id="btn-full" data-t-label="full"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 </header>
@@ -105,8 +107,10 @@
     <div class="share-row"><button type="button" class="share-btn" id="hl-share"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 10v5.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-t="sh.highlights"></span></button><a class="share-btn" id="hl-digest" href="digest" target="_blank" rel="noopener"></a></div>
     <div id="hl"></div>
     <p class="hint" data-t="h.note"></p>
+    <p class="keep-row"><span data-t="h.keep"></span><a class="chip" href="feed.xml" data-href="feed.xml" data-t="m.feed"></a><button type="button" class="chip" data-goto="notices" data-t="m.notices"></button></p>
   </div>
   <div class="add-pane" id="add" data-pane="add" role="tabpanel" aria-labelledby="tab-add" hidden>
+    <button type="button" class="suggest-jump" data-goto="suggest"><span data-t="n.missing"></span><b data-t="a.go"></b></button>
     <h3 data-t="n.list"></h3>
     <p class="hint lead" data-t="n.lead"></p>
     <ol class="news" id="news"></ol>
@@ -158,7 +162,6 @@
     <h3 data-t="i.colours"></h3>
     <div class="legend" id="legend"></div>
     <button type="button" class="primary" id="intro-go" data-t="i.go"></button>
-    <p class="fine more"><span data-t="i.more"></span>: <a href="digest?p=week" data-href="digest?p=week" data-t="use.follow.digest"></a> · <a href="fiber" data-t="use.fiber.h"></a> · <a href="funded" data-href="funded" data-t="f.title"></a> · <a href="use" data-href="use" data-t="use.nav"></a></p>
     <p class="fine"><a href="https://www.nervos.org" target="_blank" rel="noopener" data-t="i.what"></a></p>
     <p class="fine by"><a href="https://lusocryptolabs.com" target="_blank" rel="noopener" data-t="by"></a> · <a href="https://x.com/lusocryptolabs" target="_blank" rel="noopener">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse" target="_blank" rel="noopener">GitHub</a></p>
   </div>

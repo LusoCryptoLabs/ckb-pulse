@@ -91,6 +91,10 @@ In the scene, a phone frames it into whatever the panels leave free, and the pan
 
 A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, 24 hours and 7 days show the whole period at once while the play button replays it, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
 
+## Menu
+
+Every page (the live page, `/fiber`, `/funded`, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, Fiber, funded, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. On wide screens the three views (live, Fiber, funded) also sit side by side next to the name. Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
+
 ## Share
 
 A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
@@ -110,7 +114,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /badge/repo.svg?name=`, `/badge/person.svg?login=`, `/badge/ckb.svg`, each with `lang=`: badges
 - `GET /api/visits`: views and visitors per day, 30 days
 - `POST /mcp`: the same data for AI agents, see below
-- `GET /use?lang=`: everything Pulse does, as a page for people, linked from the welcome card and the other pages' footers (`/?tab=new` and `/?tab=suggest` open the New tab); `GET /llms.txt`: the same for AI agents
+- `GET /use?lang=`: everything Pulse does, as a page for people, linked from the menu and the other pages' footers; `GET /llms.txt`: the same for AI agents
 
 ## MCP
 

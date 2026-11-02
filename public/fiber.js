@@ -2,6 +2,7 @@
 // and every channel opened or closed on chain. Payments travel encrypted between nodes and are never shown.
 // Data: /api/fiber?net= (the map and a week of events), /api/fiber/stream (what happens next).
 import { WORDS } from './words.js'
+import { menuHtml, viewsHtml } from './menu.js'
 
 const d3 = globalThis.d3
 const DAY = 864e5
@@ -327,10 +328,17 @@ function applyLang() {
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t)
   for (const el of document.querySelectorAll('a[data-href]')) el.href = `${el.dataset.href}${el.dataset.href.includes('?') ? '&' : '?'}lang=${LANG}`
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
+  $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'fiber' })
+  $('views-slot').innerHTML = viewsHtml(t, { lang: LANG, current: 'fiber' })
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
   if (D && M) { stats(); detail(); feed(); overview(); empty() }
 }
-for (const b of document.querySelectorAll('[data-lang]')) b.addEventListener('click', () => { LANG = b.dataset.lang; store.set('lang', LANG); applyLang() })
+// the language buttons live in the menu, drawn again with each language
+$('menu-slot').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lang]')
+  if (b) { LANG = b.dataset.lang; store.set('lang', LANG); applyLang() }
+  else if (e.target.closest('[data-act="fiber"]')) { e.preventDefault(); e.target.closest('details').open = false }
+})
 const BUILD = document.querySelector('meta[name="build"]')?.content || '__BUILD__'
 let lastInput = Date.now()
 for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, () => { lastInput = Date.now() }, { passive: true })
