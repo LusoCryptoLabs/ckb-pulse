@@ -85,3 +85,11 @@ test('each kept week has an address that does not change, and the feed links to 
   assert.match(page, /The week 2026-W43, kept on 26 October 2026/)
   assert.match(page, /og\/digest\.png\?w=2026-W43/)
 })
+
+test('the monthly digest lists who joined, in order, with a note that it is not a ranking', () => {
+  const html = digestPage({ period: 'month', lang: 'en', leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest', arrivals: ['alice', 'bob'] })
+  assert.match(html, /Joined this month/)
+  assert.match(html, /person=alice[^>]*>alice<\/a> · <a[^>]*person=bob/)
+  assert.match(html, /not a ranking/)
+  assert.doesNotMatch(digestPage({ period: 'month', lang: 'en', leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' }), /Joined this month/)
+})

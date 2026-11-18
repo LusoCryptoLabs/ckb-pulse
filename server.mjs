@@ -6,7 +6,7 @@ import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
 import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, fundedRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
-import { trends, repoRows } from './history.mjs'
+import { trends, repoRows, arrivals } from './history.mjs'
 import { loadFunded, startFunded, grantView, fundedPage, fundedRead } from './funded.mjs'
 import { FUNDED } from './config.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
@@ -204,7 +204,7 @@ function handle(req, res) {
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
   }
   // the grants the Community Fund DAO pays for: their code next to their reports, as a page and as JSON
   if (url.pathname === '/funded' || url.pathname === '/api/funded') {
