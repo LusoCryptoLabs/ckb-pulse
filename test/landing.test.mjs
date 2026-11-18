@@ -184,7 +184,7 @@ test('on a running server: / is the landing, a link to something and /live are t
     assert.match(String((await get(port, '/')).headers['cache-control']), /max-age=300/)
     assert.equal((await get(port, '/live')).headers['cache-control'], 'no-cache')
     const old = await get(port, '/?screen=1&lang=pt'); assert.equal(old.status, 302); assert.equal(old.headers.location, '/present?lang=pt', 'the old address of the screen for calls')
-    const pr = await get(port, '/present?lang=pt'); assert.equal(pr.status, 200); assert.ok(pr.body.includes('id="s-ccc"') && pr.body.includes('lang="pt"')); assert.equal(pr.headers['x-robots-tag'], 'noindex'); assert.equal((await get(port, '/present.js')).status, 200)
+    const pr = await get(port, '/present?lang=pt'); assert.equal(pr.status, 200); assert.ok(pr.body.includes('id="r-projects"') && pr.body.includes('lang="pt"')); assert.equal(pr.headers['x-robots-tag'], 'noindex'); assert.equal((await get(port, '/present.js')).status, 200)
     const last = await get(port, '/api/last?lang=pt'); assert.equal(last.status, 200); const lj = JSON.parse(last.body); assert.equal(lj.at, null); assert.equal(lj.line, words('pt')('ld.last.none'), 'nothing to say and not made up'); assert.match(String(last.headers['cache-control']), /max-age=30/)
   } finally { child.kill(); fs.rmSync(dir, { recursive: true, force: true }) }
 })

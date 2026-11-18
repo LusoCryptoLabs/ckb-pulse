@@ -1,86 +1,74 @@
-// The screen for calls (/present, see present.mjs): the slides change by themselves, the keys and the small bar change them by
-// hand, and the bar and the pointer go away after three seconds without the pointer moving. The numbers come from the same
-// calls the live page makes (/api/state, /api/impact), once a minute.
+// The screen for calls (/present, see present.mjs): the numbers and the two lists refresh once a minute from the calls the live
+// page makes (/api/state, /api/impact), the latest updates come in as they happen (/api/stream), the clock and the "minutes ago"
+// move on their own, and the live scene starts in its frame where the device can carry it.
 const W = JSON.parse(document.getElementById('pr-words').textContent)
 const $ = (id) => document.getElementById(id)
-const slides = W.slides.map(([id, ms]) => ({ id, ms, el: $('s-' + id) }))
-const html = document.documentElement
-const num = (n) => Number(n).toLocaleString(W.lang === 'zh' ? 'zh-CN' : W.lang)
+const loc = W.lang === 'zh' ? 'zh-CN' : W.lang
+const num = (n) => Number(n).toLocaleString(loc)
 const short = (n) => String(n).split('/').pop()
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const fill = (tpl, v) => String(tpl).replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '')
-const ready = { live: true } // a slide with nothing to show is passed over until its numbers arrive
-let cur = 0, playing = true, timer = 0
+const face = (url, px) => (url ? `${url}${String(url).endsWith('?') ? '' : String(url).includes('?') ? '&' : '?'}s=${px}` : '')
 
-// ---- the numbers
-const rank = (id, rows, face) => {
+// ---- what has happened, newest first
+const events = new Map() // id -> event
+const ago = (iso) => {
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000)
+  if (s < 60) return W['ago.now']
+  if (s < 3600) return fill(W['ago.min'], { n: Math.floor(s / 60) })
+  if (s < 86400) return fill(W['ago.h'], { n: Math.floor(s / 3600) })
+  const d = Math.floor(s / 86400)
+  return d === 1 ? W['ago.day'] : fill(W['ago.days'], { n: d })
+}
+let fresh = ''
+function drawFeed() {
+  const rows = [...events.values()].filter((e) => !e.bot).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3)
+  $('feed').innerHTML = rows.map((e) => `<li${e.id === fresh ? ' class="fresh"' : ''}><time datetime="${esc(e.at)}">${esc(ago(e.at))}</time>${e.avatar ? `<img src="${esc(face(e.avatar, 80))}" alt="" width="40" height="40">` : '<span></span>'}<span class="what"><b>${esc(e.actor)}</b> ${esc(fill(W['v.' + e.kind] || '{repo}', { repo: short(e.repo) }))}${e.title ? `<small>${esc(e.title)}</small>` : ''}</span></li>`).join('')
+  fresh = ''
+}
+
+// ---- the numbers and the lists
+const rank = (id, rows, faces) => {
   const max = Math.max(1, ...rows.map((r) => r[1]))
-  $(id).innerHTML = rows.slice(0, 5).map(([name, n, avatar]) => `<li>${face ? `<span class="n">${num(n)}</span><img src="${esc(avatar + (String(avatar).endsWith('?') ? '' : '&') + 's=160')}" alt="" width="96" height="96">` : `<span class="n">${num(n)}</span>`}<span class="who">${esc(short(name))}${face ? '' : `<small>${esc(String(name).split('/')[0])}</small>`}</span><span class="bar"><i style="width:${Math.round((n / max) * 100)}%"></i></span></li>`).join('')
+  $(id).innerHTML = rows.slice(0, 5).map(([name, n, avatar]) => `<li><span class="n">${num(n)}</span>${faces ? `<img src="${esc(face(avatar, 80))}" alt="" width="44" height="44">` : ''}<span class="who">${esc(short(name))}${faces ? '' : `<small>${esc(String(name).split('/')[0])}</small>`}</span><span class="bar"><i style="width:${Math.round((n / max) * 100)}%"></i></span></li>`).join('')
 }
 function paintState(s) {
   const d = s.leaders?.day, w = s.leaders?.week
   if (!d?.stats) return
   $('n-up').textContent = num(d.stats.updates); $('n-people').textContent = num(d.stats.people); $('n-projects').textContent = num(d.stats.projects)
   rank('r-projects', d.repos || [], false); rank('r-people', d.people || [], true)
-  ready.projects = !!d.repos?.length; ready.people = !!d.people?.length
-  if (w?.stats) {
-    $('w-up').textContent = num(w.stats.updates); $('w-people').textContent = num(w.stats.people); $('w-projects').textContent = num(w.stats.projects)
-    $('w-repo').textContent = w.repos?.[0] ? short(w.repos[0][0]) : ''; $('w-person').textContent = w.people?.[0]?.[0] || ''
-    ready.week = true
-  }
+  if (w?.stats) $('week').textContent = fill(W['pr.week.line'], { updates: num(w.stats.updates), people: num(w.stats.people), projects: num(w.stats.projects) })
+  for (const e of s.events || []) events.set(e.id, e)
+  drawFeed()
 }
-function paintCcc(c) {
-  if (c?.using == null) return
-  $('c-using').textContent = num(c.using); $('c-line').textContent = fill(W['pr.ccc.n'], { active: num(c.active) })
-  $('c-list').innerHTML = (c.projects || []).slice(0, 8).map((p) => `<li>${esc(short(p.repo))}</li>`).join('')
-  ready.ccc = true
-}
+function paintCcc(c) { if (c?.using != null) $('ccc').textContent = fill(W['pr.ccc.line'], { using: num(c.using), active: num(c.active) }) }
 async function load() {
   try { paintState(await (await fetch('api/state')).json()) } catch {}
   try { paintCcc(await (await fetch('api/impact?lib=ccc')).json()) } catch {}
-  try { const l = await (await fetch('api/last?lang=' + W.lang)).json(); $('last').textContent = l.line || '' } catch {}
 }
-
-// ---- the turns
-const dots = [...document.querySelectorAll('.dots [data-go]')]
-const prog = $('pr-prog')
-function show(i) {
-  cur = (i + slides.length) % slides.length
-  slides.forEach((s, k) => { s.el.classList.toggle('on', k === cur); s.el.toggleAttribute('inert', k !== cur) })
-  dots.forEach((d, k) => d.setAttribute('aria-current', String(k === cur)))
-  clearTimeout(timer); prog.style.transition = 'none'; prog.style.transform = 'scaleX(0)'
-  if (playing) {
-    void prog.offsetWidth // the bar starts again from nothing
-    prog.style.transition = `transform ${slides[cur].ms}ms linear`; prog.style.transform = 'scaleX(1)'
-    timer = setTimeout(() => step(1), slides[cur].ms)
-  }
-}
-function step(by) { let n = cur; for (let k = 0; k < slides.length; k++) { n = (n + by + slides.length) % slides.length; if (ready[slides[n].id]) break } show(n) }
-function play(on) {
-  playing = on; const b = $('pr-play'); b.textContent = on ? '❚❚' : '▶'; b.setAttribute('aria-label', on ? W['pr.pause'] : W['pr.play'])
-  show(cur)
-}
-$('pr-prev').addEventListener('click', () => step(-1)); $('pr-next').addEventListener('click', () => step(1)); $('pr-play').addEventListener('click', () => play(!playing))
-for (const d of dots) d.addEventListener('click', () => show(Number(d.dataset.go)))
-const toggleFull = () => { if (document.fullscreenElement) document.exitFullscreen(); else html.requestFullscreen?.() }
-$('pr-full').addEventListener('click', toggleFull)
-if (!document.fullscreenEnabled) $('pr-full').hidden = true // iPhones have no full screen for pages
-addEventListener('keydown', (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey) return
-  if (e.key === 'ArrowRight' || e.key === 'PageDown') step(1)
-  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') step(-1)
-  else if (e.key === ' ') { e.preventDefault(); play(!playing) }
-  else if (e.key === 'f' || e.key === 'F') toggleFull()
-  else if (e.key === 'Escape' && !document.fullscreenElement) location.href = $('pr-leave').href
-  else return
-  wakeBar()
-})
-
-// ---- the bar and the pointer rest after three seconds
-let rest = 0
-function wakeBar() { html.classList.remove('still'); clearTimeout(rest); rest = setTimeout(() => html.classList.add('still'), 3000) }
-addEventListener('pointermove', wakeBar, { passive: true }); addEventListener('pointerdown', wakeBar, { passive: true }); wakeBar()
-setTimeout(() => { $('pr-hint').hidden = true }, 7000)
-
 load(); setInterval(load, 60000)
-show(0)
+
+// ---- as it happens
+try {
+  const es = new EventSource('api/stream')
+  es.onmessage = (m) => { try { const e = JSON.parse(m.data); if (!e.id || e.bot) return; events.set(e.id, e); fresh = e.id; drawFeed() } catch {} }
+} catch {}
+
+// ---- the clock and the minutes
+const clock = () => { $('clock').textContent = new Date().toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }) }
+clock(); setInterval(() => { clock(); for (const t of document.querySelectorAll('#feed time')) t.textContent = ago(t.getAttribute('datetime')) }, 30000)
+
+// ---- full screen, where the browser has it (an iPhone does not)
+const full = $('pr-full')
+if (document.fullscreenEnabled) full.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen() })
+else full.hidden = true
+addEventListener('keydown', (e) => { if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey && document.fullscreenEnabled) full.click() })
+
+// ---- the live scene, in its frame, on a wide screen with motion allowed and no data saver
+const scene = $('scene')
+if (matchMedia('(min-width: 900px) and (min-height: 520px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches && !navigator.connection?.saveData) {
+  const f = document.createElement('iframe')
+  f.src = scene.dataset.live; f.title = ''; f.tabIndex = -1; f.setAttribute('aria-hidden', 'true')
+  scene.insertBefore(f, scene.querySelector('a.open'))
+  addEventListener('message', (e) => { if (e.source === f.contentWindow && e.data?.pulse === 'ready') scene.classList.add('live') })
+}
