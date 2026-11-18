@@ -9,7 +9,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import vm from 'node:vm'
-import { landingPage, SKIP_SCRIPT } from '../landing.mjs'
+import { landingPage, SKIP_SCRIPT, lastLine, agoText } from '../landing.mjs'
 import { digestPage } from '../digest.mjs'
 import { usePage, llmsTxt } from '../use.mjs'
 import { methodPage } from '../method.mjs'
@@ -108,6 +108,66 @@ test('no page or menu sends a reader to / when it means the live view', () => {
 })
 
 const free = () => new Promise((r) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => r(p)) }) })
+test('the landing shows the live view in a frame of its own size, with a still of it in both looks and a link over all of it', () => {
+  for (const lang of ['en', 'pt', 'zh']) {
+    const html = page(lang), t = words(lang)
+    assert.match(html, /<figure class="win" id="win" data-live="https:\/\/pulse\.example\/live\?embed=1&amp;lang=/, lang)
+    assert.ok(html.includes('src="https://pulse.example/landing-dark.jpg" width="1280" height="720"') && html.includes('src="https://pulse.example/landing-light.jpg" width="1280" height="720"'), 'both stills, with their size, so the frame is held before they arrive')
+    assert.ok(html.includes(`alt="${t('ld.shot')}"`) && (html.match(/ alt=""/g) || []).length >= 1, 'one description, not two')
+    assert.ok(html.includes(`<a class="open" href="https://pulse.example/live?lang=${lang}" aria-label="${t('ld.cta')}"></a>`), 'the whole picture opens the live view')
+    assert.ok(html.indexOf('class="win"') > html.indexOf('class="go"') && html.indexOf('class="win"') < html.indexOf('class="plain"'), 'under the buttons, above the sentence')
+  }
+  const css = page('en').match(/<style>([\s\S]*?)<\/style>/)[1]
+  assert.match(css, /\.win\{[^}]*aspect-ratio:16\/9/, 'the frame has its shape before anything is in it')
+  assert.match(css, /\.win \.shot\.on-dark\{display:var\(--logo-dark\)\}\.win \.shot\.on-light\{display:var\(--logo-light\)\}/, 'the still follows the look')
+})
+
+test('the live view only starts in the frame where it is welcome: wide, motion allowed, no data saver, loaded, in view', () => {
+  const html = page('en'), script = html.match(/<script>(\(function\(\)\{var w=document\.getElementById\('win'\)[\s\S]*?)<\/script>/)[1]
+  for (const need of ['(min-width: 720px)', '(prefers-reduced-motion: reduce)', 'saveData', 'IntersectionObserver', "addEventListener('load'", "e.data.pulse==='ready'", 'e.source===f.contentWindow']) assert.ok(script.includes(need), need)
+  assert.ok(script.includes("f.setAttribute('aria-hidden','true')") && script.includes('f.tabIndex=-1'), 'a picture, not a control')
+  // run it as a browser that qualifies: it adds one frame, once, and the still stays until the live view says it is ready
+  const calls = { frames: [], listeners: {}, io: null }
+  const frame = { contentWindow: {}, setAttribute() {} }
+  const win = { dataset: { live: 'https://pulse.example/live?embed=1&lang=en' }, classList: { add: (c) => calls.live = c }, querySelector: (s) => (s === 'iframe' ? calls.frames[0] || null : {}), insertBefore: (f) => calls.frames.push(f) }
+  const ctx = { document: { getElementById: (id) => (id === 'win' ? win : null), createElement: () => frame, readyState: 'complete', querySelector: () => null }, matchMedia: (q) => ({ matches: !q.includes('reduce') }), navigator: {}, IntersectionObserver: function (cb) { calls.io = cb; this.observe = () => {}; this.disconnect = () => {} }, requestIdleCallback: (f, o) => { if (!o || typeof o !== 'object') throw new TypeError('the second argument of requestIdleCallback is an options object'); f() }, setTimeout, setInterval: () => 0, fetch: () => Promise.resolve({ ok: false }), addEventListener: (n, f) => { calls.listeners[n] = f }, window: {} }
+  ctx.window = ctx
+  vm.runInNewContext(script, ctx)
+  assert.equal(calls.frames.length, 0, 'not before the picture is in view')
+  calls.io([{ isIntersecting: true }])
+  assert.equal(calls.frames.length, 1); assert.equal(frame.src, 'https://pulse.example/live?embed=1&lang=en')
+  assert.equal(calls.live, undefined, 'the still stays')
+  calls.listeners.message({ source: {}, data: { pulse: 'ready' } }); assert.equal(calls.live, undefined, 'a message from anywhere else is not the live view')
+  calls.listeners.message({ source: frame.contentWindow, data: { pulse: 'ready' } }); assert.equal(calls.live, 'live')
+  // and not for a phone, a reduced-motion setting or a data saver
+  for (const off of [(q) => q.includes('min-width') ? false : !q.includes('reduce'), (q) => q.includes('reduce'), null]) {
+    const c2 = { ...ctx, matchMedia: off ? (q) => ({ matches: off(q) }) : ctx.matchMedia, navigator: off ? {} : { connection: { saveData: true } } }; c2.window = c2
+    calls.frames.length = 0; calls.io = null; vm.runInNewContext(script, c2)
+    assert.equal(calls.io, null, 'it does not even watch for the picture to come into view')
+  }
+})
+
+test('the last update is a line in the page language, from the same words as the live view, and says so when there is none', () => {
+  const now = Date.parse('2026-11-18T20:00:00Z'), at = (min) => new Date(now - min * 60e3).toISOString()
+  const e = { at: at(14), actor: 'Hanssen0', kind: 'comment', repo: 'ckb-devrel/ccc' }
+  assert.equal(lastLine(words('en'), e, now), 'Last update 14 min ago: Hanssen0 commented in ccc')
+  assert.equal(lastLine(words('pt'), e, now), 'Última atualização há 14 min: Hanssen0 comentou em ccc')
+  assert.equal(lastLine(words('zh'), e, now), '最近一次更新（14 分钟前）：Hanssen0 在 ccc 发表了评论')
+  assert.equal(agoText(words('en'), 20e3), 'just now'); assert.equal(agoText(words('en'), 3 * 3600e3), '3 h ago'); assert.equal(agoText(words('en'), 30 * 3600e3), 'yesterday'); assert.equal(agoText(words('en'), 5 * 86400e3), '5 days ago')
+  for (const lang of ['en', 'pt', 'zh']) assert.equal(lastLine(words(lang), null), words(lang)('ld.last.none'))
+  assert.ok(page('en', { last: e, now }).includes('<span>Last update 14 min ago: Hanssen0 commented in ccc</span>'))
+  assert.ok(page('en', { last: null }).includes(`<span>${words('en')('ld.last.none')}</span>`), 'nothing made up')
+  const css = page('en').match(/<style>([\s\S]*?)<\/style>/)[1]
+  assert.match(css, /\.last\{[^}]*min-height:2\.9em/, 'two lines held on a phone, one from 560 px: the line changing never moves what is under it')
+})
+
+test('the live page has a mode for the landing\'s frame: the scene alone, nothing kept in the browser, and it says when it is ready', () => {
+  const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8'), js = fs.readFileSync(new URL('../public/pulse3d.js', import.meta.url), 'utf8'), css = fs.readFileSync(new URL('../public/pulse3d.css', import.meta.url), 'utf8')
+  assert.ok(html.includes("get('embed') === '1'") && html.includes("h.classList.add('screen', 'embed')") && html.includes("screen || embed ? '3d'"))
+  assert.ok(js.includes("const EMBED = document.documentElement.classList.contains('embed')") && js.includes('if (!n || EMBED) return') && js.includes("parent.postMessage({ pulse: 'ready' }, location.origin)"), 'no notice is marked seen from inside the frame, and the message goes to the page that framed it only')
+  assert.match(css, /\.embed \.top, \.embed \.now, \.embed \.screen-bar, \.embed \.skip \{ display: none !important; \}/)
+})
+
 const get = (port, p, headers = {}) => new Promise((resolve, reject) => { http.get({ host: '127.0.0.1', port, path: p, headers }, (res) => { let body = ''; res.on('data', (c) => { body += c }); res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body })) }).on('error', reject) })
 
 test('on a running server: / is the landing, a link to something and /live are the live view', async () => {
@@ -123,5 +183,6 @@ test('on a running server: / is the landing, a link to something and /live are t
     assert.equal((await get(port, '/?lang=pt')).body.includes('lang="pt"'), true)
     assert.match(String((await get(port, '/')).headers['cache-control']), /max-age=300/)
     assert.equal((await get(port, '/live')).headers['cache-control'], 'no-cache')
+    const last = await get(port, '/api/last?lang=pt'); assert.equal(last.status, 200); const lj = JSON.parse(last.body); assert.equal(lj.at, null); assert.equal(lj.line, words('pt')('ld.last.none'), 'nothing to say and not made up'); assert.match(String(last.headers['cache-control']), /max-age=30/)
   } finally { child.kill(); fs.rmSync(dir, { recursive: true, force: true }) }
 })

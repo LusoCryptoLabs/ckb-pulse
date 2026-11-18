@@ -19,6 +19,8 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 
 `/` the landing page, for a first visit that comes without a link (a browser that has seen the welcome card goes straight on, and so does any link to a project, a person, a period or a tab, which open the live view), `/live` the live page, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
 
+The landing shows the live view in a frame (`/live?embed=1`, the scene alone, nothing kept in the browser) once the page is loaded and the picture is in view, on a wide screen with motion allowed and no data saver; until then, and for everyone else, it shows a still of it in the look the page is in (`public/landing-dark.jpg` and `public/landing-light.jpg`, 1280 by 720, taken from the lab's own state with the scene in `?embed=1`). Under the picture, one line with the time and kind of the last update, from `GET /api/last?lang=` once a minute.
+
 ## Test
 
 ```sh
@@ -118,6 +120,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 ## API
 
 - `GET /api/state`: repositories, highlights, 7 days of history; built at most once a minute, with an ETag (send `If-None-Match` for a 304 when nothing changed)
+- `GET /api/last?lang=`: the last update as one line in the language, and its time, `{at, line}`
 - `GET /api/repo?name=owner/repo`: one repository, 30 days; the name in any case, the answer with the spelling kept
 - `GET /api/stream`: new events, Server-Sent Events
 - `GET /og/highlights.png?p=`, `/og/repo.png?name=`, `/og/person.png?login=`, each with `lang=en|pt|zh`: share pictures

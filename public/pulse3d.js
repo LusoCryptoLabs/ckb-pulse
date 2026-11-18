@@ -14,6 +14,7 @@ const MOBILE = matchMedia('(max-width: 860px)').matches || matchMedia('(pointer:
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 // the screen for calls (?screen=1, see index.html): large, no panels, nothing to click
 const SCREEN = document.documentElement.classList.contains('screen')
+const EMBED = document.documentElement.classList.contains('embed') // the scene alone, in the landing's frame; it keeps nothing in the browser
 const $ = (id) => document.getElementById(id)
 // a colour of the page's look (theme.css): the scene, the faces and the timeline are drawn in them
 // the stage follows the page's look: the person's choice (data-theme) or else the device's
@@ -236,6 +237,7 @@ function sceneStart() {
   camera.position.copy(home.p).multiplyScalar(1.4); controls.target.set(0, 0, 0)
   flight = { from: { p: camera.position.clone(), t: new THREE.Vector3() }, to: { p: home.p.clone(), t: home.t.clone() }, t: 0 }
   placeBadges()
+  if (EMBED && parent !== window) setTimeout(() => parent.postMessage({ pulse: 'ready' }, location.origin), 1800) // the camera has come down by then
 }
 
 // ================= cells =================
@@ -830,7 +832,7 @@ let newsWaiting = null
 function newsToastOnLoad() {
   // a project announced in the last day that this device has not seen yet
   const n = (S?.news || []).find((x) => x.announcedAt && Date.now() - x.announcedAt < DAY && !seenNews.has(x.name))
-  if (!n) return
+  if (!n || EMBED) return
   // where a notice pushes the list down (the bars), it waits for the list to be seen first and then slides it, instead of moving it in the middle of loading
   if (introOpen) newsWaiting = n; else if (PHONE || NEXT) setTimeout(() => { if (!introOpen) showNewsToast(n); else newsWaiting = n }, 4500); else showNewsToast(n)
 }
@@ -1134,6 +1136,7 @@ function stepHover() {
 const box = (sel) => document.querySelector(sel).getBoundingClientRect()
 const onScreen = (el) => el && !el.hidden && getComputedStyle(el).visibility !== 'hidden' && el.getClientRects().length > 0
 function hud() {
+  if (EMBED) return { top: 60, bottom: 60, right: 0 } // nothing sits on the scene: all of the frame is the picture, with a margin so that nothing is cut
   const top = Math.max(box('.top').bottom, wideBar() ? box('#filters').bottom : 0, PHONE || NEXT ? box('#viewbar').bottom : 0) + 6
   // on a phone the scene ends at whatever sits lowest on it: the ticker, the sheet at the height it was dragged to,
   // a project's card or the timeline

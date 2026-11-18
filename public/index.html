@@ -34,11 +34,14 @@
     // the screen for calls (?screen=1): the scene large, no panels, no welcome card, on any screen size
     const screen = new URLSearchParams(location.search).get('screen') === '1'
     if (screen) h.classList.add('screen')
+    // the scene alone, for the landing's frame (?embed=1): the screen's layout without the header, the ticker or any control
+    const embed = new URLSearchParams(location.search).get('embed') === '1'
+    if (embed) h.classList.add('screen', 'embed')
     const fp = () => h.classList.toggle('fpop', innerWidth < 1340 || h.classList.contains('next'))
     fp(); addEventListener('resize', fp)
     // bars on a phone and in the trial, unless the viewer picked the scene; the scene asks for three.js now, with the
     // page's own files, and the bars never do. The state is asked for here too, and the page shows outlines until it is in
-    h.dataset.firstView = nogl ? 'bars' : screen ? '3d' : (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
+    h.dataset.firstView = nogl ? 'bars' : screen || embed ? '3d' : (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
     if (h.dataset.firstView === '3d') for (const f of ['three.module.js', 'three.core.js']) document.head.append(Object.assign(document.createElement('link'), { rel: 'modulepreload', href: `vendor/__VENDOR__/${f}` }))
     h.classList.add('wait')
     window.pulseState = fetch('api/state').catch(() => null)
