@@ -46,7 +46,7 @@ a.card{display:block;background:var(--surface);border:1px solid var(--edge);bord
 
 // [id, path, title word, line word]: the doors, by who they are for
 const DOORS = {
-  all: [['live', '/live', 'm.live', 'ld.c.live'], ['digest', '/digest?p=week', 'm.digest', 'ld.c.digest'], ['screen', '/?screen=1', 'm.screen', 'ld.c.screen'], ['add', '/?tab=suggest', 'm.add', 'ld.c.add']],
+  all: [['live', '/live', 'm.live', 'ld.c.live'], ['digest', '/digest?p=week', 'm.digest', 'ld.c.digest'], ['screen', '/present', 'm.screen', 'ld.c.screen'], ['add', '/?tab=suggest', 'm.add', 'ld.c.add']],
   dev: [['impact', '/impact', 'm.impact', 'ld.c.impact'], ['badge', '/use#badge', 'm.badge', 'ld.c.badge'], ['data', '/use#data', 'm.ai', 'ld.c.data'], ['method', '/method', 'me.nav', 'ld.c.method']],
 }
 const withLang = (base, path, lang) => { const [p, h] = path.split('#'); return `${base}${p}${p.includes('?') ? '&' : '?'}lang=${lang}${h ? `#${h}` : ''}` }
