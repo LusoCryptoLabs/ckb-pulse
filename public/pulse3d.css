@@ -548,6 +548,7 @@ body.bars .now .ticker { white-space: nowrap; }
    its own colours: the five families of work, the chain mark and the medals. Only the dots and the faces are round. */
 html[lang] { --pulse: var(--signal); --line: var(--edge); }
 html[lang] .brand h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+@media (max-width: 359px) { html[lang] .brand h1 { font-size: 24px; } } @media (max-width: 339px) { html[lang] .brand h1 { font-size: 22px; } } /* with the filter button in the scene view the title met the buttons at 320 */
 html[lang] .brand p { display: none; }
 html[lang] .brand > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 html[lang] .live, html[lang] .tabs .dot, html[lang] .p-live::before, html[lang] .switch i::after,

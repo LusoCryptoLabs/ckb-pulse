@@ -135,3 +135,13 @@ test('the two fonts are asked for first thing, from the address the stylesheet w
   assert.equal((css.match(/font-family: "Archivo Fallback"/g) || []).length, 3, 'Archivo is wider the heavier it is: a fallback for the light weights, one for the semibold and one for the heavy ones')
   assert.ok(!fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('SpaceGrotesk'), 'the live page no longer fetches a font it does not use')
 })
+
+test('the title of the live page gives way to the buttons on a narrow phone, in two steps, after the rule it narrows', () => {
+  const css = fs.readFileSync(new URL('../public/pulse3d.css', import.meta.url), 'utf8')
+  const base = css.indexOf('html[lang] .brand h1 { font-size: 28px')
+  assert.ok(base > 0)
+  for (const [px, size] of [[359, 24], [339, 22]]) {
+    const at = css.indexOf(`@media (max-width: ${px}px) { html[lang] .brand h1 { font-size: ${size}px; } }`)
+    assert.ok(at > base, `${px}px: ${size}px, after the base rule`)
+  }
+})
