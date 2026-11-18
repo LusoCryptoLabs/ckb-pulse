@@ -22,11 +22,18 @@ before(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pulse-'))
   // one kept digest week, for /digest/<week>
   fs.writeFileSync(path.join(dir, 'digests.json'), JSON.stringify({ weeks: [{ at: Date.parse('2026-11-16T08:01:00Z'), stats: { updates: 970, people: 90, projects: 99 }, repos: [['ckb-devrel/ccc', 30]], commits: [], people: [['alice', 9]], orgs: [['ckb-devrel', 30]], news: [] }] }))
-  port = await new Promise((r) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => r(p)) }) })
-  child = spawn(process.execPath, ['server.mjs'], { env: { ...process.env, PORT: String(port), DATA_DIR: dir, PULSE_OFFLINE: '1', GITHUB_TOKEN: 'offline' }, stdio: ['ignore', 'pipe', 'pipe'] })
-  child.on('exit', () => { exited = true })
-  for (let i = 0; i < 100; i++) { try { if (status(await raw('/health')) === 200) return } catch {} await new Promise((r) => setTimeout(r, 100)) }
-  throw new Error('server did not start')
+  // a free port is picked and released before the server takes it: if another process gets it first, try again
+  let err = ''
+  for (let attempt = 0; attempt < 3; attempt++) {
+    port = await new Promise((r) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => r(p)) }) })
+    exited = false
+    child = spawn(process.execPath, ['server.mjs'], { env: { ...process.env, PORT: String(port), DATA_DIR: dir, PULSE_OFFLINE: '1', GITHUB_TOKEN: 'offline' }, stdio: ['ignore', 'pipe', 'pipe'] })
+    child.stderr.on('data', (c) => { err += c })
+    child.on('exit', () => { exited = true })
+    for (let i = 0; i < 50 && !exited; i++) { try { if (status(await raw('/health')) === 200) return } catch {} await new Promise((r) => setTimeout(r, 100)) }
+    child.kill()
+  }
+  throw new Error('server did not start: ' + err.slice(0, 500))
 })
 after(() => { child?.kill(); fs.rmSync(dir, { recursive: true, force: true }) })
 
