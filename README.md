@@ -120,6 +120,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 ## API
 
 - `GET /api/state`: repositories, highlights, 7 days of history; built at most once a minute, with an ETag (send `If-None-Match` for a 304 when nothing changed)
+- `GET /learned` and `GET /learned.json`: the CKB lessons a person has released, in the open and under CC BY 4.0 (the file is handed in by the private lessons repository; with no released lesson these routes do not exist). The rest of the lessons stay behind a key.
 - `GET /api/last?lang=`: the last update as one line in the language, and its time, `{at, line}`
 - `GET /api/repo?name=owner/repo`: one repository, 30 days; the name in any case, the answer with the spelling kept
 - `GET /api/stream`: new events, Server-Sent Events

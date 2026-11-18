@@ -241,6 +241,19 @@ function handle(req, res) {
   }
   // a private page: it opens only with the key (LESSONS_KEY) and reads its data from the data volume (lessons.json);
   // in every other case it falls through to the answer for a route that does not exist
+  // the released lessons, in the open: the ones a person set public_ok on in the private repository, as pages and as one JSON file
+  // (DATA_DIR/public-lessons.json, handed in by that repository's publish job). With no released lesson, or no file, these routes
+  // do not exist; the private lessons below are untouched and never read here.
+  if (url.pathname === '/learned' || url.pathname.startsWith('/learned/') || url.pathname === '/learned.json') {
+    const data = loadLessons(DATA_DIR, 'public-lessons.json')
+    if (data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length) {
+      const b = baseOf(req), lang = langOf(url.searchParams, req), pub = { 'cache-control': 'public, max-age=300', vary: LANG_VARY }
+      if (url.pathname === '/learned.json') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(JSON.stringify(data)) }
+      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), pub: true }))
+      const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/learned/'.length), pub: true })
+      if (page) return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, page)
+    }
+  }
   // the lessons: pages, JSON and MCP, all behind the key; without it, or without the file, they are routes that do not exist
   if (url.pathname === '/lessons' || url.pathname.startsWith('/lessons/')) {
     const key = process.env.LESSONS_KEY, how = key && access(req, url, key), data = how && loadLessons(DATA_DIR)
