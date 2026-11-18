@@ -15,6 +15,8 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 // the screen for calls (?screen=1, see index.html): large, no panels, nothing to click
 const SCREEN = document.documentElement.classList.contains('screen')
 const $ = (id) => document.getElementById(id)
+// a colour of the page's look (theme.css): the scene, the faces and the timeline are drawn in them
+const tok = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
 // a phone shows the projects as bars unless the viewer picked the scene: its blocks are a few pixels there (2026-10-26)
@@ -133,8 +135,8 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   $('stage').appendChild(labelRenderer.domElement)
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color('#0a0907')
-  scene.fog = new THREE.FogExp2('#07090a', 0.011)
+  scene.background = new THREE.Color(tok('--bg', '#0a0907'))
+  scene.fog = new THREE.FogExp2(tok('--bg', '#07090a'), 0.011)
   camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 600)
   // the view only moves when the viewer moves it (or opens something to look at)
   controls = new OrbitControls(camera, renderer.domElement)
@@ -143,14 +145,14 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   controls.addEventListener('end', () => wake(1600)) // the damping carries on after the hand lets go
   controls.addEventListener('change', () => wake(300))
 
-  scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.45))
+  scene.add(new THREE.HemisphereLight(tok('--sky', '#cfdcb6'), tok('--bg', '#0a0c08'), 0.45))
   const sun = new THREE.DirectionalLight('#ffffff', 0.85)
   sun.position.set(30, 60, 20)
   scene.add(sun)
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshBasicMaterial({ color: '#080b06' })) // flat: lit, it was the same colour to within one level, and the costliest thing on a software renderer
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshBasicMaterial({ color: tok('--bg', '#080b06') })) // flat: lit, it was the same colour to within one level, and the costliest thing on a software renderer
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02
   scene.add(ground)
-  const grid = new THREE.GridHelper(400, 308, '#1f2b12', '#11180a')
+  const grid = new THREE.GridHelper(400, 308, tok('--edge', '#1f2b12'), tok('--edge-soft', '#11180a'))
   grid.material.transparent = true; grid.material.opacity = 0.55
   scene.add(grid)
 
@@ -170,7 +172,7 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   glowTex = new THREE.CanvasTexture(c)
 
   tmpM = new THREE.Matrix4(); tmpQ = new THREE.Quaternion(); tmpS = new THREE.Vector3(); tmpP = new THREE.Vector3(); tmpC = new THREE.Color()
-  DORMANT = new THREE.Color('#1c2412'); BOTCELL = new THREE.Color('#3b4330')
+  DORMANT = new THREE.Color(tok('--dormant', '#1c2412')); BOTCELL = new THREE.Color(tok('--botcell', '#3b4330'))
   peopleGroup = new THREE.Group()
   scene.add(peopleGroup)
   ringGeo = new THREE.RingGeometry(0.8, 1, 64)
@@ -861,8 +863,8 @@ function avatarTexture(login, avatar) {
   const draw = (img) => {
     g.clearRect(0, 0, 128, 128)
     g.save(); g.beginPath(); g.arc(64, 64, 56, 0, Math.PI * 2); g.clip()
-    if (img) g.drawImage(img, 8, 8, 112, 112); else { g.fillStyle = '#1b2215'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#cbf34d'; g.font = 'bold 52px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((login[0] || '?').toUpperCase(), 64, 68) }
-    g.restore(); g.lineWidth = 6; g.strokeStyle = '#cbf34d'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.stroke()
+    if (img) g.drawImage(img, 8, 8, 112, 112); else { g.fillStyle = tok('--surface', '#1b2215'); g.fillRect(0, 0, 128, 128); g.fillStyle = tok('--fg', '#cbf34d'); g.font = 'bold 52px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((login[0] || '?').toUpperCase(), 64, 68) }
+    g.restore(); g.lineWidth = 6; g.strokeStyle = tok('--fg', '#cbf34d'); g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.stroke()
     tex.needsUpdate = true
   }
   draw(null)
@@ -1483,7 +1485,7 @@ function drawBars() {
   for (let i = 0; i < N; i++) {
     const b = (hb[i] / max) * (ch - 2), p = (hp[i] / max) * (ch - 2)
     g.fillStyle = 'rgba(139,148,128,0.55)'; g.fillRect(i * bw + 0.5, ch - b, Math.max(1, bw - 1), b)
-    g.fillStyle = '#cbf34d'; g.fillRect(i * bw + 0.5, ch - b - p, Math.max(1, bw - 1), p)
+    g.fillStyle = tok('--lime', '#cbf34d'); g.fillRect(i * bw + 0.5, ch - b - p, Math.max(1, bw - 1), p)
   }
   // seven names in a phone's width: three letters each
   const wd = (x) => { const s = new Date(x).toLocaleDateString(t('locale'), { weekday: 'short' }).replace('.', ''); return innerWidth < 640 ? s.slice(0, 3) : s }

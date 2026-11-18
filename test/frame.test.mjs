@@ -33,11 +33,22 @@ test('the page foot links the same page in each language and says who made it', 
   assert.equal(langLinks((l) => `/x?l=${l}`).match(/<a /g).length, 3)
 })
 
-test('the trial look redefines only names the defaults have, and the live page is not given the attribute', () => {
+test('the look redefines only names the defaults have, or the scene and signal ones it adds', () => {
   const trial = theme.slice(theme.indexOf('A trial look'))
   const names = new Set([...trial.matchAll(/(--[a-z-]+):\s*[^;]+;/g)].map((m) => m[1]))
-  for (const n of names) assert.ok(n in tokens || ['--signal', '--signal-text', '--font-ui', '--font-num', '--pm-glass', '--pm-line', '--pm-soft'].includes(n), n)
-  assert.equal(fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('data-theme'), false)
+  for (const n of names) assert.ok(n in tokens || ['--signal', '--signal-text', '--sky', '--dormant', '--botcell', '--font-ui', '--font-num', '--pm-glass', '--pm-line', '--pm-soft'].includes(n), n)
+})
+
+test('the live page is always in the dark look, set before it is drawn, and its scene reads its colours from the tokens', () => {
+  const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8')
+  assert.ok(html.includes('<!--theme-->'), 'the place the server fills')
+  const server = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8')
+  assert.match(server, /LIVE_THEME = `<script>document\.documentElement\.dataset\.theme='lcl'<\/script>`/)
+  assert.ok(server.includes(".replace('<!--theme-->', LIVE_THEME)"))
+  const js = fs.readFileSync(new URL('../public/pulse3d.js', import.meta.url), 'utf8')
+  for (const name of ['--bg', '--edge', '--dormant', '--botcell', '--sky']) assert.ok(js.includes(`tok('${name}'`), name)
+  const css = fs.readFileSync(new URL('../public/pulse3d.css', import.meta.url), 'utf8')
+  assert.ok(!/rgba\(203, 243, 77/.test(css), 'no lime tint left outside the tokens')
 })
 
 const runTheme = ({ search = '', stored, light = false, throws = false } = {}) => {
