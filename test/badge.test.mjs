@@ -20,3 +20,9 @@ test('a longer value makes a wider badge', () => {
   assert.ok(widthOf(badgeSvg('CKB Pulse', 'a much longer line of words here')) > widthOf(badgeSvg('CKB Pulse', 'short')))
   assert.match(badgeSvg('a<b', 'c"d'), /a&lt;b/)
 })
+
+test('an AI account gets a badge that says so, not not-on-Pulse', () => {
+  assert.match(personBadge(null, 'en', true), /AI account/)
+  assert.match(personBadge(null, 'pt', true), /conta de IA/)
+  assert.match(personBadge(null, 'en', false), /not on Pulse/)
+})

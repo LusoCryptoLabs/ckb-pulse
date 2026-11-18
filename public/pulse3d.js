@@ -65,7 +65,7 @@ let introOpen = false
 let hlPeriod = null // the highlights period picked by hand; until then it follows the period on screen
 
 function actorOf(login, avatar) {
-  if (!actorIdx.has(login)) { actorIdx.set(login, actors.length); actors.push([login, avatar || '']) }
+  if (!actorIdx.has(login)) { actorIdx.set(login, actors.length); actors.push([login, avatar || '', '']) }
   const i = actorIdx.get(login)
   if (avatar && !actors[i][1]) actors[i][1] = avatar
   return i
@@ -489,7 +489,11 @@ if (MOBILE) {
 }
 
 // the most active projects, people and organisations of the last day, week and month, from the server
-const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['people', 'person'], ['peopleCommits', 'person'], ['orgs', 'org']]
+// reviewers and merged are the work-type medals next to the volume ones (2026-11-18); ai is the list of accounts that declare themselves AI
+const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['people', 'person'], ['peopleCommits', 'person'], ['reviewers', 'person'], ['merged', 'person'], ['orgs', 'org'], ['ai', 'person']]
+// the mark an account carries: IA for an AI account, Operator for the people behind Pulse
+const tagOf = (flag) => (flag === 'ai' ? `<em class="tag tag-ai" title="${esc(t('ai.note'))}">${esc(t('tag.ai'))}</em>` : flag === 'op' ? `<em class="tag tag-op" title="${esc(t('op.note'))}">${esc(t('tag.op'))}</em>` : '')
+const flagOfLogin = (login) => actors[actorIdx.get(login)]?.[2] || ''
 const hlKey = () => hlPeriod || (T.period === 'week' ? 'week' : 'day')
 let hlShown = null
 function renderHighlights() {
@@ -503,10 +507,11 @@ function renderHighlights() {
       const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
       const said = (label) => `aria-label="${esc(`${i + 1}. ${label}: ${n}`)}"`
       if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" style="background:${kcol(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
-      if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}</span><b>${n}</b></button></li>`
+      if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}${tagOf(cat === 'ai' ? 'ai' : flagOfLogin(name))}</span><b>${n}</b></button></li>`
       return `<li><button type="button" class="row" data-group="${esc(name)}" ${said(gname(name))}>${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></button></li>`
     }).join('')
-    return `<h3>${esc(t('h.' + cat))}</h3><ol class="hl">${items || `<li class="none">${esc(t('h.empty'))}</li>`}</ol>`
+    if (cat === 'ai' && !items) return ''
+    return `<h3>${esc(t('h.' + cat))}</h3>${cat === 'ai' ? `<p class="hint">${esc(t('ai.note'))}</p>` : ''}<ol class="hl">${items || `<li class="none">${esc(t('h.empty'))}</li>`}</ol>`
   }).join('')
 }
 $('hl-period').addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (b) { hlPeriod = b.dataset.h; renderHighlights() } })
@@ -1173,16 +1178,17 @@ function openPerson(a) {
   const login = actors[a]?.[0]; if (!login) return
   const per = new Map(), kinds = new Map()
   let lastAt = 0
-  for (const w of rows) if (w.a === a && !w.b && w.r >= 0) { per.set(w.r, (per.get(w.r) || 0) + 1); kinds.set(w.k, (kinds.get(w.k) || 0) + 1); lastAt = Math.max(lastAt, w.t) }
+  const flag = actors[a]?.[2] || ''
+  for (const w of rows) if (w.a === a && (!w.b || flag === 'ai') && w.r >= 0) { per.set(w.r, (per.get(w.r) || 0) + 1); kinds.set(w.k, (kinds.get(w.k) || 0) + 1); lastAt = Math.max(lastAt, w.t) }
   const list = [...per.entries()].sort((x, y) => y[1] - x[1])
   // what kind of work, and when it last happened: a count of updates alone reads the same for a review and a push
   const kindPills = [...kinds].sort((x, y) => y[1] - x[1]).map(([k, n]) => `<span>${esc(`${n} ${t('kn.' + k)}`)}</span>`).join('')
   const back = backTo; backTo = null; listShown = false
   showDrawer()
-  $('drawer-body').innerHTML = `${backBtn(back)}<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2 tabindex="-1">${esc(login)}</h2>
+  $('drawer-body').innerHTML = `${backBtn(back)}<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2 tabindex="-1">${esc(login)}${tagOf(flag)}</h2>
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}${lastAt ? ` · ${esc(t('p.last', { ago: ago(lastAt) }))}` : ''}</p></div></div>
 ${kindPills ? `<div class="pills kinds">${kindPills}</div>` : ''}
-${badgesFor(login, ['people', 'peopleCommits'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>${badgeRow('person', login)}
+${badgesFor(login, ['people', 'peopleCommits', 'reviewers', 'merged'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>${badgeRow('person', login)}
 <h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li><button type="button" class="row" data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></button></li>`).join('')}</ol>`
   focusDrawer()
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
@@ -1695,7 +1701,7 @@ addEventListener('resize', () => {
 function ingest(N) {
   S = N
   repos = S.repos.map((r) => ({ name: r.name, group: r.group, desc: r.desc, tags: r.tags || [], pushedAt: r.pushedAt, lang: r.lang || '' }))
-  actors = S.history.actors.map(([l, av]) => [l, av]); actorIdx.clear(); actors.forEach(([l], i) => actorIdx.set(l, i))
+  actors = S.history.actors.map(([l, av, f]) => [l, av, f || '']); actorIdx.clear(); actors.forEach(([l], i) => actorIdx.set(l, i))
   rows = S.history.rows.map(([at, k, r, a, b, title, c]) => ({ t: at * 1000, k: S.history.kinds[k], r, a, b, title: title || '', c: c || 0 }))
   rows.sort((x, y) => x.t - y.t)
   // links for the feed come from the latest events with titles and urls
