@@ -28,11 +28,14 @@
     // without WebGL 2 there is no scene, but the bars need none: the trial layout, which has bars on every screen
     const nogl = h.classList.contains('nogl')
     if (nogl) h.classList.add('next')
+    // the screen for calls (?screen=1): the scene large, no panels, no welcome card, on any screen size
+    const screen = new URLSearchParams(location.search).get('screen') === '1'
+    if (screen) h.classList.add('screen')
     const fp = () => h.classList.toggle('fpop', innerWidth < 1340 || h.classList.contains('next'))
     fp(); addEventListener('resize', fp)
     // bars on a phone and in the trial, unless the viewer picked the scene; the scene asks for three.js now, with the
     // page's own files, and the bars never do. The state is asked for here too, and the page shows outlines until it is in
-    h.dataset.firstView = nogl ? 'bars' : (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
+    h.dataset.firstView = nogl ? 'bars' : screen ? '3d' : (matchMedia('(max-width: 860px)').matches || h.classList.contains('next')) && view !== '3d' ? 'bars' : '3d'
     if (h.dataset.firstView === '3d') for (const f of ['three.module.js', 'three.core.js']) document.head.append(Object.assign(document.createElement('link'), { rel: 'modulepreload', href: `vendor/__VENDOR__/${f}` }))
     h.classList.add('wait')
     window.pulseState = fetch('api/state').catch(() => null)
@@ -80,6 +83,8 @@
     <button type="button" class="icon full" id="btn-full" data-t-label="full"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 </header>
+
+<div class="screen-bar" id="screen-bar"><button type="button" id="screen-full" data-t-label="full"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><a id="screen-exit" href="./" data-href="./" data-t="screen.exit"></a></div>
 
 <section class="hud filters" id="filters" data-t-label="filters">
   <h2 class="only-sheet" data-t="filters"></h2>

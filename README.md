@@ -97,7 +97,9 @@ In the scene, a phone frames it into whatever the panels leave free, and the pan
 
 24 hours and 7 days show the whole period at once, and the play button replays it. With a filter on, the counts are what it keeps ("filtered, of 247 updates"). A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
 
-The scene draws flat out while something moves (a comet, the camera, a block settling, the pointer) and at a slow beat while nothing does. On a device that draws in software it also skips the bloom and the antialiasing, holds still between events and draws at most 20 frames a second; the same happens when frames stay slow. `?quality=low` or `?quality=high` decides by hand. Measured on software rendering with the day replaying: about 13 cores across the browser's processes before, about 4 now.
+The scene draws flat out while something moves (a comet, the camera, a block settling, the pointer) and at a slow beat while nothing does. On a device that draws in software it also skips the bloom and the antialiasing, holds still between events and draws at most 20 frames a second; the same happens when frames stay slow. `?quality=low` or `?quality=high` decides by hand.
+
+For a community call, `/?screen=1` (also in the menu as "Screen for calls") shows only the scene, the name, the three numbers and the latest update, large, with no panels and no welcome card. F is full screen; the pointer and the small bar with the way out hide after three seconds. Measured on software rendering with the day replaying: about 13 cores across the browser's processes before, about 4 now.
 
 ## Look
 

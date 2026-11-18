@@ -516,3 +516,29 @@ body.bars .now .ticker { white-space: nowrap; }
 
 /* dated facts on a person's card */
 .drawer .marks span { border-color: rgba(203, 243, 77, 0.35); color: var(--fg, #f0ece2); }
+
+/* The screen for calls (?screen=1): the scene, the name, the three numbers and the latest update, large enough for a
+   projector. No panels, no welcome card, no timeline; the pointer hides after three seconds and so does the small bar
+   that offers full screen and the way out. */
+.screen .filters, .screen .side, .screen .drawer, .screen .timeline, .screen .tools, .screen .views-slot, .screen .brand p, .screen .kcap, .screen .viewbar, .screen .toasts, .screen .intro, .screen .tip { display: none !important; }
+.screen .top { padding: 22px 28px; }
+.screen .brand h1 { font-size: 34px; }
+.screen .live { width: 14px; height: 14px; }
+.screen .kpis { pointer-events: none; gap: 14px; }
+.screen .top .kpis .kpi { min-width: 132px; padding: 10px 20px; border-radius: 16px; }
+.screen .kpis b { font-size: 40px; }
+.screen .kpis span { font-size: 16px; }
+.screen .now { left: 28px; right: 28px; bottom: 26px; max-width: none; font-size: 22px; padding: 14px 22px; border-radius: 16px; }
+.screen .now .mode { font-size: 15px; padding: 4px 10px; }
+.screen .lbl { font-size: 19px; padding: 4px 14px; }
+.screen .lbl.sub { font-size: 15px; }
+.screen .badge3d { font-size: 17px; }
+.screen .new3d, .screen .star3d { font-size: 15px; }
+.screen-bar { display: none; }
+.screen .screen-bar { display: flex; align-items: center; gap: 12px; position: fixed; z-index: 9; right: 28px; top: 24px; transition: opacity 0.3s; }
+.screen-bar button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass); color: var(--fg); cursor: pointer; }
+.screen-bar button svg { width: 18px; height: 18px; }
+.screen-bar a { color: var(--mut); font-size: 14px; text-decoration: none; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--glass); }
+.screen-bar button:hover, .screen-bar a:hover { border-color: var(--lime); color: var(--lime); }
+.screen.still, .screen.still * { cursor: none !important; }
+.screen.still .screen-bar { opacity: 0; pointer-events: none; }
