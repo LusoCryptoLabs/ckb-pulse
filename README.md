@@ -4,7 +4,7 @@ Live GitHub activity of the CKB ecosystem, drawn in 3D.
 
 Each project is a block that lights up when people work on it. Live, last 24 hours or last 7 days. English, 中文, Português. The counters at the top open the same picture as lists of projects and people, for keyboards and screen readers.
 
-https://pulse-lab.lusocryptolabs.com
+https://pulse.lusocryptolabs.com
 
 ## Run
 
@@ -80,9 +80,9 @@ Visitors follow projects and people on their device, without an account. With br
 Badges are the last 7 days as a small SVG for a README or a site, grey when quiet or not followed, kept 10 minutes:
 
 ```md
-[![CKB Pulse](https://pulse-lab.lusocryptolabs.com/badge/repo.svg?name=owner/repo)](https://pulse-lab.lusocryptolabs.com/?repo=owner/repo)
-[![CKB Pulse](https://pulse-lab.lusocryptolabs.com/badge/person.svg?login=someone)](https://pulse-lab.lusocryptolabs.com/?person=someone)
-[![CKB Pulse](https://pulse-lab.lusocryptolabs.com/badge/ckb.svg)](https://pulse-lab.lusocryptolabs.com/)
+[![CKB Pulse](https://pulse.lusocryptolabs.com/badge/repo.svg?name=owner/repo)](https://pulse.lusocryptolabs.com/?repo=owner/repo)
+[![CKB Pulse](https://pulse.lusocryptolabs.com/badge/person.svg?login=someone)](https://pulse.lusocryptolabs.com/?person=someone)
+[![CKB Pulse](https://pulse.lusocryptolabs.com/badge/ckb.svg)](https://pulse.lusocryptolabs.com/)
 ```
 
 Each project's and person's card on the page shows its badge with the markdown to copy.
@@ -138,7 +138,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 Pulse is also a [Model Context Protocol](https://modelcontextprotocol.io) server at `/mcp` (Streamable HTTP, no session, nothing to install):
 
 ```sh
-claude mcp add --transport http ckb-pulse https://pulse-lab.lusocryptolabs.com/mcp
+claude mcp add --transport http ckb-pulse https://pulse.lusocryptolabs.com/mcp
 ```
 
 A browser that opens `/mcp` is sent to `/use#ai`, which shows how to connect.

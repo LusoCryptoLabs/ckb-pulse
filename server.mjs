@@ -21,6 +21,7 @@ import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
 import { landingPage } from './landing.mjs'
 import { feedPage } from './feed.mjs'
+import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
 import { lessonsPage, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
@@ -64,7 +65,7 @@ const LIVE_THEME = `<script>document.documentElement.dataset.theme='dark'</scrip
 // three.js and d3 are served under the hash of their folder (/vendor/<VENDOR>/...): a browser keeps them a year, and a
 // new copy of the folder has a new address
 const VENDOR = buildId(path.join(ROOT, 'vendor'))
-const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR).replace('<!--theme-->', LIVE_THEME)
+const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR).replace('<!--migrate-->', MIGRATE_SCRIPT).replace('<!--theme-->', LIVE_THEME)
 const FIBER = fs.readFileSync(path.join(ROOT, 'fiber.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR)
 
 // share cards: pictures drawn on demand, kept ten minutes per address

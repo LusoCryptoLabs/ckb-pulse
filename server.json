@@ -3,7 +3,7 @@
   "name": "io.github.LusoCryptoLabs/ckb-pulse",
   "title": "CKB Pulse",
   "description": "Who builds on Nervos CKB, from public GitHub: projects, people, updates. Read-only.",
-  "websiteUrl": "https://pulse-lab.lusocryptolabs.com/use#ai",
+  "websiteUrl": "https://pulse.lusocryptolabs.com/use#ai",
   "repository": {
     "url": "https://github.com/LusoCryptoLabs/ckb-pulse",
     "source": "github"
@@ -12,7 +12,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://pulse-lab.lusocryptolabs.com/mcp"
+      "url": "https://pulse.lusocryptolabs.com/mcp"
     }
   ]
 }
