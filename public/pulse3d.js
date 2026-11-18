@@ -12,6 +12,8 @@ const QUIET_MS = 10 * 60e3 // no update by people for this long: the day replays
 const REFRESH_MS = 10 * 60e3 // new projects, new organisations and the highlights come with a fresh state
 const MOBILE = matchMedia('(max-width: 860px)').matches || matchMedia('(pointer: coarse)').matches
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
+// the screen for calls (?screen=1, see index.html): large, no panels, nothing to click
+const SCREEN = document.documentElement.classList.contains('screen')
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
@@ -180,7 +182,7 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   renderer.domElement.addEventListener('pointerleave', () => { ptrPx.in = false; $('tip').hidden = true })
   renderer.domElement.addEventListener('pointerdown', (e) => { wake(800); down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); openFilters(false); closeSearch() })
   renderer.domElement.addEventListener('pointerup', (e) => {
-    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 450) return
+    if (SCREEN || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 450) return
     ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
     const pick = pickAt()
     if (pick.person) openPerson(actorIdx.get(pick.person))
@@ -890,7 +892,7 @@ function people() {
       tmpP.set(Math.cos(s.userData.ang) * s.userData.R, s.userData.y, Math.sin(s.userData.ang) * s.userData.R); s.position.copy(tmpP)
     }
     s.userData.leaving = false
-    s.userData.size = 1.1 + 1.6 * Math.sqrt(n / max)
+    s.userData.size = (1.1 + 1.6 * Math.sqrt(n / max)) * (SCREEN ? 1.3 : 1)
     s.userData.n = n
     personBadge(s)
   }
@@ -1065,7 +1067,7 @@ function pickAt() {
   return { person: null, cell: hits.length ? hits[0].instanceId : -1 }
 }
 function stepHover() {
-  if (!ptrPx.in || MOBILE) return
+  if (!ptrPx.in || MOBILE || SCREEN) return
   const p = pickAt()
   const tip = $('tip')
   if (hovered >= 0 && cell[hovered]) cell[hovered].hover = 0
@@ -1098,7 +1100,7 @@ function hud() {
     return { top, bottom: innerHeight - Math.min(innerHeight, ...tops) + 8, right: 0 }
   }
   const bottom = innerHeight - (onScreen($('now')) ? box('#now') : box('.timeline')).top + 8
-  const right = !$('side').classList.contains('closed') || !$('drawer').hidden ? $('side').offsetWidth + 32 : 0
+  const right = SCREEN ? 0 : !$('side').classList.contains('closed') || !$('drawer').hidden ? $('side').offsetWidth + 32 : 0
   return { top, bottom, right }
 }
 function updateLayout() {
@@ -1451,8 +1453,17 @@ $('results').addEventListener('click', (e) => {
   if (li.dataset.person) openPerson(+li.dataset.person)
   closeSearch(); $('q').blur()
 })
-$('btn-full').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.() })
-if (!document.fullscreenEnabled) $('btn-full').hidden = true // iPhones have no full screen for pages
+const toggleFull = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.() }
+$('btn-full').addEventListener('click', toggleFull)
+if (!document.fullscreenEnabled) { $('btn-full').hidden = true; $('screen-full').hidden = true } // iPhones have no full screen for pages
+if (SCREEN) {
+  // for a call: F is full screen, and the pointer and the small bar go away after three seconds without it moving
+  $('screen-full').addEventListener('click', toggleFull)
+  addEventListener('keydown', (e) => { if (e.key === 'f' || e.key === 'F') toggleFull() })
+  let hideAt = 0
+  const showBar = () => { document.documentElement.classList.remove('still'); clearTimeout(hideAt); hideAt = setTimeout(() => document.documentElement.classList.add('still'), 3000) }
+  addEventListener('pointermove', showBar, { passive: true }); showBar()
+}
 addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (!$('drawer').hidden) closeDrawer(); closeSearch(); openFilters(false) } })
 addEventListener('pointerdown', (e) => {
   // a tap outside the open filter panel closes it
@@ -1700,7 +1711,7 @@ applyLang()
 // so a first visit through a link gets one line in the panel and in the project card, with the card one tap away
 const SHARED = ['repo', 'person', 'h', 'tab'].some((k) => new URLSearchParams(location.search).has(k))
 const hideNewHere = () => { for (const el of document.querySelectorAll('.newhere')) el.hidden = true }
-if (!store.get('seen')) {
+if (!store.get('seen') && !SCREEN) {
   if (SHARED) { for (const el of document.querySelectorAll('.newhere')) el.hidden = false; store.set('seen', '1') } else openIntro()
 }
 document.addEventListener('click', (e) => {

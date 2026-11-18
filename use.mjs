@@ -26,7 +26,7 @@ export function usePage({ lang, base, url, img = '' }) {
   const title = `CKB Pulse · ${t('use.title')}`, desc = t('use.lead')
   const go = (links) => `<p class="go">${links.map(([href, k, alt]) => `<a${alt ? ' class="alt"' : ''} href="${esc(href)}">${esc(t(k))}</a>`).join('')}</p>`
   const parts = [
-    ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/?${L}`, 'use.watch.a']])}`],
+    ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/?${L}`, 'use.watch.a'], [`${base}/?screen=1&${L}`, 'use.watch.screen', 1]])}`],
     ['follow', `<p>${esc(t('use.follow.p'))}</p>${go([[`${base}/digest?p=week&${L}`, 'use.follow.digest'], [`${base}/?tab=new&${L}`, 'use.follow.notify', 1], [`${base}/feed.xml?${L}`, 'use.follow.feed', 1]])}`],
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
