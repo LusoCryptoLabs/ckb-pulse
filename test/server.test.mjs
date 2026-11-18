@@ -54,3 +54,13 @@ for (const page of ['/digest', '/funded', '/use']) {
     assert.match((await get(page, 'pt')).toLowerCase(), /vary: accept-encoding, accept-language/)
   })
 }
+
+test('/method answers in every language with every section', async () => {
+  for (const [lang, word] of [['en', 'How Pulse'], ['pt', 'Como o Pulse'], ['zh', 'Pulse 如何']]) {
+    const r = await get(`/method?lang=${lang}`)
+    assert.equal(status(r), 200)
+    assert.ok(r.includes(word), lang)
+    for (const id of ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'funded', 'limits', 'wrong']) assert.ok(r.includes(`id="${id}"`), `${lang} ${id}`)
+    assert.ok(!/\bme\.[a-z]+\.[a-z]\b/.test(r), 'a missing word shows its key')
+  }
+})
