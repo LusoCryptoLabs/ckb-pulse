@@ -64,6 +64,7 @@ html[lang] .go a.alt { background: none; color: var(--fg); border-color: var(--m
 /* every corner straight, buttons and chips included: only the dots are round */
 html[lang] * { border-radius: 0 !important; }
 html[lang] .pm-tile b { border-radius: 50% !important; }
+html[lang] .last i { border-radius: 50% !important; } /* the dot before the last update on the landing */
 /* the bar and the menu: the same tokens */
 html[lang] .pmenu, html[lang] .pm-bar, html[lang] .pm-views { --pm-glass: color-mix(in srgb, var(--bg) 88%, transparent); --pm-line: var(--edge); --pm-soft: color-mix(in srgb, var(--fg) 8%, transparent); }
 html[lang] .pm-panel, html[lang] .ps-panel { box-shadow: var(--panel-shadow); }

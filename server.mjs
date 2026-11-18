@@ -19,7 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
-import { landingPage } from './landing.mjs'
+import { landingPage, lastLine } from './landing.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
@@ -198,7 +198,7 @@ function handle(req, res) {
   if (url.pathname === '/' && !DEEP.some((k) => url.searchParams.has(k))) {
     hit('landing', ipOf(req), req.headers['user-agent'])
     const lang = langOf(url.searchParams, req), b = baseOf(req), day = highlightsNow().day
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, landingPage({ lang, base: b, url: `${b}/`, stats: day.stats, img: `${b}${withStamp(`/og/highlights.png?p=day`, day)}&lang=${lang}` }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, landingPage({ lang, base: b, url: `${b}/`, stats: day.stats, last: latestUpdates({ limit: 1 })[0] || null, img: `${b}${withStamp(`/og/highlights.png?p=day`, day)}&lang=${lang}` }))
   }
   if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/live') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
   // the Fiber map is paused: its address goes to the live page for now, its API and stream answer 503 (menu.js, FIBER_PAUSED)
@@ -320,6 +320,8 @@ function handle(req, res) {
   if (url.pathname === '/api/push/off' && req.method === 'POST') return readJson(req, 4096, (j) => sendJson(req, res, unsubscribe(j)))
   if (url.pathname.startsWith('/og/')) { shareCard(req, res, url).catch((err) => { console.warn('card', err.message); if (!res.headersSent) res.writeHead(500); res.end() }); return }
   if (url.pathname === '/version.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ v: BUILD })) }
+  // the last update, as the line the landing shows under its picture, in the page's language: the landing asks once a minute
+  if (url.pathname === '/api/last') { const e = latestUpdates({ limit: 1 })[0] || null; return sendText(req, res, 200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=30', vary: LANG_VARY }, JSON.stringify({ at: e?.at || null, line: lastLine(words(langOf(url.searchParams, req)), e) })) }
   if (url.pathname === '/api/state') { const e = stateNow.get(); return sendEntry(req, res, 200, { 'content-type': 'application/json', 'cache-control': 'no-cache' }, e.buf, e) }
   // dated facts about one person, for their card
   if (url.pathname === '/api/person') {

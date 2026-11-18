@@ -571,3 +571,6 @@ html[lang].screen .pm-by-lcl img { width: 160px; }
 .track:not(.ready) .window, .track:not(.ready) .head { visibility: hidden; } /* the timeline marks wait for their first place */
 .barsview { transition: top 0.3s ease; }
 .kcap:empty::before { content: "\200b"; }
+/* ?embed=1: the scene alone, inside the landing's frame: nothing to read, nothing to press, no pointer */
+.embed .top, .embed .now, .embed .screen-bar, .embed .skip { display: none !important; }
+.embed, .embed body { pointer-events: none; }
