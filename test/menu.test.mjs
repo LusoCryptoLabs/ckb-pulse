@@ -93,9 +93,9 @@ test('the two wordmark files exist and keep the red centre dot', () => {
   }
 })
 
-test('the trial look has every corner straight, with the dots as the only round things', () => {
+test('the look has every corner straight, with the dots as the only round things', () => {
   const css = fs.readFileSync(new URL('../public/theme.css', import.meta.url), 'utf8')
-  assert.match(css, /html\[data-theme\^="lcl"\] \* \{ border-radius: 0 !important; \}/)
+  assert.match(css, /html\[lang\] \* \{ border-radius: 0 !important; \}/)
   assert.match(css, /\.pm-tile b \{ border-radius: 50% !important; \}/)
   assert.match(css, /\.eyebrow::before \{[^}]*border-radius: 50%/)
 })

@@ -1,6 +1,6 @@
 :root {
   /* --bg, --fg, --mut and --lime come from theme.css, shared with every page */
-  --glass: color-mix(in srgb, var(--surface) 78%, transparent); --glass2: color-mix(in srgb, var(--panel) 95%, transparent); --line: color-mix(in srgb, var(--lime) 14%, transparent); --amber: #f5b14c; --bot: var(--mut);
+  --glass: color-mix(in srgb, var(--surface) 78%, transparent); --glass2: color-mix(in srgb, var(--panel) 95%, transparent); --line: color-mix(in srgb, var(--lime) 14%, transparent); --amber: var(--f-talk, #f5b14c); --bot: var(--mut);
   --top: 80px; --side: 360px;
 }
 * { box-sizing: border-box; }
@@ -74,9 +74,9 @@ button, select, input { font: inherit; color: inherit; }
 .seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--lime) 20%, transparent); color: var(--fg); }
 .filters select { appearance: none; -webkit-appearance: none; border: 1px solid var(--line); border-radius: 10px; padding: 6px 30px 6px 11px; font-size: 13px; cursor: pointer; max-width: 170px; text-overflow: ellipsis; background-color: var(--glass); background-image: linear-gradient(45deg, transparent 50%, var(--mut) 50%), linear-gradient(135deg, var(--mut) 50%, transparent 50%); background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%; background-size: 5px 5px; background-repeat: no-repeat; }
 .filters select.on { border-color: var(--lime); }
-.filters select option { background: #12170e; color: var(--fg); }
+.filters select option { background: var(--panel); color: var(--fg); }
 .switch { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); border: 1px solid var(--line); border-radius: 10px; padding: 6px 11px; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.switch i { width: 26px; height: 15px; border-radius: 8px; background: #2b3223; position: relative; flex: none; }
+.switch i { width: 26px; height: 15px; border-radius: 8px; background: var(--edge); position: relative; flex: none; }
 .switch i::after { content: ""; position: absolute; left: 2px; top: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--mut); transition: transform 0.2s; }
 .switch[aria-pressed="true"] i { background: color-mix(in srgb, var(--lime) 35%, transparent); }
 .switch[aria-pressed="true"] i::after { transform: translateX(11px); background: var(--lime); }
@@ -111,7 +111,7 @@ body.drawer-open .side { visibility: hidden; }
 .feed li.new { animation: slide 0.7s ease-out; }
 @keyframes slide { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 .feed img { width: 30px; height: 30px; border-radius: 50%; background: var(--surface); }
-.feed .what { font-size: 14px; color: #d9e0cc; }
+.feed .what { font-size: 14px; color: var(--fg); }
 .feed .what b { color: var(--fg); }
 .feed .repo { background: none; border: 0; padding: 0; text-align: inherit; cursor: pointer; color: var(--lime); text-decoration: underline dotted color-mix(in srgb, var(--lime) 50%, transparent); text-underline-offset: 3px; }
 .feed .title { font-size: 12.5px; color: var(--mut); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; }
@@ -158,8 +158,8 @@ body.drawer-open .side { visibility: hidden; }
 .notify { border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: 4px; }
 .notify .hint { margin: 8px 0 0; }
 .add-pane h3.suggest { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 12px; }
-.chain3d { display: block; width: 9px; height: 9px; overflow: hidden; font-size: 0; background: #62c9f5; border-radius: 999px; box-shadow: 0 0 8px rgba(98, 201, 245, 0.7); transition: opacity 0.25s; pointer-events: none; }
-.zoomed .chain3d { width: auto; height: auto; font-size: 10.5px; font-weight: 800; color: #062a33; padding: 0 6px; box-shadow: none; }
+.chain3d { display: block; width: 9px; height: 9px; overflow: hidden; font-size: 0; background: var(--fg); border-radius: 999px; box-shadow: 0 0 8px color-mix(in srgb, var(--fg) 60%, transparent); transition: opacity 0.25s; pointer-events: none; }
+.zoomed .chain3d { width: auto; height: auto; font-size: 10.5px; font-weight: 800; color: var(--ink); padding: 0 6px; box-shadow: none; }
 .drawer .oc li { display: block; }
 .drawer .oc li a { text-decoration: none; }
 .drawer .oc li a:hover b { text-decoration: underline; }
@@ -248,7 +248,7 @@ body.drawer-open .side { visibility: hidden; }
 .now { left: 16px; bottom: 134px; max-width: min(760px, calc(100vw - var(--side) - 64px)); display: flex; gap: 10px; align-items: center; background: var(--glass); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
 .now .mode { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: var(--ink); background: var(--lime); border-radius: 6px; padding: 3px 8px; white-space: nowrap; }
 .now.replay .mode { background: var(--amber); }
-.now.paused .mode { background: #cfd6c4; }
+.now.paused .mode { background: var(--mut); }
 .now .clock { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .now .ticker { color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
@@ -282,7 +282,7 @@ body.drawer-open .side { visibility: hidden; }
 .lbl em { font-style: normal; color: var(--signal-text, #ff8fa6); margin-left: 4px; }
 .lbl .c { display: none; }
 .zoomed .lbl .c { display: inline; }
-.lbl.sub { font-size: 11px; font-weight: 500; color: #a9b39b; background: color-mix(in srgb, var(--bg) 50%, transparent); padding: 1px 7px; }
+.lbl.sub { font-size: 11px; font-weight: 500; color: var(--mut); background: color-mix(in srgb, var(--bg) 50%, transparent); padding: 1px 7px; }
 .badge3d { font-size: 11.5px; box-shadow: 0 0 14px rgba(255, 205, 80, 0.45); }
 .new3d { font-size: 11px; font-weight: 800; color: #fff; background: var(--signal, #ff6b8b); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
 .culled { opacity: 0 !important; transition: none !important; } /* hide at once, fade in only */
@@ -365,7 +365,7 @@ body.bars .top::before { bottom: 0; }
 .bvr-tags .t-medal svg { width: 17px; height: 17px; display: block; }
 .bvr-tags .t-new, .bvr-tags .t-chain, .bvr-tags .t-star { font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
 .bvr-tags .t-new { color: #fff; background: var(--signal, #ff6b8b); }
-.bvr-tags .t-chain { color: #062a33; background: #62c9f5; }
+.bvr-tags .t-chain { color: var(--ink); background: var(--fg); }
 .bvr-tags .t-star { color: var(--ink); background: var(--lime); }
 .bvr-n { margin-left: auto; flex: none; font-size: 15px; color: var(--lime); font-variant-numeric: tabular-nums; }
 .bvr-line { display: block; position: relative; height: 26px; margin-top: 1px; }
@@ -511,8 +511,8 @@ body.bars .now .ticker { white-space: nowrap; }
 
 /* the marks an account carries: IA for an AI account, Operator for the people behind Pulse */
 .tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 6px; font: 700 11px var(--num, monospace); font-style: normal; letter-spacing: 0.04em; vertical-align: middle; }
-.tag-ai { background: #2b2a4a; color: #c9c6ff; border: 1px solid #5b57b0; }
-.tag-op { background: #1f2a14; color: #cbf34d; border: 1px solid #4d6a1a; }
+.tag-ai { background: var(--surface); color: var(--signal-text); border: 1px solid var(--signal-text); }
+.tag-op { background: var(--surface); color: var(--fg); border: 1px solid var(--edge); }
 
 /* dated facts on a person's card */
 .drawer .marks span { border-color: color-mix(in srgb, var(--lime) 35%, transparent); color: var(--fg, #f0ece2); }
@@ -546,16 +546,16 @@ body.bars .now .ticker { white-space: nowrap; }
 /* The LusoCryptoLabs look on the live page (2026-11-18): Ink, Archivo and Space Mono, straight corners, the red as the
    signal. The scene is always the dark stage, so this page is dark whatever look the plain pages are in. The data keeps
    its own colours: the five families of work, the chain mark and the medals. Only the dots and the faces are round. */
-html[data-theme^="lcl"] { --pulse: var(--signal); --line: var(--edge); }
-html[data-theme^="lcl"] .brand h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
-html[data-theme^="lcl"] .brand p { display: none; }
-html[data-theme^="lcl"] .brand > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
-html[data-theme^="lcl"] .live, html[data-theme^="lcl"] .tabs .dot, html[data-theme^="lcl"] .p-live::before, html[data-theme^="lcl"] .switch i::after,
-html[data-theme^="lcl"] .search li img, html[data-theme^="lcl"] .feed img, html[data-theme^="lcl"] .hl img, html[data-theme^="lcl"] .hl .sw,
-html[data-theme^="lcl"] .drawer .people img, html[data-theme^="lcl"] .drawer .person img, html[data-theme^="lcl"] .drawer .list img,
-html[data-theme^="lcl"] .bvr-faces button, html[data-theme^="lcl"] .sk .sk-av { border-radius: 50% !important; }
-html[data-theme^="lcl"] .kpis b, html[data-theme^="lcl"] .done, html[data-theme^="lcl"] .intro .primary { font-family: var(--font-num); }
+html[lang] { --pulse: var(--signal); --line: var(--edge); }
+html[lang] .brand h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+html[lang] .brand p { display: none; }
+html[lang] .brand > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+html[lang] .live, html[lang] .tabs .dot, html[lang] .p-live::before, html[lang] .switch i::after,
+html[lang] .search li img, html[lang] .feed img, html[lang] .hl img, html[lang] .hl .sw,
+html[lang] .drawer .people img, html[lang] .drawer .person img, html[lang] .drawer .list img,
+html[lang] .bvr-faces button, html[lang] .sk .sk-av { border-radius: 50% !important; }
+html[lang] .kpis b, html[lang] .done, html[lang] .intro .primary { font-family: var(--font-num); }
 /* for a projector the name and the studio under it are larger (the look's own rules are more specific, hence the html prefix) */
-html[data-theme^="lcl"].screen .brand h1 { font-size: 42px; }
-html[data-theme^="lcl"].screen .pm-by-lcl { font-size: 12px; gap: 9px; }
-html[data-theme^="lcl"].screen .pm-by-lcl img { width: 160px; }
+html[lang].screen .brand h1 { font-size: 42px; }
+html[lang].screen .pm-by-lcl { font-size: 12px; gap: 9px; }
+html[lang].screen .pm-by-lcl img { width: 160px; }

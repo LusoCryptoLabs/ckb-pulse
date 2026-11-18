@@ -17,11 +17,13 @@ let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], ne
 // who made the page, where it is posted about and its source, at the foot of every plain page
 // the bar every server page opens with (the name, the three views, the menu), and its style and script
 export const pageBar = barHtml
-// the look of the plain pages, set before the first paint: the one this browser chose (the menu has a switch, and
-// ?theme=dark, ?theme=light or ?theme=old set it), else the system's own, dark or light. "old" is the Cellula look the
-// pages had before 2026-11-18, kept for now. The live page does not take part yet.
-export const THEME_SCRIPT = `<script>(function(){var d=document.documentElement,K='ckbpulse.theme',m={dark:'lcl',light:'lcl-light',lcl:'lcl','lcl-light':'lcl-light',old:'old'},has=function(o,k){return Object.prototype.hasOwnProperty.call(o,k)},th=null;try{var q=new URLSearchParams(location.search).get('theme');if(q&&has(m,q)){th=m[q];localStorage.setItem(K,th)}else{var s=localStorage.getItem(K);if(s&&has(m,s))th=m[s]}}catch(e){}if(!th)th=matchMedia('(prefers-color-scheme: light)').matches?'lcl-light':'lcl';if(th!=='old')d.dataset.theme=th})()</script>`
-export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${THEME_SCRIPT}`
+// the look, set before the first paint, only when the person chose one in the menu (Auto, Dark or Light) or in a link
+// (?theme=dark, ?theme=light, ?theme=auto). Auto is no attribute at all: theme.css follows the device's own setting and
+// keeps following it. Older values (lcl, lcl-light) still count, and old means auto. The choice is kept in this browser.
+export const THEME_SCRIPT = `<script>(function(){var d=document.documentElement,K='ckbpulse.theme',m={dark:'dark',light:'light',lcl:'dark','lcl-light':'light'},has=function(o,k){return Object.prototype.hasOwnProperty.call(o,k)},c=null;try{var q=new URLSearchParams(location.search).get('theme');if(q==='auto'||q==='old'){localStorage.removeItem(K)}else if(q&&has(m,q)){c=m[q];localStorage.setItem(K,c)}else{var s=localStorage.getItem(K);if(s&&has(m,s))c=m[s]}}catch(e){}if(c)d.dataset.theme=c})()</script>`
+// the browser's own bars (theme-color) and form controls follow the device too
+export const LOOK_META = `<meta name="color-scheme" content="dark light"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121212"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F1EB">`
+export const menuHead = (base) => `${LOOK_META}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
 export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
@@ -102,14 +104,14 @@ async function telegram(w, groupOf, publicUrl) {
 }
 
 // ---------- the page ----------
-export const CSS = `:root{color-scheme:dark}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif);background-image:radial-gradient(circle,rgba(203,243,77,.07) 1px,transparent 1.4px);background-size:22px 22px}
+export const CSS = `body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif)}
 a{color:var(--lime)}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
 .hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);border:1px solid var(--edge);border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:var(--lime)}
 h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:var(--lime)}em.tag{margin-left:6px;padding:1px 7px;border-radius:6px;font:700 11px var(--font-num,monospace);letter-spacing:.04em;background:#2b2a4a;color:#c9c6ff;border:1px solid #5b57b0}.lede{color:var(--mut);font-size:17px;margin:0;max-width:62ch}
 h2{font:500 11px var(--font-num,monospace);color:var(--mut);margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em}p.sub{color:var(--mut);margin:0 0 20px}
 nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{display:inline-block;padding:6px 13px;border:1px solid var(--edge);border-radius:999px;margin:0;text-decoration:none;font-size:14px}nav.p>b{background:var(--lime);color:var(--ink);font-weight:600}
 .kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:14px 16px}.kpis b{display:block;font:600 34px/1.15 var(--font-num,monospace);letter-spacing:-.02em;color:var(--lime)}.kpis span{color:var(--mut);font-size:14px}
-.bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:var(--surface);border:1px solid var(--edge);border-radius:18px;padding:10px}.bars i{flex:1;background:linear-gradient(#e2ff7a,#8fb81f);border-radius:3px 3px 0 0;min-height:2px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:var(--surface);border:1px solid var(--edge);border-radius:18px;padding:10px}.bars i{flex:1;background:var(--fg);border-radius:3px 3px 0 0;min-height:2px}
 ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--edge-soft)}ol li span{min-width:0;overflow-wrap:anywhere}ol li b{color:var(--lime);white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:var(--mut);margin-left:8px}
 .medals li{border:1px solid var(--edge);background:var(--surface);border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:var(--mut);margin:0}.medals strong{font-size:18px}
 details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summary{cursor:pointer;display:inline-block;padding:3px 0;color:var(--mut);list-style:none}details.words summary::-webkit-details-marker{display:none}details.words summary::before{content:"▸";display:inline-block;margin-right:6px;color:var(--lime)}details.words[open] summary::before{content:"▾"}details.words ul{margin:6px 0 4px;padding-left:18px}details.words li{margin:4px 0;color:var(--fg)}details.words p{margin:4px 0 0}

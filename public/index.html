@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>CKB Pulse</title>
 <meta name="description" content="Watch people build CKB, live: every project is a block that lights up when someone works on it.">
-<meta name="theme-color" content="#07090a">
+<meta name="theme-color" content="#121212">
 <meta name="build" content="__BUILD__">
 <!--og-->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='1' y='9' width='6' height='6' rx='1.5' fill='%2337401f'/%3E%3Crect x='9' y='9' width='6' height='6' rx='1.5' fill='%23cbf34d'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 fill=%22%23121212%22/%3E%3Crect x=%222%22 y=%222%22 width=%225.5%22 height=%225.5%22 fill=%22%23F4F1EB%22/%3E%3Crect x=%228.5%22 y=%222%22 width=%225.5%22 height=%225.5%22 fill=%22%234a4a47%22/%3E%3Crect x=%222%22 y=%228.5%22 width=%225.5%22 height=%225.5%22 fill=%22%234a4a47%22/%3E%3Crect x=%228.5%22 y=%228.5%22 width=%225.5%22 height=%225.5%22 fill=%22%23E10600%22/%3E%3C/svg%3E">
 <link rel="preload" href="vendor/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="pulse3d.css">
@@ -164,10 +164,10 @@
     <h2 id="intro-h" data-t="i.title"></h2>
     <p class="lead" data-t="i.lead"></p>
     <ul class="how">
-      <li><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="5" y="19" width="7" height="10" rx="1.5" fill="#37401f"/><rect x="13.5" y="7" width="7" height="22" rx="1.5" fill="#cbf34d"/><rect x="22" y="14" width="7" height="15" rx="1.5" fill="#62c9f5"/></svg><span data-t="i.block"></span></li>
-      <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="#1b2215" stroke="#cbf34d" stroke-width="2.5"/><circle cx="17" cy="14" r="4.5" fill="#cbf34d"/><path d="M9.5 26c2.5-5 12.5-5 15 0" stroke="#cbf34d" stroke-width="2.5" fill="none"/></svg><span data-t="i.face"></span></li>
-      <li><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M3 27Q11 3 25 13" stroke="#f5b14c" stroke-width="2.2" stroke-dasharray="2 3.2" stroke-linecap="round" fill="none"/><circle cx="25.5" cy="13.5" r="4.5" fill="#f5b14c"/></svg><span data-t="i.comet"></span></li>
-      <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="none" stroke="#cbf34d" stroke-width="2" opacity=".35"/><circle cx="17" cy="17" r="8" fill="none" stroke="#cbf34d" stroke-width="2" opacity=".7"/><circle cx="17" cy="17" r="3.5" fill="#eef3e2"/></svg><span data-t="i.hand"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><rect x="5" y="19" width="7" height="10" fill="var(--f-interest)"/><rect x="13.5" y="7" width="7" height="22" fill="var(--f-code)"/><rect x="22" y="14" width="7" height="15" fill="var(--f-change)"/></svg><span data-t="i.block"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="var(--surface)" stroke="var(--fg)" stroke-width="2.5"/><circle cx="17" cy="14" r="4.5" fill="var(--fg)"/><path d="M9.5 26c2.5-5 12.5-5 15 0" stroke="var(--fg)" stroke-width="2.5" fill="none"/></svg><span data-t="i.face"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M3 27Q11 3 25 13" stroke="var(--f-talk)" stroke-width="2.2" stroke-dasharray="2 3.2" stroke-linecap="round" fill="none"/><circle cx="25.5" cy="13.5" r="4.5" fill="var(--f-talk)"/></svg><span data-t="i.comet"></span></li>
+      <li><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="none" stroke="var(--fg)" stroke-width="2" opacity=".35"/><circle cx="17" cy="17" r="8" fill="none" stroke="var(--fg)" stroke-width="2" opacity=".7"/><circle cx="17" cy="17" r="3.5" fill="var(--fg)"/></svg><span data-t="i.hand"></span></li>
     </ul>
     <h3 data-t="i.colours"></h3>
     <div class="legend" id="legend"></div>

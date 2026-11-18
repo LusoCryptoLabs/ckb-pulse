@@ -1,58 +1,74 @@
-/* The look every Pulse page shares since 2026-11-02, Cellula's: Space Grotesk for words, JetBrains Mono for numbers
-   and small labels, lime on a warm black. The fonts are served from here, not from a font host, so a visit asks no one
-   else for anything; Chinese falls back to the system's own faces. Each page keeps its own layout styles. */
-@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 300 700; font-display: swap; src: url(vendor/fonts/SpaceGrotesk-latin-ext.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 300 700; font-display: swap; src: url(vendor/fonts/SpaceGrotesk-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url(vendor/fonts/JetBrainsMono-latin-ext.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url(vendor/fonts/JetBrainsMono-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-:root {
-  --font-ui: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
-  --font-num: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
-  /* the colours every page shares, in one place: lime on a warm black. A page that needs a shade of its own keeps it,
-     the ones below are the ones that were repeated */
-  --bg: #0a0907; --surface: #14120e; --panel: #121009; --edge: #36322a; --edge-soft: #2a2720;
-  --fg: #f0ece2; --mut: #9a9486; --lime: #cbf34d; --ink: #1a2208;
-}
-
-/* A trial look, the LusoCryptoLabs one (2026-11-18): Ink and Paper, the red only as the signal, Archivo and Space Mono,
-   straight corners on blocks and panels, pills only for chips and buttons. On the plain pages only, and only for whoever
-   asks: ?theme=lcl (dark) or ?theme=lcl-light turns it on in this browser, ?theme=old turns it off. The live page and its
-   scene are not touched. The fonts are declared here and fetched only when the look is on. */
+/* The look every Pulse page shares: the LusoCryptoLabs one (2026-11-18). Ink and Paper, Grafite for what is quiet, the
+   red only as the signal, Archivo for words and Space Mono for numbers and small labels, every corner straight (only the
+   dots and the faces are round). Dark and light: the device's own setting decides, and follows it live, unless the person
+   chose in the menu (Auto, Dark or Light); the choice is kept in this browser (menu.js and the script every page runs
+   before it is drawn set data-theme only when there is one). The fonts are served from here, not from a font host, so a
+   visit asks no one else for anything; Chinese falls back to the system's own faces. Each page keeps its own layout. */
 @font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 100%; font-display: swap; src: url(vendor/fonts/Archivo-latin-wght.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-400.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-700.woff2) format("woff2"); }
-html[data-theme^="lcl"] {
+
+/* the names: --bg the ground, --surface a block, --panel a menu, --edge and --edge-soft the rules, --fg the words, --mut
+   the quiet words, --lime the accent of links, numbers and the main chip (Paper on Ink, Ink on Paper; the name is from
+   the first look), --ink the words on the accent, --signal and --signal-text the red; --f-* the five kinds of work; the
+   scene's own: --sky, --dormant, --botcell; --logo-dark and --logo-light which wordmark shows; --panel-shadow */
+:root {
   --font-ui: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
   --font-num: "Space Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
-  --signal: #E10600;
+  color-scheme: dark;
+  --bg: #121212; --surface: #1b1b1b; --panel: #1b1b1b; --edge: #2b2b2b; --edge-soft: #262626;
+  --fg: #F4F1EB; --mut: #8A857B; --lime: #F4F1EB; --ink: #121212; --signal: #E10600; --signal-text: #FF4438;
+  --f-code: #F4F1EB; --f-change: #FF4438; --f-talk: #D9B26F; --f-version: #8E9AA6; --f-interest: #6F6A60;
+  --sky: #e8e6df; --dormant: #2b2b2b; --botcell: #4a4a47;
+  --logo-dark: block; --logo-light: none; --panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.75);
 }
-html[data-theme="lcl"] { --sky: #e8e6df; --dormant: #2b2b2b; --botcell: #4a4a47; color-scheme: dark; --bg: #121212; --surface: #1b1b1b; --panel: #1b1b1b; --edge: #2b2b2b; --edge-soft: #262626; --fg: #F4F1EB; --mut: #8A857B; --lime: #F4F1EB; --ink: #121212; --signal-text: #FF4438; }
-html[data-theme="lcl-light"] { color-scheme: light; --bg: #F4F1EB; --surface: #EAE5DC; --panel: #F4F1EB; --edge: #D8D2C7; --edge-soft: #E2DDD2; --fg: #121212; --mut: #5C5A54; --lime: #121212; --ink: #F4F1EB; --signal-text: #C90000; }
-html[data-theme^="lcl"] body { background-image: none; }
-html[data-theme^="lcl"] h1 { font-weight: 800; letter-spacing: -0.02em; }
-html[data-theme^="lcl"] h1 em { color: var(--signal-text); }
-html[data-theme^="lcl"] .eyebrow { background: transparent; letter-spacing: 0.14em; }
-html[data-theme^="lcl"] .eyebrow::before { background: var(--signal); border-radius: 50%; }
-html[data-theme^="lcl"] main h2 { letter-spacing: 0.14em; } /* the small labels of the reading pages; the live page's card titles keep their own */
-html[data-theme^="lcl"] .bars i { background: linear-gradient(var(--fg), var(--mut)); border-radius: 0; }
-html[data-theme^="lcl"] blockquote { border-left-color: var(--signal); }
-html[data-theme^="lcl"] .go a { background: var(--signal); color: #fff; }
-html[data-theme^="lcl"] .go a.alt { background: none; color: var(--fg); border-color: var(--mut); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #F4F1EB; --surface: #EAE5DC; --panel: #F4F1EB; --edge: #D8D2C7; --edge-soft: #E2DDD2;
+    --fg: #121212; --mut: #5C5A54; --lime: #121212; --ink: #F4F1EB; --signal: #E10600; --signal-text: #C90000;
+    --f-code: #121212; --f-change: #C90000; --f-talk: #A8741A; --f-version: #5A6672; --f-interest: #8F8A80;
+    --sky: #ffffff; --dormant: #D8D2C7; --botcell: #B9B2A4;
+    --logo-dark: none; --logo-light: block; --panel-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F4F1EB; --surface: #EAE5DC; --panel: #F4F1EB; --edge: #D8D2C7; --edge-soft: #E2DDD2;
+  --fg: #121212; --mut: #5C5A54; --lime: #121212; --ink: #F4F1EB; --signal: #E10600; --signal-text: #C90000;
+  --f-code: #121212; --f-change: #C90000; --f-talk: #A8741A; --f-version: #5A6672; --f-interest: #8F8A80;
+  --sky: #ffffff; --dormant: #D8D2C7; --botcell: #B9B2A4;
+  --logo-dark: none; --logo-light: block; --panel-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* what is shaped by the look and not by the page: the words, the corners, the bar and the menu. html[lang] is as strong
+   as the attribute the first version used, and every page has one */
+html[lang] body { background-image: none; }
+html[lang] h1 { font-weight: 800; letter-spacing: -0.02em; }
+html[lang] h1 em { color: var(--signal-text); }
+html[lang] .eyebrow { background: transparent; letter-spacing: 0.14em; }
+html[lang] .eyebrow::before { background: var(--signal); border-radius: 50%; }
+html[lang] main h2 { letter-spacing: 0.14em; } /* the small labels of the reading pages; the live page's card titles keep their own */
+html[lang] .bars i { background: linear-gradient(var(--fg), var(--mut)); border-radius: 0; }
+html[lang] blockquote { border-left-color: var(--signal); }
+html[lang] .go a { background: var(--signal); color: #fff; }
+html[lang] .go a.alt { background: none; color: var(--fg); border-color: var(--mut); }
 /* every corner straight, buttons and chips included: only the dots are round */
-html[data-theme^="lcl"] * { border-radius: 0 !important; }
-html[data-theme^="lcl"] .pm-tile b { border-radius: 50% !important; }
-/* the bar and the menu: the same tokens, the red dot as the live signal */
-html[data-theme^="lcl"] .pmenu, html[data-theme^="lcl"] .pm-bar, html[data-theme^="lcl"] .pm-views { --pm-glass: color-mix(in srgb, var(--bg) 88%, transparent); --pm-line: var(--edge); --pm-soft: color-mix(in srgb, var(--fg) 8%, transparent); }
+html[lang] * { border-radius: 0 !important; }
+html[lang] .pm-tile b { border-radius: 50% !important; }
+/* the bar and the menu: the same tokens */
+html[lang] .pmenu, html[lang] .pm-bar, html[lang] .pm-views { --pm-glass: color-mix(in srgb, var(--bg) 88%, transparent); --pm-line: var(--edge); --pm-soft: color-mix(in srgb, var(--fg) 8%, transparent); }
+html[lang] .pm-panel, html[lang] .ps-panel { box-shadow: var(--panel-shadow); }
 /* the name, and under it "by" and the studio's wordmark, whose red centre dot is the one red mark of the bar */
-html[data-theme^="lcl"] .pm-brand i { display: none; }
-html[data-theme^="lcl"] .pm-lock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-right: auto; min-width: 0; }
-html[data-theme^="lcl"] .pm-brand { margin-right: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
-html[data-theme^="lcl"] .pm-by-lcl { display: flex; align-items: center; gap: 6px; color: var(--mut); font: 400 9px/1 var(--font-num); letter-spacing: 0.14em; text-decoration: none; }
-html[data-theme^="lcl"] .pm-by-lcl img { display: block; width: 92px; height: auto; } /* under the kit's 120 px minimum, on purpose and by the owner's call: the name Pulse leads and the studio signs small; the full size is in the landing band and the footers */
-html[data-theme="lcl"] .pm-by-lcl .on-light, html[data-theme="lcl-light"] .pm-by-lcl .on-dark { display: none; }
-html[data-theme^="lcl"] .pm-by-lcl:hover span { color: var(--fg); }
-html[data-theme^="lcl"] .pm-row:hover, html[data-theme^="lcl"] .ps-panel a:hover, html[data-theme^="lcl"] .ps-panel button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
-html[data-theme^="lcl"] .pm-row[aria-current="page"] { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
-html[data-theme^="lcl"] .pm-tile, html[data-theme^="lcl"] .pm-fiber, html[data-theme^="lcl"] .pm-ai, html[data-theme^="lcl"] .pm-notices { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
-html[data-theme^="lcl"] .pm-live { background: var(--signal); color: #fff; }
-html[data-theme="lcl-light"] .pm-panel, html[data-theme="lcl-light"] .ps-panel { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18); }
+html[lang] .pm-brand i { display: none; }
+html[lang] .pm-lock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-right: auto; min-width: 0; }
+html[lang] .pm-brand { margin-right: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+html[lang] .pm-by-lcl { display: flex; align-items: center; gap: 6px; color: var(--mut); font: 400 9px/1 var(--font-num); letter-spacing: 0.14em; text-decoration: none; }
+html[lang] .pm-by-lcl img { display: block; width: 92px; height: auto; } /* under the kit's 120 px minimum, on purpose and by the owner's call: the name Pulse leads and the studio signs small; the full size is in the landing band and the footers */
+html[lang] .pm-by-lcl .on-dark { display: var(--logo-dark); }
+html[lang] .pm-by-lcl .on-light { display: var(--logo-light); }
+html[lang] .pm-by-lcl:hover span { color: var(--fg); }
+html[lang] .pm-row:hover, html[lang] .ps-panel a:hover, html[lang] .ps-panel button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+html[lang] .pm-row[aria-current="page"] { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
+html[lang] .pm-tile, html[lang] .pm-fiber, html[lang] .pm-ai, html[lang] .pm-notices { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
+html[lang] .pm-live { background: var(--signal); color: #fff; }

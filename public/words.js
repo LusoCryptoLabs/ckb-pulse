@@ -1,6 +1,7 @@
 // Every word the page shows, in plain language, in English, Portuguese and Simplified Chinese.
 // Event kinds fall into five families with one colour each, so the legend stays short.
-export const FAMILY = { code: '#cbf34d', change: '#62c9f5', talk: '#f5b14c', version: '#ff6b8b', interest: '#ffd166' }
+// the dark palette; the live colours are the --f-* tokens of theme.css, which follow the look
+export const FAMILY = { code: '#F4F1EB', change: '#FF4438', talk: '#D9B26F', version: '#8E9AA6', interest: '#6F6A60' }
 export const KIND_FAMILY = {
   push: 'code', branch: 'code',
   pr_open: 'change', pr_merged: 'change', pr_closed: 'change', review: 'change',
@@ -87,6 +88,7 @@ export const WORDS = {
     'm.screen': 'Screen for calls', 'm.screen.s': 'projector', 'use.watch.screen': 'Open the screen for calls', 'screen.exit': 'Back to the page',
     'm.impact': 'Who builds on what', 'im.nav': 'Who builds on what', 'im.title': 'Who builds on what', 'im.h1': 'Who builds with *{lib}*', 'im.lead': 'Which of the projects Pulse follows depend on a CKB library, counted from their public files.', 'im.libs': 'Libraries',
     'm.theme': 'Look', 'm.dark': 'Dark', 'm.light': 'Light',
+    'm.auto': 'Auto',
     'ld.eyebrow': 'Live from GitHub', 'ld.h1': 'Who is building *CKB*, live', 'ld.lead': 'Pulse shows the public work of the CKB ecosystem as it happens, from GitHub: projects, people and updates in one place.', 'ld.cta': 'Open the live view',
     'ld.plain': '{people} worked on {projects} of the CKB ecosystem in the last 24 hours and made {updates}.',
     'ld.c.live': 'Every project is a block that lights up when someone works on it.', 'ld.c.digest': 'The week in one page, to read or forward.', 'ld.c.screen': 'The live view, large, for a call or a projector.', 'ld.c.add': 'Missing a project? Tell Pulse and it follows it.',
@@ -231,6 +233,7 @@ export const WORDS = {
     'm.screen': 'Ecrã para chamadas', 'm.screen.s': 'projetor', 'use.watch.screen': 'Abrir o ecrã para chamadas', 'screen.exit': 'Voltar à página',
     'm.impact': 'Quem constrói sobre o quê', 'im.nav': 'Quem constrói sobre o quê', 'im.title': 'Quem constrói sobre o quê', 'im.h1': 'Quem constrói com o *{lib}*', 'im.lead': 'Quais dos projetos que o Pulse segue dependem de uma biblioteca da CKB, contados a partir dos seus ficheiros públicos.', 'im.libs': 'Bibliotecas',
     'm.theme': 'Aspeto', 'm.dark': 'Escuro', 'm.light': 'Claro',
+    'm.auto': 'Auto',
     'ld.eyebrow': 'Ao vivo a partir do GitHub', 'ld.h1': 'Quem está a construir a *CKB*, ao vivo', 'ld.lead': 'O Pulse mostra o trabalho público do ecossistema CKB à medida que acontece, a partir do GitHub: projetos, pessoas e atualizações num só sítio.', 'ld.cta': 'Abrir o ao vivo',
     'ld.plain': 'Nas últimas 24 horas, {people} trabalharam em {projects} do ecossistema CKB e fizeram {updates}.',
     'ld.c.live': 'Cada projeto é um bloco que se acende quando alguém trabalha nele.', 'ld.c.digest': 'A semana numa página, para ler ou reencaminhar.', 'ld.c.screen': 'O ao vivo em grande, para uma chamada ou um projetor.', 'ld.c.add': 'Falta um projeto? Diga ao Pulse e ele passa a segui-lo.',
@@ -376,6 +379,7 @@ export const WORDS = {
     'm.screen': '通话大屏', 'm.screen.s': '投屏', 'use.watch.screen': '打开通话大屏', 'screen.exit': '返回页面',
     'm.impact': '谁在用什么构建', 'im.nav': '谁在用什么构建', 'im.title': '谁在用什么构建', 'im.h1': '谁在用 *{lib}* 构建', 'im.lead': 'Pulse 关注的项目中，哪些依赖某个 CKB 库，根据它们的公开文件统计。', 'im.libs': '库',
     'm.theme': '外观', 'm.dark': '深色', 'm.light': '浅色',
+    'm.auto': '自动',
     'ld.eyebrow': '实时，来自 GitHub', 'ld.h1': '实时看谁在建设 *CKB*', 'ld.lead': 'Pulse 根据 GitHub 上的公开工作，实时展示 CKB 生态里的项目、人和更新。', 'ld.cta': '打开实时视图',
     'ld.plain': '最近 24 小时，{people}参与了 CKB 生态中的 {projects}，共完成 {updates}。',
     'ld.c.live': '每个项目是一个方块，有人工作时就会亮起。', 'ld.c.digest': '一页读完本周，可阅读也可转发。', 'ld.c.screen': '大屏版实时视图，适合通话或投影。', 'ld.c.add': '缺了项目？告诉 Pulse，它就会关注。',

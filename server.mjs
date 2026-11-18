@@ -59,7 +59,7 @@ function buildId(dir = ROOT) {
 }
 const BUILD = buildId()
 // the live page is always in the dark look of the LusoCryptoLabs kit (its scene is a dark stage), whatever the plain pages are in
-const LIVE_THEME = `<script>document.documentElement.dataset.theme='lcl'</script>`
+const LIVE_THEME = `<script>document.documentElement.dataset.theme='dark'</script>`
 // three.js and d3 are served under the hash of their folder (/vendor/<VENDOR>/...): a browser keeps them a year, and a
 // new copy of the folder has a new address
 const VENDOR = buildId(path.join(ROOT, 'vendor'))
@@ -170,7 +170,7 @@ const OFFLINE = process.env.PULSE_OFFLINE === '1'
 if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 if (!OFFLINE) startImpact({ repos: () => snapshot().repos, dir: DATA_DIR })
 // the app icon, drawn once: four cells, two lit
-const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
+const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#121212"/><rect x="2" y="2" width="5.5" height="5.5" fill="#F4F1EB"/><rect x="8.5" y="2" width="5.5" height="5.5" fill="#4a4a47"/><rect x="2" y="8.5" width="5.5" height="5.5" fill="#4a4a47"/><rect x="8.5" y="8.5" width="5.5" height="5.5" fill="#E10600"/></svg>'
 const icons = {}
 const icon = (size) => icons[size] || (icons[size] = rasterise(ICON_SVG.replace('viewBox', `width="${size}" height="${size}" viewBox`), size))
 function readJson(req, max, done) {
