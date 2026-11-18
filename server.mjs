@@ -162,7 +162,7 @@ loadDigests(DATA_DIR)
 loadFunded(DATA_DIR)
 // PULSE_OFFLINE=1 serves what is on disk and polls nothing (the HTTP tests)
 const OFFLINE = process.env.PULSE_OFFLINE === '1'
-if (!OFFLINE) startFunded()
+if (!OFFLINE) startFunded({ reposOf: (f) => fundedRepos(f.follow) })
 if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
