@@ -36,3 +36,21 @@ for (const p of ['/%FF', '//', '/%', '/api/fiber?net=constructor', '/api/fiber?n
     assert.equal(status(await raw('/health')), 200)
   })
 }
+
+// a page a person opens speaks their browser's language when the link names none; ?lang= wins, in any case
+const get = (p, al) => new Promise((resolve, reject) => {
+  const s = net.connect(port, '127.0.0.1', () => s.write(`GET ${p} HTTP/1.1\r\nHost: x\r\n${al ? `Accept-Language: ${al}\r\n` : ''}Connection: close\r\n\r\n`))
+  let out = ''
+  s.on('data', (c) => { out += c }); s.on('end', () => resolve(out)); s.on('error', reject)
+})
+const htmlLang = (r) => (r.match(/<html[^>]*\slang="([^"]+)"/) || [])[1]
+for (const page of ['/digest', '/funded', '/use']) {
+  test(`${page} follows Accept-Language, and ?lang= wins in any case`, async () => {
+    assert.match(htmlLang(await get(page, 'pt-PT,pt;q=0.9,en;q=0.8')), /^pt/)
+    assert.match(htmlLang(await get(page, 'zh-CN,zh;q=0.9')), /^zh/)
+    assert.match(htmlLang(await get(page, 'fr-FR')), /^en/)
+    assert.match(htmlLang(await get(`${page}?lang=PT`, 'zh-CN')), /^pt/)
+    assert.match(htmlLang(await get(`${page}?lang=pt-PT`)), /^pt/)
+    assert.match((await get(page, 'pt')).toLowerCase(), /vary: accept-encoding, accept-language/)
+  })
+}
