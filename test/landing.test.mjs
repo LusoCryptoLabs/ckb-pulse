@@ -179,10 +179,12 @@ test('on a running server: / is the landing, a link to something and /live are t
     const isLanding = (b) => b.includes('<div class="made">') && b.includes('class="cards"')
     const isLive = (b) => b.includes('id="stage"') && b.includes('id="intro"')
     for (const p of ['/', '/?lang=pt', '/?landing=1', '/?d=2026-11-18&lang=en', '/?theme=light']) { const r = await get(port, p); assert.equal(r.status, 200, p); assert.ok(isLanding(r.body) && !isLive(r.body), `${p} is the landing`) }
-    for (const p of ['/live', '/live?lang=pt', '/index.html', '/?repo=nervosnetwork/ckb', '/?person=alice', '/?h=week', '/?tab=notices', '/?about=1', '/?screen=1', '/?ui=next', '/?lang=pt&repo=a/b']) { const r = await get(port, p); assert.equal(r.status, 200, p); assert.ok(isLive(r.body) && !isLanding(r.body), `${p} is the live view`) }
+    for (const p of ['/live', '/live?lang=pt', '/index.html', '/?repo=nervosnetwork/ckb', '/?person=alice', '/?h=week', '/?tab=notices', '/?about=1', '/?ui=next', '/?lang=pt&repo=a/b']) { const r = await get(port, p); assert.equal(r.status, 200, p); assert.ok(isLive(r.body) && !isLanding(r.body), `${p} is the live view`) }
     assert.equal((await get(port, '/?lang=pt')).body.includes('lang="pt"'), true)
     assert.match(String((await get(port, '/')).headers['cache-control']), /max-age=300/)
     assert.equal((await get(port, '/live')).headers['cache-control'], 'no-cache')
+    const old = await get(port, '/?screen=1&lang=pt'); assert.equal(old.status, 302); assert.equal(old.headers.location, '/present?lang=pt', 'the old address of the screen for calls')
+    const pr = await get(port, '/present?lang=pt'); assert.equal(pr.status, 200); assert.ok(pr.body.includes('id="s-ccc"') && pr.body.includes('lang="pt"')); assert.equal(pr.headers['x-robots-tag'], 'noindex'); assert.equal((await get(port, '/present.js')).status, 200)
     const last = await get(port, '/api/last?lang=pt'); assert.equal(last.status, 200); const lj = JSON.parse(last.body); assert.equal(lj.at, null); assert.equal(lj.line, words('pt')('ld.last.none'), 'nothing to say and not made up'); assert.match(String(last.headers['cache-control']), /max-age=30/)
   } finally { child.kill(); fs.rmSync(dir, { recursive: true, force: true }) }
 })

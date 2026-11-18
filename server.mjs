@@ -20,6 +20,7 @@ import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
 import { landingPage, lastLine } from './landing.mjs'
+import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
@@ -195,6 +196,12 @@ function handle(req, res) {
   // / without a link to something is the landing, once for a browser (landing.mjs sends the ones that have been here on);
   // a link to a project, a person, a period, a tab, the welcome card, the screen for calls or a layout trial goes to the
   // live view, which is also at /live
+  // the screen for calls moved to its own page: the old address (a link someone kept, a bookmark) goes there
+  if (url.pathname === '/' && url.searchParams.get('screen') === '1') { res.writeHead(302, { location: `/present?lang=${langOf(url.searchParams, req)}`, 'cache-control': 'no-store' }); return res.end() }
+  if (url.pathname === '/present') {
+    hit('present', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', 'x-robots-tag': 'noindex', vary: LANG_VARY }, presentPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/present` }))
+  }
   if (url.pathname === '/' && !DEEP.some((k) => url.searchParams.has(k))) {
     hit('landing', ipOf(req), req.headers['user-agent'])
     const lang = langOf(url.searchParams, req), b = baseOf(req), day = highlightsNow().day
