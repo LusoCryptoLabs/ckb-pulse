@@ -120,3 +120,17 @@ test('the menu of a plain page has Auto, Dark and Light in every language, and s
     assert.ok(!live.includes('data-theme-set'), lang + ': a menu that is not asked for the looks has none'); for (const v of ['auto', 'dark', 'light']) assert.ok(liveLooks.includes('data-theme-set="' + v + '"'), lang + ' live ' + v)
   }
 })
+
+test('the two fonts are asked for first thing, from the address the stylesheet will use, and a fallback sized to each stands in until they come', () => {
+  const css = fs.readFileSync(new URL('../public/theme.css', import.meta.url), 'utf8')
+  for (const [file, family] of [['Archivo-latin-wght.woff2', 'Archivo'], ['SpaceMono-latin-400.woff2', 'Space Mono']]) {
+    assert.ok(css.includes(`url(vendor/fonts/${file})`), `${file} is what the stylesheet loads`)
+    assert.ok(menuHead('https://x').includes(`<link rel="preload" href="https://x/vendor/fonts/${file}" as="font" type="font/woff2" crossorigin>`), `${file} is preloaded by every plain page`)
+    assert.ok(fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes(`<link rel="preload" href="vendor/fonts/${file}" as="font" type="font/woff2" crossorigin>`), `${file} is preloaded by the live page`)
+    const stack = css.match(new RegExp(`--font-(?:ui|num): "${family}", "${family} Fallback"`))
+    assert.ok(stack, `${family} is followed by its fallback in the stack`)
+    const face = css.split('\n').find((l) => l.includes(`font-family: "${family} Fallback"`)) || ''
+    assert.match(face, /src: local\("[^"]+"\).*size-adjust: [0-9.]+%; ascent-override: [0-9.]+%; descent-override: [0-9.]+%; line-gap-override: 0%;/, `${family} Fallback is sized to the font`)
+  }
+  assert.ok(!fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('SpaceGrotesk'), 'the live page no longer fetches a font it does not use')
+})

@@ -7,14 +7,18 @@
 @font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 100%; font-display: swap; src: url(vendor/fonts/Archivo-latin-wght.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-400.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-700.woff2) format("woff2"); }
+/* what shows for the moment before a font arrives, sized to the font so that the swap moves nothing: measured from the files
+   (average letter width, ascent and descent against Arial and Courier New) */
+@font-face { font-family: "Archivo Fallback"; src: local("Arial"), local("Helvetica"); size-adjust: 102.3%; ascent-override: 85.8%; descent-override: 20.5%; line-gap-override: 0%; }
+@font-face { font-family: "Space Mono Fallback"; src: local("Courier New"), local("Courier"); size-adjust: 102%; ascent-override: 109.8%; descent-override: 35.4%; line-gap-override: 0%; }
 
 /* the names: --bg the ground, --surface a block, --panel a menu, --edge and --edge-soft the rules, --fg the words, --mut
    the quiet words, --lime the accent of links, numbers and the main chip (Paper on Ink, Ink on Paper; the name is from
    the first look), --ink the words on the accent, --signal and --signal-text the red; --f-* the five kinds of work; the
    scene's own: --sky, --dormant, --botcell; --logo-dark and --logo-light which wordmark shows; --panel-shadow; --shade the shadow under a floating thing */
 :root {
-  --font-ui: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
-  --font-num: "Space Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+  --font-ui: "Archivo", "Archivo Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
+  --font-num: "Space Mono", "Space Mono Fallback", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
   color-scheme: dark;
   --bg: #121212; --surface: #1b1b1b; --panel: #1b1b1b; --edge: #2b2b2b; --edge-soft: #262626;
   --fg: #F4F1EB; --mut: #8A857B; --lime: #F4F1EB; --ink: #121212; --signal: #E10600; --signal-text: #FF4438;

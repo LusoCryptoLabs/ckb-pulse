@@ -27,7 +27,8 @@ export const LOOK_META = `<meta name="color-scheme" content="dark light"><meta n
 // the tab icon, one svg and two pngs, with a version in the address so a browser asks again
 export const ICON_VERSION = 'lcl1'
 export const iconLinks = (base) => `<link rel="icon" type="image/svg+xml" href="${esc(base)}/icon.svg?v=${ICON_VERSION}"><link rel="icon" type="image/png" sizes="32x32" href="${esc(base)}/icon-32.png?v=${ICON_VERSION}"><link rel="apple-touch-icon" href="${esc(base)}/icon-192.png?v=${ICON_VERSION}">`
-export const menuHead = (base) => `${LOOK_META}${iconLinks(base)}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${MIGRATE_SCRIPT}${THEME_SCRIPT}`
+export const fontLinks = (base) => `<link rel="preload" href="${esc(base)}/vendor/fonts/Archivo-latin-wght.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="${esc(base)}/vendor/fonts/SpaceMono-latin-400.woff2" as="font" type="font/woff2" crossorigin>`
+export const menuHead = (base) => `${LOOK_META}${iconLinks(base)}${fontLinks(base)}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${MIGRATE_SCRIPT}${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
 export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
