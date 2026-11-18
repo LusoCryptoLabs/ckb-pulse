@@ -132,5 +132,6 @@ test('the two fonts are asked for first thing, from the address the stylesheet w
     const face = css.split('\n').find((l) => l.includes(`font-family: "${family} Fallback"`)) || ''
     assert.match(face, /src: local\("[^"]+"\).*size-adjust: [0-9.]+%; ascent-override: [0-9.]+%; descent-override: [0-9.]+%; line-gap-override: 0%;/, `${family} Fallback is sized to the font`)
   }
+  assert.equal((css.match(/font-family: "Archivo Fallback"/g) || []).length, 3, 'Archivo is wider the heavier it is: a fallback for the light weights, one for the semibold and one for the heavy ones')
   assert.ok(!fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('SpaceGrotesk'), 'the live page no longer fetches a font it does not use')
 })
