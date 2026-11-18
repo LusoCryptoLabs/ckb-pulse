@@ -3,11 +3,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { CSS, READING_CSS, langLinks, pageFoot } from '../digest.mjs'
+import { CSS, READING_CSS, langLinks, pageFoot, menuHead, THEME_SCRIPT } from '../digest.mjs'
 import { words } from '../cards.mjs'
 
 const theme = fs.readFileSync(new URL('../public/theme.css', import.meta.url), 'utf8')
-const tokens = Object.fromEntries([...theme.matchAll(/(--[a-z-]+):\s*(#[0-9a-f]{6})/gi)].map(([, k, v]) => [k, v.toLowerCase()]))
+// the defaults are the first :root block; the trial look further down redefines the same names under a theme attribute
+const root = theme.match(/:root\s*\{([\s\S]*?)\r?\n\}/)[1]
+const tokens = Object.fromEntries([...root.matchAll(/(--[a-z-]+):\s*(#[0-9a-f]{6})/gi)].map(([, k, v]) => [k, v.toLowerCase()]))
 
 test('theme.css defines the shared colours', () => {
   for (const k of ['--bg', '--surface', '--panel', '--edge', '--edge-soft', '--fg', '--mut', '--lime', '--ink']) assert.match(tokens[k] || '', /^#[0-9a-f]{6}$/, k)
@@ -27,4 +29,17 @@ test('the page foot links the same page in each language and says who made it', 
   for (const l of ['en', 'zh', 'pt']) assert.ok(foot.includes(`href="${url}?lang=${l}"`), l)
   assert.ok(foot.includes('github.com/LusoCryptoLabs/ckb-pulse') && foot.startsWith('<footer>') && foot.endsWith('</footer>'))
   assert.equal(langLinks((l) => `/x?l=${l}`).match(/<a /g).length, 3)
+})
+
+test('the trial look redefines only names the defaults have, and the live page is not given the attribute', () => {
+  const trial = theme.slice(theme.indexOf('A trial look'))
+  const names = new Set([...trial.matchAll(/(--[a-z-]+):\s*[^;]+;/g)].map((m) => m[1]))
+  for (const n of names) assert.ok(n in tokens || ['--signal', '--signal-text', '--font-ui', '--font-num', '--pm-glass', '--pm-line', '--pm-soft'].includes(n), n)
+  assert.equal(fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').includes('data-theme'), false)
+})
+
+test('every plain page carries the switch for the trial look, which only knows the two looks it has', () => {
+  assert.ok(menuHead('https://x').includes(THEME_SCRIPT))
+  assert.ok(THEME_SCRIPT.includes("th==='lcl'||th==='lcl-light'") && THEME_SCRIPT.includes('ckbpulse.theme'))
+  for (const th of ['lcl', 'lcl-light']) assert.ok(theme.includes(`html[data-theme="${th}"]`), th)
 })
