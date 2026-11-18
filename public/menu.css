@@ -45,8 +45,14 @@
 .pm-brand i { width: 9px; height: 9px; border-radius: 50%; background: var(--pm-lime); box-shadow: 0 0 8px var(--pm-lime); }
 .pm-bar .pm-views { order: 1; }
 .pm-bar ~ header > i { display: none; } /* the name in the bar already carries the live dot */
-.pm-bar .pmenu { order: 2; }
+.pm-bar .pshare { order: 2; }
+.pm-bar .pmenu { order: 3; }
 @media (max-width: 700px) { .pm-bar .pm-views { display: none; } }
+/* the share button in the bar: the menu button's height and corners, its panel opening under it from the right edge,
+   and on a narrow phone the icon alone (the button keeps its name for a screen reader) */
+.pm-bar .ps-btn { height: 38px; box-sizing: border-box; padding: 0 13px; border-radius: 10px; border-color: var(--pm-line); background: var(--pm-glass); }
+.pm-bar .ps-panel { left: auto; right: 0; }
+@media (max-width: 480px) { .pm-bar .ps-btn span { display: none; } .pm-bar .ps-btn { width: 38px; padding: 0; justify-content: center; } }
 
 /* phones: the menu comes up from the bottom, over a dimmed page */
 @media (max-width: 860px) {

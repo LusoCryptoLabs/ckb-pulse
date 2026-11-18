@@ -47,19 +47,32 @@ export function menuHtml(t, { base = '', lang = 'en', current = '', here = '' } 
 // the day, since X and Telegram keep a preview per address
 const SHARE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 10v5.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 export const today = () => new Date().toISOString().slice(0, 10)
+// where a link goes, one list for every page: the plain pages' button and the live page's menu both read it.
+// `native` is true where the device has its own share sheet (the live page asks; a plain page's button does not)
+export function shareTargets(t, { url, title, image, native = false }) {
+  const enc = encodeURIComponent
+  return [
+    ...(native ? [{ key: 'native', count: 'share_native', label: t('sh.native') }] : []),
+    { key: 'copy', count: 'share_copy', label: t('sh.copy') },
+    { key: 'x', count: 'share_x', label: 'X', href: `https://x.com/intent/post?text=${enc(title)}&url=${enc(url)}` },
+    { key: 'telegram', count: 'share_telegram', label: 'Telegram', href: `https://t.me/share/url?url=${enc(url)}&text=${enc(title)}` },
+    { key: 'whatsapp', count: 'share_whatsapp', label: 'WhatsApp', href: `https://wa.me/?text=${enc(`${title} ${url}`)}` },
+    ...(image ? [{ key: 'image', count: 'share_image', label: t('sh.image'), href: image }] : []),
+  ]
+}
 export function shareHtml(t, { url, title, image }) {
-  const enc = encodeURIComponent, out = 'target="_blank" rel="noopener"'
-  return `<details class="pshare"><summary class="ps-btn">${SHARE_ICON}<span>${esc(t('sh.share'))}</span></summary><div class="ps-panel">`
-    + `<button type="button" data-count="share_copy" data-copy="${esc(url)}" data-copied="${esc(t('sh.copied'))}">${esc(t('sh.copy'))}</button>`
-    + `<a data-count="share_x" href="https://x.com/intent/post?text=${enc(title)}&amp;url=${enc(url)}" ${out}>X</a>`
-    + `<a data-count="share_telegram" href="https://t.me/share/url?url=${enc(url)}&amp;text=${enc(title)}" ${out}>Telegram</a>`
-    + `<a data-count="share_whatsapp" href="https://wa.me/?text=${enc(`${title} ${url}`)}" ${out}>WhatsApp</a>`
-    + (image ? `<a data-count="share_image" href="${esc(image)}" ${out}>${esc(t('sh.image'))}</a>` : '') + '</div></details>'
+  const out = 'target="_blank" rel="noopener"'
+  const item = (x) => x.key === 'copy'
+    ? `<button type="button" data-count="${x.count}" data-copy="${esc(url)}" data-copied="${esc(t('sh.copied'))}">${esc(x.label)}</button>`
+    : `<a data-count="${x.count}" href="${esc(x.href)}" ${out}>${esc(x.label)}</a>`
+  return `<details class="pshare"><summary class="ps-btn" aria-label="${esc(t('sh.share'))}" title="${esc(t('sh.share'))}">${SHARE_ICON}<span>${esc(t('sh.share'))}</span></summary><div class="ps-panel">${shareTargets(t, { url, title, image }).map(item).join('')}</div></details>`
 }
 
 // the bar the server pages share: the name back to the live page, the views, the menu
-export function barHtml(t, { base = '', lang = 'en', current = '', here = '' } = {}) {
-  return `<div class="pm-bar"><a class="pm-brand" href="${esc(href(base, '/', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${viewsHtml(t, { base, lang, current })}${menuHtml(t, { base, lang, current, here })}</div>`
+// `share` ({ url, title, image }) puts the share button next to the menu, the same place on every public page; a private
+// page passes none
+export function barHtml(t, { base = '', lang = 'en', current = '', here = '', share = null } = {}) {
+  return `<div class="pm-bar"><a class="pm-brand" href="${esc(href(base, '/', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${viewsHtml(t, { base, lang, current })}${share ? shareHtml(t, share) : ''}${menuHtml(t, { base, lang, current, here })}</div>`
 }
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links
