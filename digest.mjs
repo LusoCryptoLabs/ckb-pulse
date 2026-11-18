@@ -30,6 +30,24 @@ export function loadDigests(dir) {
 }
 const save = () => { const tmp = file + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(D)); fs.renameSync(tmp, file) }
 export const weeks = () => D.weeks
+// Each kept week has an address of its own, /digest/2026-W46: the week that ended on the Monday it was kept (the
+// feed used to link every week to the live page, whose numbers moved on: an entry said 970, the page 1037)
+export function weekLabel(at) {
+  const d = new Date(at - DAY_MS)
+  const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  const dow = (new Date(day).getUTCDay() + 6) % 7 // Monday is 0
+  const thursday = day - dow * DAY_MS + 3 * DAY_MS
+  const year = new Date(thursday).getUTCFullYear()
+  const week = Math.floor((thursday - Date.UTC(year, 0, 1)) / (7 * DAY_MS)) + 1
+  return `${year}-W${String(week).padStart(2, '0')}`
+}
+const DAY_MS = 864e5
+// two kept weeks can share a number (the first digest was kept on a Thursday, the next on the Monday after): the
+// earlier one is then named by its date
+export const labelOf = (w) => (D.weeks.some((x) => x !== w && x.at > w.at && weekLabel(x.at) === weekLabel(w.at)) ? new Date(w.at).toISOString().slice(0, 10) : weekLabel(w.at))
+export const weekByLabel = (label) => D.weeks.find((w) => labelOf(w) === label) || null
+// a kept week in the shape the page and the card read
+export const weekLeaders = (w) => ({ week: { stats: w.stats, repos: w.repos, commits: w.commits, people: w.people, orgs: w.orgs, bars: [] } })
 
 // Monday 08:00 UTC, once a week; the first one as soon as the page has a week of data, so the feed is never empty.
 // Each Monday counts on its own: the first one, kept on Thursday 2026-10-22, made "six days since the last" skip 10-26
@@ -86,9 +104,9 @@ ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:sp
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
-export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url }) {
+export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null }) {
   const t = words(lang), L = leaders[period], s = L.stats
-  const q = (p, l) => `${url}?p=${p}&lang=${l}`
+  const q = (p, l) => (fixed ? `${url.replace(/\/digest.*$/, '')}/digest/${fixed.label}?lang=${l}` : `${url}?p=${p}&lang=${l}`)
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
   const person = (login) => `<a href="${esc(base)}/?person=${encodeURIComponent(login)}&lang=${lang}">${esc(login)}</a>`
   const list = (title, rows, fmt) => rows.length ? `<section><h2>${esc(title)}</h2><ol>${rows.map((r) => `<li><span>${fmt(r)}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''
@@ -99,16 +117,16 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   const month = cur ? new Date(`${cur.month}-15T00:00:00Z`).toLocaleDateString(t('locale'), { month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
   const title = `CKB Pulse · ${t('mode.' + period)}`
   const desc = t('og.desc', { updates: t.cnt('upd', s.updates), people: t.cnt('ppl', s.people), projects: t.cnt('prj', s.projects), when: t('when.' + period) })
-  const img = withStamp(`${base}/og/highlights.png?p=${period}&lang=${lang}`, L)
+  const img = fixed ? withStamp(`${base}/og/digest.png?w=${fixed.label}&lang=${lang}`, L) : withStamp(`${base}/og/highlights.png?p=${period}&lang=${lang}`, L)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
-${pageBar(t, { base, lang, current: 'digest', here: `/digest?p=${period}` })}
+${pageBar(t, { base, lang, current: 'digest', here: fixed ? `/digest/${fixed.label}` : `/digest?p=${period}` })}
 ${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a>` })}
-<nav class="p">${['day', 'week', 'month'].map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}${shareHtml(t, { url: `${q(period, lang)}&d=${today()}`, title, image: img })}</nav>
-<p class="sub">${esc(t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>
+<nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}${shareHtml(t, { url: `${q(period, lang)}&d=${today()}`, title, image: img })}</nav>
+<p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : ''}
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
-<div class="bars" role="img" aria-label="${esc(t('h.note'))}">${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>
+${L.bars.length ? `<div class="bars" role="img" aria-label="${esc(t('h.note'))}">` : '<div hidden>'}${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>
 ${medals.length ? `<section><h2>${esc(t('dg.medals'))}</h2><ol class="medals">${medals.map(([k, v]) => `<li><small>${esc(t(k))}</small><strong>${v}</strong></li>`).join('')}</ol></section>` : `<p>${esc(t('h.empty'))}</p>`}
 <div class="grid">${list(t('h.repos'), L.repos, (r) => link(r[0]))}${list(t('h.people'), L.people, (r) => person(r[0]))}
 ${L.commits.length ? `<section><h2>${esc(t('h.commits'))}</h2><ol>${L.commits.map((r) => `<li><span>${link(r[0])}</span><b>${r[1]}</b></li>`).join('')}</ol></section>` : ''}
@@ -134,8 +152,8 @@ export function feedXml({ lang, news, groupOf, base }) {
     const html = `<p>${esc(sum)}</p>${w.repos[0] ? `<p><b>${esc(t('b.repos.week'))}</b>: ${esc(short(w.repos[0][0]))} (${esc(t.group(groupOf(w.repos[0][0])))})</p>` : ''}${w.people[0] ? `<p><b>${esc(t('b.people.week'))}</b>: ${esc(w.people[0][0])}</p>` : ''}` +
       `<h4>${esc(t('h.repos'))}</h4>${li(w.repos, (n) => `<a href="${esc(base)}/?repo=${encodeURIComponent(n)}">${esc(n)}</a>`)}<h4>${esc(t('h.people'))}</h4>${li(w.people, (n) => `<a href="${esc(base)}/?person=${encodeURIComponent(n)}">${esc(n)}</a>`)}` +
       (w.news.length ? `<h4>${esc(t('n.list'))}</h4><ul>${w.news.map((n) => `<li><a href="https://github.com/${esc(n.name)}">${esc(n.name)}</a>${n.desc ? `: ${esc(n.desc)}` : ''}</li>`).join('')}</ul>` : '') +
-      `<p><img src="${esc(base)}/og/highlights.png?p=week&amp;lang=${lang}" alt=""></p>`
-    entries.push({ id: `tag:${host},${day}:digest/week`, title: `${t('mode.week')} · ${day}: ${sum}`, at: w.at, link: `${base}/digest?p=week&lang=${lang}`, html })
+      `<p><img src="${esc(base)}/og/digest.png?w=${labelOf(w)}&amp;lang=${lang}" alt=""></p>`
+    entries.push({ id: `tag:${host},${day}:digest/week`, title: `${t('mode.week')} · ${day}: ${sum}`, at: w.at, link: `${base}/digest/${labelOf(w)}?lang=${lang}`, html })
   }
   for (const n of news) {
     const at = n.announcedAt || Date.parse(n.createdAt)
