@@ -101,6 +101,8 @@ The scene draws flat out while something moves (a comet, the camera, a block set
 
 For a community call, `/?screen=1` (also in the menu as "Screen for calls") shows only the scene, the name, the three numbers and the latest update, large, with no panels and no welcome card. F is full screen; the pointer and the small bar with the way out hide after three seconds. Measured on software rendering with the day replaying: about 13 cores across the browser's processes before, about 4 now.
 
+A trial look, the LusoCryptoLabs one (Ink and Paper, the red only as the signal, Archivo and Space Mono, straight blocks, pills for chips and buttons), is on the plain pages for whoever asks: `?theme=lcl` (dark) or `?theme=lcl-light` turns it on in this browser, `?theme=old` turns it off. The live page and its scene are not touched.
+
 ## Look
 
 Every page shares `public/theme.css`, the look of the Cellula pages: Space Grotesk for words and JetBrains Mono for numbers and small labels, lime on a warm black. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/digest`, `/use`) open with a small label, a large title with its key words lit, and one line under it.

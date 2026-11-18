@@ -13,3 +13,41 @@
   --bg: #0a0907; --surface: #14120e; --panel: #121009; --edge: #36322a; --edge-soft: #2a2720;
   --fg: #f0ece2; --mut: #9a9486; --lime: #cbf34d; --ink: #1a2208;
 }
+
+/* A trial look, the LusoCryptoLabs one (2026-11-18): Ink and Paper, the red only as the signal, Archivo and Space Mono,
+   straight corners on blocks and panels, pills only for chips and buttons. On the plain pages only, and only for whoever
+   asks: ?theme=lcl (dark) or ?theme=lcl-light turns it on in this browser, ?theme=old turns it off. The live page and its
+   scene are not touched. The fonts are declared here and fetched only when the look is on. */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 100%; font-display: swap; src: url(vendor/fonts/Archivo-latin-wght.woff2) format("woff2"); }
+@font-face { font-family: "Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-400.woff2) format("woff2"); }
+@font-face { font-family: "Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-700.woff2) format("woff2"); }
+html[data-theme^="lcl"] {
+  --font-ui: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
+  --font-num: "Space Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+  --signal: #E10600;
+}
+html[data-theme="lcl"] { color-scheme: dark; --bg: #121212; --surface: #1b1b1b; --panel: #1b1b1b; --edge: #2b2b2b; --edge-soft: #262626; --fg: #F4F1EB; --mut: #8A857B; --lime: #F4F1EB; --ink: #121212; --signal-text: #FF4438; }
+html[data-theme="lcl-light"] { color-scheme: light; --bg: #F4F1EB; --surface: #EAE5DC; --panel: #F4F1EB; --edge: #D8D2C7; --edge-soft: #E2DDD2; --fg: #121212; --mut: #5C5A54; --lime: #121212; --ink: #F4F1EB; --signal-text: #C90000; }
+html[data-theme^="lcl"] body { background-image: none; }
+html[data-theme^="lcl"] h1 { font-weight: 800; letter-spacing: -0.02em; }
+html[data-theme^="lcl"] h1 em { color: var(--signal-text); }
+html[data-theme^="lcl"] .eyebrow { background: transparent; letter-spacing: 0.14em; }
+html[data-theme^="lcl"] .eyebrow::before { background: var(--signal); border-radius: 50%; }
+html[data-theme^="lcl"] h2 { letter-spacing: 0.14em; }
+html[data-theme^="lcl"] .bars i { background: linear-gradient(var(--fg), var(--mut)); border-radius: 0; }
+html[data-theme^="lcl"] blockquote { border-left-color: var(--signal); }
+html[data-theme^="lcl"] .go a { background: var(--signal); color: #fff; }
+html[data-theme^="lcl"] .go a.alt { background: none; color: var(--fg); border-color: var(--mut); }
+/* straight blocks and panels; the chips and buttons stay pills */
+html[data-theme^="lcl"] .kpis div, html[data-theme^="lcl"] .bars, html[data-theme^="lcl"] .medals li, html[data-theme^="lcl"] section.me, html[data-theme^="lcl"] section.use,
+html[data-theme^="lcl"] article.ln, html[data-theme^="lcl"] pre, html[data-theme^="lcl"] blockquote, html[data-theme^="lcl"] code,
+html[data-theme^="lcl"] .pm-panel, html[data-theme^="lcl"] .ps-panel, html[data-theme^="lcl"] .pm-btn, html[data-theme^="lcl"] .pm-bar .ps-btn,
+html[data-theme^="lcl"] .pm-row, html[data-theme^="lcl"] .pm-tile { border-radius: 0; }
+/* the bar and the menu: the same tokens, the red dot as the live signal */
+html[data-theme^="lcl"] .pmenu, html[data-theme^="lcl"] .pm-bar, html[data-theme^="lcl"] .pm-views { --pm-glass: color-mix(in srgb, var(--bg) 88%, transparent); --pm-line: var(--edge); --pm-soft: color-mix(in srgb, var(--fg) 8%, transparent); }
+html[data-theme^="lcl"] .pm-brand i { background: var(--signal); box-shadow: none; border-radius: 50%; }
+html[data-theme^="lcl"] .pm-row:hover, html[data-theme^="lcl"] .ps-panel a:hover, html[data-theme^="lcl"] .ps-panel button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+html[data-theme^="lcl"] .pm-row[aria-current="page"] { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
+html[data-theme^="lcl"] .pm-tile, html[data-theme^="lcl"] .pm-fiber, html[data-theme^="lcl"] .pm-ai, html[data-theme^="lcl"] .pm-notices { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
+html[data-theme^="lcl"] .pm-live { background: var(--signal); color: #fff; }
+html[data-theme="lcl-light"] .pm-panel, html[data-theme="lcl-light"] .ps-panel { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18); }

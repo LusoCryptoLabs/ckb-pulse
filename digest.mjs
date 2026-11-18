@@ -17,7 +17,9 @@ let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], ne
 // who made the page, where it is posted about and its source, at the foot of every plain page
 // the bar every server page opens with (the name, the three views, the menu), and its style and script
 export const pageBar = barHtml
-export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">`
+// the trial look (theme.css): ?theme=lcl or ?theme=lcl-light turns it on in this browser, ?theme=old off; set before the first paint
+export const THEME_SCRIPT = `<script>try{var q=new URLSearchParams(location.search).get('theme');if(q)localStorage.setItem('ckbpulse.theme',q);var th=q||localStorage.getItem('ckbpulse.theme');if(th==='lcl'||th==='lcl-light')document.documentElement.dataset.theme=th}catch(e){}</script>`
+export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
 export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
