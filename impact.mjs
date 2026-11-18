@@ -148,7 +148,7 @@ ${list(t('im.active'), active)}${list(t('im.quiet'), quiet)}
   }
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
-<link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}ol li small{display:inline;margin-left:8px}nav.p{margin-bottom:20px}p.plain{font-size:19px;color:var(--fg);max-width:60ch;margin:0 0 18px}</style></head><body><main>
+${menuHead(base)}<style>${CSS}ol li small{display:inline;margin-left:8px}nav.p{margin-bottom:20px}p.plain{font-size:19px;color:var(--fg);max-width:60ch;margin:0 0 18px}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: `/impact?lib=${lib.id}`, share: { url: `${base}/impact?lib=${lib.id}&lang=${lang}&d=${today()}`, title } })}
 ${pageHead({ eyebrow: t('im.nav'), title: t('im.h1', { lib: lib.name }), lede: esc(desc) })}
 ${chips}

@@ -171,7 +171,7 @@ const OFFLINE = process.env.PULSE_OFFLINE === '1'
 if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 if (!OFFLINE) startImpact({ repos: () => snapshot().repos, dir: DATA_DIR })
 // the app icon, drawn once: four cells, two lit
-const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#121212"/><rect x="2" y="2" width="5.5" height="5.5" fill="#F4F1EB"/><rect x="8.5" y="2" width="5.5" height="5.5" fill="#4a4a47"/><rect x="2" y="8.5" width="5.5" height="5.5" fill="#4a4a47"/><rect x="8.5" y="8.5" width="5.5" height="5.5" fill="#E10600"/></svg>'
+const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#121212"/><rect x="1.5" y="1.5" width="6.2" height="6.2" fill="#F4F1EB"/><rect x="8.3" y="1.5" width="6.2" height="6.2" fill="#5a5a56"/><rect x="1.5" y="8.3" width="6.2" height="6.2" fill="#5a5a56"/><rect x="8.3" y="8.3" width="6.2" height="6.2" fill="#E10600"/></svg>'
 const icons = {}
 const icon = (size) => icons[size] || (icons[size] = rasterise(ICON_SVG.replace('viewBox', `width="${size}" height="${size}" viewBox`), size))
 function readJson(req, max, done) {
@@ -311,6 +311,10 @@ function handle(req, res) {
     req.on('close', () => fiberClients.delete(res))
     return
   }
+  // the tab icon: the svg (sharp at any size), the pngs, and the address browsers try on their own. Pages ask for them with
+  // ?v=lcl1, since a browser keeps an icon for a long time and the first look's lime stayed in the tab (2026-11-18)
+  if (url.pathname === '/icon.svg') { res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=86400' }); return res.end(ICON_SVG) }
+  if (url.pathname === '/favicon.ico' || url.pathname === '/icon-32.png') { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); return res.end(icon(32)) }
   if (url.pathname === '/icon-192.png' || url.pathname === '/icon-512.png') { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); return res.end(icon(url.pathname.includes('512') ? 512 : 192)) }
   if (url.pathname === '/api/push/key') return sendJson(req, res, { key: publicKey() })
   if (url.pathname === '/api/push' && req.method === 'POST') return readJson(req, 16384, (j) => sendJson(req, res, subscribe(j)))

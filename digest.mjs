@@ -23,7 +23,10 @@ export const pageBar = barHtml
 export const THEME_SCRIPT = `<script>(function(){var d=document.documentElement,K='ckbpulse.theme',m={dark:'dark',light:'light',lcl:'dark','lcl-light':'light'},has=function(o,k){return Object.prototype.hasOwnProperty.call(o,k)},c=null;try{var q=new URLSearchParams(location.search).get('theme');if(q==='auto'||q==='old'){localStorage.removeItem(K)}else if(q&&has(m,q)){c=m[q];localStorage.setItem(K,c)}else{var s=localStorage.getItem(K);if(s&&has(m,s))c=m[s]}}catch(e){}if(c)d.dataset.theme=c})()</script>`
 // the browser's own bars (theme-color) and form controls follow the device too
 export const LOOK_META = `<meta name="color-scheme" content="dark light"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121212"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F1EB">`
-export const menuHead = (base) => `${LOOK_META}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${THEME_SCRIPT}`
+// the tab icon, one svg and two pngs, with a version in the address so a browser asks again
+export const ICON_VERSION = 'lcl1'
+export const iconLinks = (base) => `<link rel="icon" type="image/svg+xml" href="${esc(base)}/icon.svg?v=${ICON_VERSION}"><link rel="icon" type="image/png" sizes="32x32" href="${esc(base)}/icon-32.png?v=${ICON_VERSION}"><link rel="apple-touch-icon" href="${esc(base)}/icon-192.png?v=${ICON_VERSION}">`
+export const menuHead = (base) => `${LOOK_META}${iconLinks(base)}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
 export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
@@ -144,7 +147,7 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   const img = fixed ? withStamp(`${base}/og/digest.png?w=${fixed.label}&lang=${lang}`, L) : withStamp(`${base}/og/highlights.png?p=${period}&lang=${lang}`, L)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
-<link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
+<link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml">${menuHead(base)}<style>${CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'digest', here: fixed ? `/digest/${fixed.label}` : `/digest?p=${period}`, share: { url: `${q(period, lang)}&d=${today()}`, title, image: img } })}
 ${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${plain}<br><a href="${esc(base)}/live?lang=${lang}">${esc(t('dg.live'))}</a>` })}
 <nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
