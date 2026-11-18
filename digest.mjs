@@ -109,7 +109,7 @@ async function telegram(w, groupOf, publicUrl) {
 }
 
 // ---------- the page ----------
-export const CSS = `body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif)}
+export const CSS = `body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif)}body{overflow-wrap:break-word}pre,pre code{overflow-wrap:normal}
 a{color:var(--lime)}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
 .hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);border:1px solid var(--edge);border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:var(--lime)}
 h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:var(--lime)}em.tag{margin-left:6px;padding:1px 7px;border-radius:6px;font:700 11px var(--font-num,monospace);letter-spacing:.04em;background:#2b2a4a;color:#c9c6ff;border:1px solid #5b57b0}.lede{color:var(--mut);font-size:17px;margin:0;max-width:62ch}
