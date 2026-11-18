@@ -148,15 +148,21 @@ export const TOOL_INFO = TOOLS.map(({ name, description }) => ({ name, descripti
 
 // api: highlights, news, projects, project, person, peopleIn, updates, trends (the server's own readers)
 export function makeMcp(api) {
+  return rpcServer({ tools: TOOLS, list: LIST, info: { name: 'ckb-pulse', title: 'CKB Pulse', version: '1.1.0' }, instructions: INSTRUCTIONS, ctx: (base) => ({ api, link: links(base) }) })
+}
+
+// a Model Context Protocol server over JSON-RPC for a list of tools: { name, description, inputSchema, run(args, ctx) }.
+// The lessons have their own (lessons.mjs), behind their key
+export function rpcServer({ tools, list = tools.map(({ run, ...t }) => ({ ...t, annotations: { readOnlyHint: true, openWorldHint: false } })), info, instructions, ctx: makeCtx }) {
   async function call(m, ctx) {
     const p = m.params || {}
     switch (m.method) {
       case 'initialize':
-        return { protocolVersion: VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'ckb-pulse', title: 'CKB Pulse', version: '1.1.0' }, instructions: INSTRUCTIONS }
+        return { protocolVersion: VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: info, instructions }
       case 'ping': return {}
-      case 'tools/list': return { tools: LIST }
+      case 'tools/list': return { tools: list }
       case 'tools/call': {
-        const t = TOOLS.find((x) => x.name === p.name)
+        const t = tools.find((x) => x.name === p.name)
         if (!t) throw rpcError(-32602, `Unknown tool: ${p.name}`)
         try {
           return { content: [{ type: 'text', text: JSON.stringify(await t.run(p.arguments || {}, ctx)) }] }
@@ -182,7 +188,7 @@ export function makeMcp(api) {
   }
   // body: the parsed JSON. Answers { status, json } (202 and no body when nothing needs an answer)
   return async function handle(body, { base }) {
-    const ctx = { api, link: links(base) }
+    const ctx = makeCtx(base)
     if (Array.isArray(body)) {
       if (!body.length || body.length > MAX_BATCH) return { status: 400, json: { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request' } } }
       const r = (await Promise.all(body.map((m) => one(m, ctx)))).filter(Boolean)
@@ -197,9 +203,9 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods
 const HELP = 'CKB Pulse as a Model Context Protocol server. Connect an MCP client to this address (Streamable HTTP, POST), e.g.\n  claude mcp add --transport http ckb-pulse <this address>\n'
 // the HTTP side: POST carries JSON-RPC; no event stream is offered, so GET is 405 as the transport allows. A browser
 // that opens the address (it asks for HTML) is sent to the page that explains how to connect
-export function mcpHttp(req, res, handle, base) {
+export function mcpHttp(req, res, handle, base, page = '/use#ai') {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
-  if (req.method === 'GET' && /text\/html/.test(req.headers.accept || '')) { res.writeHead(303, { location: `${base}/use#ai`, 'cache-control': 'no-store' }); return res.end() }
+  if (req.method === 'GET' && /text\/html/.test(req.headers.accept || '')) { res.writeHead(303, { location: `${base}${page}`, 'cache-control': 'no-store' }); return res.end() }
   if (req.method !== 'POST') { res.writeHead(405, { ...CORS, allow: 'POST, OPTIONS', 'content-type': 'text/plain; charset=utf-8' }); return res.end(HELP) }
   const send = (status, json) => {
     res.writeHead(status, { ...CORS, 'content-type': 'application/json', 'cache-control': 'no-store' })

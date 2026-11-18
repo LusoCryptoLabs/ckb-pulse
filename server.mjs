@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
-import { lessonsPage, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, lessonsApi, lessonsMcp, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -181,6 +181,7 @@ function readJson(req, max, done) {
 }
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
+const lessonsMcpHandle = lessonsMcp(() => loadLessons(DATA_DIR))
 const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks })
 
 function handle(req, res) {
@@ -240,16 +241,26 @@ function handle(req, res) {
   }
   // a private page: it opens only with the key (LESSONS_KEY) and reads its data from the data volume (lessons.json);
   // in every other case it falls through to the answer for a route that does not exist
-  if (url.pathname === '/lessons' && process.env.LESSONS_KEY) {
-    const how = access(req, url, process.env.LESSONS_KEY), data = how && loadLessons(DATA_DIR)
-    if (data && how === 'key') {
-      const clean = new URLSearchParams(url.searchParams)
-      clean.delete('k')
-      res.writeHead(303, { location: `/lessons${clean.size ? `?${clean}` : ''}`, 'set-cookie': `lessons=${cookieOf(process.env.LESSONS_KEY)}; Path=/lessons; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`, 'cache-control': 'no-store' })
-      return res.end()
+  // the lessons: pages, JSON and MCP, all behind the key; without it, or without the file, they are routes that do not exist
+  if (url.pathname === '/lessons' || url.pathname.startsWith('/lessons/')) {
+    const key = process.env.LESSONS_KEY, how = key && access(req, url, key), data = how && loadLessons(DATA_DIR)
+    if (data) {
+      const b = baseOf(req), lang = langOf(url.searchParams, req), api = url.pathname === '/lessons/api' || url.pathname === '/lessons/mcp'
+      if (how === 'key' && !api && req.method === 'GET') { // the key leaves the address and becomes a cookie
+        const clean = new URLSearchParams(url.searchParams)
+        clean.delete('k')
+        res.writeHead(303, { location: `${url.pathname}${clean.size ? `?${clean}` : ''}`, 'set-cookie': `lessons=${cookieOf(key)}; Path=/lessons; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`, 'cache-control': 'no-store' })
+        return res.end()
+      }
+      const priv = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex', vary: 'cookie, authorization, accept-language' }
+      if (url.pathname === '/lessons/mcp') return mcpHttp(req, res, lessonsMcpHandle, b, '/lessons')
+      if (url.pathname === '/lessons/api') { const r = lessonsApi(data, url, b); res.writeHead(r.status, { 'content-type': 'application/json', ...priv }); return res.end(JSON.stringify(r.json)) }
+      if (url.pathname === '/lessons') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, lessonsPage({ lang, base: b, url: `${b}/lessons`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40) }))
+      const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/lessons/'.length) })
+      if (page) return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, page)
     }
-    if (data) return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex', vary: 'cookie, accept-language' }, lessonsPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/lessons`, data }))
   }
+
   // which of the projects Pulse follows depend on a CKB library: a page for the people who maintain it, and the same as JSON
   if (url.pathname === '/impact') {
     hit('impact', ipOf(req), req.headers['user-agent'])
