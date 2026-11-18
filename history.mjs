@@ -90,6 +90,33 @@ export function arrivals(days = 30, now = Date.now()) {
   const cut = Math.floor((now - days * DAY) / 1000) - 7 * 86400 // a week's start is the Monday before its commits
   return [...first].filter(([, w]) => w >= cut).map(([login]) => login).sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
 }
+// The community's pace: commits in the last complete week of the projects Pulse has read, next to the median of the eight
+// weeks before it. A collective line, no goal and no ranking of people. Weeks start on Monday (GitHub's statistics)
+export function rhythm(now = Date.now()) {
+  const per = new Map()
+  for (const r of Object.values(H.repos)) for (const [w, login, c] of r.rows) { if (isAutomaticAuthor(login)) continue; per.set(w, (per.get(w) || 0) + c) }
+  // the Monday that starts the current week, 00:00 UTC
+  const start = (() => { const d = new Date(now); const dow = (d.getUTCDay() + 6) % 7; return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow) / 1000) })()
+  const last = start - 604800, before = []
+  for (let i = 1; i <= 8; i++) before.push(per.get(last - i * 604800) || 0)
+  if (!per.size || before.every((v) => v === 0)) return null
+  const sorted = [...before].sort((a, b) => a - b), median = (sorted[3] + sorted[4]) / 2
+  return { week: new Date(last * 1000).toISOString().slice(0, 10), commits: per.get(last) || 0, median: Math.round(median) }
+}
+// What the history says about one person, as dated facts: the month of their first commit among these projects and in
+// how many of the last 12 months they committed. No levels, no streaks: a month of rest takes nothing away
+export function personHistory(login, now = Date.now()) {
+  const key = String(login).toLowerCase()
+  let first = Infinity
+  const months = new Set()
+  const from = lastMonths(12)[0]
+  for (const r of Object.values(H.repos)) for (const [w, l] of r.rows) {
+    if (l.toLowerCase() !== key) continue
+    if (w < first) first = w
+    const m = monthOf(w); if (m >= from) months.add(m)
+  }
+  return first === Infinity ? null : { since: new Date(first * 1000).toISOString().slice(0, 7), active: months.size }
+}
 // one repository: commits and developers per month
 export function repoMonths(full, months = 24) {
   const r = H.repos[full]

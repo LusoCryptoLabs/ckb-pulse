@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
-import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos } from './history.mjs'
+import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
 import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
@@ -915,6 +915,27 @@ export function repoWeek(name) {
   for (const e of state.events) if (!e.bot && e.repo === name && e.at >= from) { updates++; who.add(e.actor) }
   return { updates, people: who.size }
 }
+// dated facts about one person for their card (their own work, never a score): the month of their first commit seen
+// here, the months they committed in out of the last 12, reviews and accepted pull requests in the last 30 days, the
+// last release. Nothing for an AI account
+export function personMarks(login) {
+  if (isAI(login)) return { login, ai: true, marks: [] }
+  const key = String(login).toLowerCase(), now = Date.now(), marks = []
+  const h = personHistory(login)
+  if (h) { marks.push({ id: 'since', month: h.since }); if (h.active) marks.push({ id: 'active', n: h.active, of: 12 }) }
+  let reviews = 0, merged = 0, release = ''
+  for (const e of state.events) {
+    if (e.bot && e.kind !== 'release') continue
+    if (e.actor.toLowerCase() !== key || Date.parse(e.at) < now - MONTH) continue
+    if (e.kind === 'review') reviews++
+    if (e.kind === 'pr_merged') merged++
+    if (e.kind === 'release' && e.at > release) release = e.at
+  }
+  if (reviews >= 5) marks.push({ id: 'reviewer', n: reviews })
+  if (merged >= 1) marks.push({ id: 'merged', n: merged })
+  if (release) marks.push({ id: 'released', date: release.slice(0, 10) })
+  return { login, marks }
+}
 export function personDetail(login) {
   const now = Date.now(), from = new Date(now - 7 * DAY).toISOString(), key = String(login).toLowerCase()
   const followed = followedNow(now)
@@ -968,7 +989,7 @@ export function snapshot() {
     repos, groups,
     leaders: leaders(ev, now),
     news: news(now),
-    trends: trends(knownRepos()),
+    trends: trends(knownRepos()), rhythm: rhythm(),
     events: human.slice(-150).reverse().map(({ shas, ...e }) => e),
     // the last 24 hours, oldest first, for the replay and the timeline
     day: ev.filter((e) => e.at >= d1).map((e) => ({ at: e.at, kind: e.kind, repo: e.repo, actor: e.actor, title: (e.title || '').slice(0, 90), bot: !!e.bot })),

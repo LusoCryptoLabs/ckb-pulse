@@ -104,7 +104,7 @@ ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:sp
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
-export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [] }) {
+export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null }) {
   const t = words(lang), L = leaders[period], s = L.stats
   const q = (p, l) => (fixed ? `${url.replace(/\/digest.*$/, '')}/digest/${fixed.label}?lang=${l}` : `${url}?p=${p}&lang=${l}`)
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
@@ -134,6 +134,7 @@ ${L.ai?.length ? `<section><h2>${esc(t('h.ai'))}</h2><p><small>${esc(t('ai.note'
 ${L.orgs.length ? `<section><h2>${esc(t('h.orgs'))}</h2><ol>${L.orgs.map((r) => `<li><span>${esc(t.group(r[0]))}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}</div>
 ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).map((n) => `<li><span>${link(n.name)}${n.desc ? `<br><small>${esc(n.desc.slice(0, 120))}</small>` : ''}</span></li>`).join('')}</ol></section>` : ''}
 ${arrivals.length ? `<section><h2>${esc(t('dg.arrived'))}</h2><p class="names">${arrivals.slice(0, 60).map(person).join(' · ')}${arrivals.length > 60 ? ` · ${esc(t('dg.more', { n: arrivals.length - 60 }))}` : ''}</p><p><small>${esc(t('dg.arrivedNote'))}</small></p></section>` : ''}
+${rhythm && !fixed ? `<section><h2>${esc(t('rh.title'))}</h2><p>${esc(t('rh.line', { commits: rhythm.commits, median: rhythm.median }))}</p><p><small>${esc(t('rh.note'))}</small></p></section>` : ''}
 ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs: cur.devs, month, newDevs: cur.newDevs, yearAgo: ago?.devs ?? 0 }))}</p></section>` : ''}
 <footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed.xml">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>

@@ -102,3 +102,12 @@ test('the digest lists reviewers, accepted pull requests and the AI accounts apa
   assert.match(html, /AI accounts<\/h2>[\s\S]*Hanssen0-Alter-Ego<\/a> <em class="tag">AI<\/em>/)
   assert.doesNotMatch(digestPage({ period: 'week', lang: 'en', leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' }), /AI accounts/)
 })
+
+test('the digest says the community pace in the three languages, as a pace and not a goal', () => {
+  for (const [lang, word] of [['en', 'The community pace'], ['pt', 'O ritmo da comunidade'], ['zh', '社区的节奏']]) {
+    const html = digestPage({ period: 'week', lang, leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest', rhythm: { week: '2026-11-09', commits: 200, median: 135 } })
+    assert.ok(html.includes(word), lang)
+    assert.ok(html.includes('200') && html.includes('135'), lang)
+    assert.doesNotMatch(html.replace(/<style>[\s\S]*?<\/style>/, ''), /\{\w+\}/)
+  }
+})
