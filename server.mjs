@@ -58,10 +58,12 @@ function buildId(dir = ROOT) {
   return h.digest('hex').slice(0, 12)
 }
 const BUILD = buildId()
+// the live page is always in the dark look of the LusoCryptoLabs kit (its scene is a dark stage), whatever the plain pages are in
+const LIVE_THEME = `<script>document.documentElement.dataset.theme='lcl'</script>`
 // three.js and d3 are served under the hash of their folder (/vendor/<VENDOR>/...): a browser keeps them a year, and a
 // new copy of the folder has a new address
 const VENDOR = buildId(path.join(ROOT, 'vendor'))
-const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR)
+const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR).replace('<!--theme-->', LIVE_THEME)
 const FIBER = fs.readFileSync(path.join(ROOT, 'fiber.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR)
 
 // share cards: pictures drawn on demand, kept ten minutes per address
