@@ -17,8 +17,7 @@ const PAGE_CSS = `.go{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 6px}.go
 p.plain{font-size:19px;color:var(--fg);max-width:60ch;margin:22px 0 0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 a.card{display:block;background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:16px 18px;text-decoration:none;color:var(--fg)}a.card:hover{border-color:var(--lime)}a.card b{display:block;font-size:18px;margin-bottom:4px;color:var(--fg)}a.card span{color:var(--mut);font-size:14px;line-height:1.45}
-.made{margin-top:44px;border-top:1px solid var(--edge-soft);padding-top:22px;color:var(--mut);max-width:60ch}.made img.on-light{display:none}.made img{display:block;width:220px;height:auto;margin:0 0 12px}.made a{color:var(--lime)}
-html[data-theme="lcl-light"] .made img.on-dark{display:none}html[data-theme="lcl-light"] .made img.on-light{display:block}
+.made{margin-top:44px;border-top:1px solid var(--edge-soft);padding-top:22px;color:var(--mut);max-width:60ch}.made img{display:block;width:220px;height:auto;margin:0 0 12px}.made img.on-dark{display:var(--logo-dark)}.made img.on-light{display:var(--logo-light)}.made a{color:var(--lime)}
 .made+footer{margin-top:22px}`
 
 // [id, path, title word, line word]: the doors, by who they are for

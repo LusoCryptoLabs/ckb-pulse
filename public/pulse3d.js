@@ -36,8 +36,11 @@ const linkLang = ((new URLSearchParams(location.search).get('lang') || '').toLow
 let LANG = WORDS[linkLang] ? linkLang : WORDS[store.get('lang')] ? store.get('lang') : browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('pt') ? 'pt' : 'en'
 const t = (k, v) => String(WORDS[LANG][k] ?? WORDS.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v?.[x] ?? '')
 const fam = (k) => KIND_FAMILY[k] || 'code'
-const kcol = (k) => FAMILY[fam(k)]
 const FAMS = Object.keys(FAMILY)
+// the colour of a kind of work, from the page's tokens (--f-code ... --f-interest), read once per look
+let famCache = null
+const famColors = () => famCache || (famCache = Object.fromEntries(FAMS.map((f) => [f, tok(`--f-${f}`, FAMILY[f])])))
+const kcol = (k) => famColors()[fam(k)]
 const short = (name) => String(name || '').split('/').pop()
 const gname = (g) => groupName(g, { ...WORDS.en, ...WORDS[LANG] })
 const fmtClock = (x) => new Date(x).toLocaleTimeString(t('locale'), { hour: '2-digit', minute: '2-digit' })
@@ -410,7 +413,7 @@ function kpis() {
 // built once per language, so an open topic list is never rebuilt under the finger; the counts update in place
 function buildFilters() {
   $('fams').innerHTML = `<button type="button" data-fam="">${esc(t('f.all'))}</button>` +
-    FAMS.map((f) => `<button type="button" data-fam="${f}"><i style="background:${FAMILY[f]}"></i>${esc(t('fam.' + f))}<b></b></button>`).join('')
+    FAMS.map((f) => `<button type="button" data-fam="${f}"><i style="background:var(--f-${f})"></i>${esc(t('fam.' + f))}<b></b></button>`).join('')
   $('topic').innerHTML = `<option value="">${esc(t('topic.all'))}</option>` + TAGS.map((g) => `<option value="${esc(g)}">${esc(t('tag.' + g))}</option>`).join('')
   $('topic').value = filt.tag || ''
   syncFilters(); filterCounts()
@@ -566,7 +569,7 @@ $('hl').addEventListener('click', (e) => {
 const monthName = (m) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString(t('locale'), { month: 'long', year: 'numeric', timeZone: 'UTC' })
 function monthBars(list, key, hi) {
   const max = Math.max(1, ...list.map((x) => x[key])), bw = 300 / list.length
-  return list.map((x, i) => { const h = (x[key] / max) * 56; return `<rect x="${(i * bw + 0.6).toFixed(1)}" y="${(60 - Math.max(1, h)).toFixed(1)}" width="${(bw - 1.2).toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" rx="1" fill="${i === hi ? '#cbf34d' : '#7d9a2c'}"><title>${esc(monthName(x.month))}: ${x[key]}</title></rect>` }).join('')
+  return list.map((x, i) => { const h = (x[key] / max) * 56; return `<rect x="${(i * bw + 0.6).toFixed(1)}" y="${(60 - Math.max(1, h)).toFixed(1)}" width="${(bw - 1.2).toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" rx="1" style="fill:var(${i === hi ? '--fg' : '--mut'})"><title>${esc(monthName(x.month))}: ${x[key]}</title></rect>` }).join('')
 }
 function renderTrend() {
   const T2 = S?.trends
@@ -1036,7 +1039,7 @@ function hit(w, color) {
     if (d < 9) waves.push({ i, at: performance.now() + d * 70, amt: (1 - d / 9) * 1.1, color })
   }
 }
-function spark(w) { const c = cell[w.r]; if (!c || !filt.bots) return; wake(900); c.glow = Math.max(c.glow, 0.9); c.flash.set('#b9c2aa') }
+function spark(w) { const c = cell[w.r]; if (!c || !filt.bots) return; wake(900); c.glow = Math.max(c.glow, 0.9); c.flash.set(tok('--mut', '#b9c2aa')) }
 function stepFx(dt, now) {
   for (let i = rings.length - 1; i >= 0; i--) {
     const r = rings[i]; r.t += dt / 1.3
@@ -1215,7 +1218,7 @@ async function openRepo(i) {
     const d = await res.json()
     const max = Math.max(1, ...d.daily.people.map((v, k) => v + d.daily.bots[k]))
     const bw = 300 / d.daily.days
-    const bars = d.daily.people.map((v, k) => { const hb = (d.daily.bots[k] / max) * 56, hp = (v / max) * 56; return `<rect x="${k * bw + 1}" y="${60 - hp - hb}" width="${bw - 2}" height="${hb}" fill="#8b9480" opacity=".6"/><rect x="${k * bw + 1}" y="${60 - hp}" width="${bw - 2}" height="${hp}" fill="#cbf34d" rx="1"/>` }).join('')
+    const bars = d.daily.people.map((v, k) => { const hb = (d.daily.bots[k] / max) * 56, hp = (v / max) * 56; return `<rect x="${k * bw + 1}" y="${60 - hp - hb}" width="${bw - 2}" height="${hb}" style="fill:var(--mut)" opacity=".6"/><rect x="${k * bw + 1}" y="${60 - hp}" width="${bw - 2}" height="${hp}" style="fill:var(--fg)"/>` }).join('')
     const sub = [gname(d.group), d.lang, cnt('star', d.stars), d.pushedAt ? t('d.lastCode', { ago: ago(Date.parse(d.pushedAt)) }) : ''].filter(Boolean).map(esc).join(' · ')
     $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
 ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}${statusPill(d.daily)}<p class="sub">${sub}</p>
@@ -1332,7 +1335,7 @@ function setRow(li, i, n, max, medal) {
   q('.bvr-main').setAttribute('aria-label', `${name}, ${group}: ${cnt('upd', n)}${medal ? `, ${t(`b.repos.${medal}`)}` : ''}`)
   const segs = filt.fam ? [[filt.fam, n]] : FAMS.map((f, k) => [f, W.fc[i]?.[k] || 0]).filter((x) => x[1])
   const segSig = segs.join()
-  if (li.dataset.segs !== segSig) { li.dataset.segs = segSig; q('.bvr-bar').innerHTML = segs.map(([f, c]) => `<i style="flex:${c};background:${FAMILY[f]}"></i>`).join('') }
+  if (li.dataset.segs !== segSig) { li.dataset.segs = segSig; q('.bvr-bar').innerHTML = segs.map(([f, c]) => `<i style="flex:${c};background:var(--f-${f})"></i>`).join('') }
   const sr = stateRepo(r.name)
   const tags = (medal ? `<span class="t-medal" title="${esc(t(`b.repos.${medal}`))}">${MEDAL}</span>` : '') + (sr?.isNew ? `<span class="t-new">${esc(t('new.repo'))}</span>` : '') + (sr?.onchain ? `<span class="t-chain">${esc(t('oc.tag'))}</span>` : '') + (followsRepo(r.name) ? '<span class="t-star">★</span>' : '')
   if (li.dataset.tags !== tags) { li.dataset.tags = tags; q('.bvr-tags').innerHTML = tags }
@@ -1635,7 +1638,7 @@ function applyLang() {
   $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'live' })
   $('views-slot').innerHTML = viewsHtml(t, { lang: LANG, current: 'live' })
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
-  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:${FAMILY[f]}"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automaticLong'))}</span>`
+  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:var(--f-${f})"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automaticLong'))}</span>`
   for (const b of document.querySelectorAll('.kpi')) b.title = t('l.see.' + b.dataset.list)
   for (const o of groupLabels) labelText(o.element)
   for (const o of subLabels) subText(o.element)

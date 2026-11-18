@@ -9,8 +9,8 @@ for (const lang of ['en', 'pt', 'zh']) {
     const r = repoBadge({ updates: 41, people: 3 }, lang)
     assert.match(r, /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/)
     assert.match(r, /41/); assert.match(r, /\b3\b/); assert.doesNotMatch(r, /\{\w+\}/)
-    assert.match(repoBadge({ updates: 0, people: 0 }, lang), /#3b4330/) // grey when quiet
-    assert.match(repoBadge(null, lang), /#3b4330/)
+    assert.match(repoBadge({ updates: 0, people: 0 }, lang), /#4a4a47/) // Grafite when quiet
+    assert.match(repoBadge(null, lang), /#4a4a47/)
     assert.match(personBadge({ updates: 7, projects: [['a/b', 7]] }, lang), /\b7\b/)
     assert.match(allBadge({ updates: 598, people: 71, projects: 68 }, lang), /598/)
     assert.doesNotMatch(allBadge(null, lang), /\{\w+\}/)

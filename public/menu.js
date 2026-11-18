@@ -38,7 +38,7 @@ export function menuHtml(t, { base = '', lang = 'en', current = '', here = '' } 
     ? `<a href="${esc(href('', here, l))}" lang="${l === 'zh' ? 'zh-CN' : l}"${l === lang ? ' aria-current="true"' : ''}>${name}</a>`
     : `<button type="button" data-lang="${l}" lang="${l === 'zh' ? 'zh-CN' : l}" aria-pressed="${l === lang}">${name}</button>`).join('')
   // the plain pages (which know their own address) offer the choice of look; the live page does not wear it yet
-  const looks = here ? `<span class="pm-theme" role="group" aria-label="${esc(t('m.theme'))}"><span>${esc(t('m.theme'))}</span><button type="button" data-theme-set="lcl">${esc(t('m.dark'))}</button><button type="button" data-theme-set="lcl-light">${esc(t('m.light'))}</button></span>` : ''
+  const looks = here ? `<span class="pm-theme" role="group" aria-label="${esc(t('m.theme'))}"><span>${esc(t('m.theme'))}</span><button type="button" data-theme-set="auto">${esc(t('m.auto'))}</button><button type="button" data-theme-set="dark">${esc(t('m.dark'))}</button><button type="button" data-theme-set="light">${esc(t('m.light'))}</button></span>` : ''
   return `<details class="pmenu"><summary class="pm-btn" aria-label="${esc(t('m.menu'))}" title="${esc(t('m.menu'))}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
 <div class="pm-panel" role="menu">${GROUPS.map(([g, rows]) => `<div class="pm-group pm-${g.slice(2)}"><p>${esc(t(g))}</p>${rows.map(row).join('')}</div>`).join('')}
 <div class="pm-foot"><a data-act="about" href="${esc(href(base, '/?about=1', lang))}">${esc(t('m.about'))}</a><a href="${esc(href(base, '/use', lang))}">${esc(t('m.all'))}</a><a href="${esc(href(base, '/method', lang))}">${esc(t('me.nav'))}</a><a href="${esc(href(base, '/privacy', lang))}">${esc(t('pv.nav'))}</a><span class="pm-langs">${langs}</span>${looks}
@@ -81,12 +81,15 @@ export function barHtml(t, { base = '', lang = 'en', current = '', here = '', sh
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links
 if (typeof document !== 'undefined') {
-  // the look: the buttons set it for this page and for this browser (theme.css does the rest)
-  const showLook = () => { const now = document.documentElement.dataset.theme || 'old'; for (const b of document.querySelectorAll('[data-theme-set]')) b.setAttribute('aria-pressed', String(b.dataset.themeSet === now)) }
+  // the look: Auto follows the device (no attribute), Dark and Light are the person's choice, kept in this browser
+  const LOOK = 'ckbpulse.theme'
+  const chosen = () => { try { const s = localStorage.getItem(LOOK); return s === 'dark' || s === 'lcl' ? 'dark' : s === 'light' || s === 'lcl-light' ? 'light' : 'auto' } catch { return document.documentElement.dataset.theme || 'auto' } }
+  const showLook = () => { const now = chosen(); for (const b of document.querySelectorAll('[data-theme-set]')) b.setAttribute('aria-pressed', String(b.dataset.themeSet === now)) }
   document.addEventListener('click', (e) => {
     const b = e.target.closest?.('[data-theme-set]'); if (!b) return
-    document.documentElement.dataset.theme = b.dataset.themeSet
-    try { localStorage.setItem('ckbpulse.theme', b.dataset.themeSet) } catch {}
+    const v = b.dataset.themeSet
+    if (v === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v
+    try { if (v === 'auto') localStorage.removeItem(LOOK); else localStorage.setItem(LOOK, v) } catch {}
     showLook()
   })
   showLook()

@@ -1,7 +1,7 @@
 /* The menu, the views and the bar (menu.js), shared by every page. Self-contained: the server pages have none of the
    live page's styles. A menu opens under its button on wide screens and from the bottom on phones; the dimmed layer
    behind it belongs to the button, so a tap on it closes the menu even where no script runs. */
-.pmenu, .pm-bar, .pm-views { --pm-bg: var(--panel, #121009); --pm-glass: rgba(20, 18, 14, 0.78); --pm-line: rgba(203, 243, 77, 0.16); --pm-soft: rgba(203, 243, 77, 0.08); --pm-fg: var(--fg, #f0ece2); --pm-mut: var(--mut, #9a9486); --pm-lime: var(--lime, #cbf34d); --pm-ink: var(--ink, #1a2208); }
+.pmenu, .pm-bar, .pm-views { --pm-bg: var(--panel, #121009); --pm-glass: rgba(20, 18, 14, 0.78); --pm-line: color-mix(in srgb, var(--pm-lime) 16%, transparent); --pm-soft: color-mix(in srgb, var(--pm-lime) 8%, transparent); --pm-fg: var(--fg, #f0ece2); --pm-mut: var(--mut, #9a9486); --pm-lime: var(--lime, #F4F1EB); --pm-ink: var(--ink, #1a2208); }
 .pmenu { position: relative; display: inline-block; }
 .pm-btn { list-style: none; display: grid; place-items: center; width: 38px; height: 38px; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--pm-line); background: var(--pm-glass); color: var(--pm-fg); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .pm-btn::-webkit-details-marker { display: none; }
@@ -15,14 +15,14 @@
 .pm-group p { margin: 4px 8px 3px; font: 500 10.5px var(--font-num, monospace); color: var(--pm-mut); text-transform: uppercase; letter-spacing: 0.08em; }
 .pm-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 9px; color: var(--pm-fg); text-decoration: none; min-height: 34px; box-sizing: border-box; }
 .pm-row:hover { background: var(--pm-soft); }
-.pm-row[aria-current="page"] { background: rgba(203, 243, 77, 0.13); color: var(--pm-lime); font-weight: 700; }
+.pm-row[aria-current="page"] { background: color-mix(in srgb, var(--pm-lime) 13%, transparent); color: var(--pm-lime); font-weight: 700; }
 .pm-row span { min-width: 0; }
 .pm-row small { margin-left: auto; padding-left: 8px; color: var(--pm-mut); font-size: 11.5px; white-space: nowrap; }
-.pm-tile { flex: none; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font: 700 10px/1 var(--font-num, monospace); font-style: normal; background: rgba(203, 243, 77, 0.12); color: var(--pm-lime); }
+.pm-tile { flex: none; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font: 700 10px/1 var(--font-num, monospace); font-style: normal; background: color-mix(in srgb, var(--pm-lime) 12%, transparent); color: var(--pm-lime); }
 .pm-tile svg { width: 12px; height: 12px; }
 .pm-tile b { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pm-live { background: var(--pm-lime); color: var(--pm-ink); }
-.pm-fiber, .pm-ai { background: rgba(98, 201, 245, 0.16); color: #62c9f5; }
+.pm-fiber, .pm-ai { background: color-mix(in srgb, var(--pm-lime) 12%, transparent); color: var(--pm-lime); }
 .pm-notices { background: rgba(255, 95, 143, 0.16); color: #ff7fa6; }
 .pm-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; border-top: 1px solid var(--pm-soft); margin-top: 2px; padding: 9px 8px 3px; font-size: 12.5px; }
 .pm-foot a { color: var(--pm-fg); text-decoration: none; }
@@ -80,10 +80,10 @@
 .ps-btn { list-style: none; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: 500 13px var(--font-ui, system-ui, sans-serif); color: var(--fg, #f0ece2); border: 1px solid var(--edge, #36322a); border-radius: 999px; padding: 6px 13px; background: rgba(20, 18, 14, 0.8); -webkit-tap-highlight-color: transparent; }
 .ps-btn::-webkit-details-marker { display: none; } .ps-btn::marker { content: ""; }
 .ps-btn svg { width: 15px; height: 15px; }
-.ps-btn:hover, .pshare[open] > .ps-btn { border-color: var(--lime, #cbf34d); color: var(--lime, #cbf34d); }
-.ps-btn:focus-visible, .ps-panel a:focus-visible, .ps-panel button:focus-visible { outline: 2px solid var(--lime, #cbf34d); outline-offset: 2px; }
+.ps-btn:hover, .pshare[open] > .ps-btn { border-color: var(--lime, #F4F1EB); color: var(--lime, #F4F1EB); }
+.ps-btn:focus-visible, .ps-panel a:focus-visible, .ps-panel button:focus-visible { outline: 2px solid var(--lime, #F4F1EB); outline-offset: 2px; }
 .ps-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 31; min-width: 190px; display: grid; gap: 2px; padding: 6px; background: var(--panel, #121009); border: 1px solid var(--edge, #36322a); border-radius: 14px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7); }
 .ps-panel a, .ps-panel button { display: block; text-align: left; padding: 8px 10px; border-radius: 9px; font: 14px var(--font-ui, system-ui, sans-serif); color: var(--fg, #f0ece2); text-decoration: none; background: none; border: 0; cursor: pointer; white-space: nowrap; }
-.ps-panel a:hover, .ps-panel button:hover { background: rgba(203, 243, 77, 0.08); }
+.ps-panel a:hover, .ps-panel button:hover { background: color-mix(in srgb, var(--pm-lime) 8%, transparent); }
 .pshare.up .ps-panel { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
 @media print { .pshare { display: none; } }

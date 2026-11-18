@@ -9,17 +9,17 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const width = (s) => Math.round([...String(s)].reduce((n, c) => n + (/[⺀-鿿＀-￯]/.test(c) ? 11 : /\d/.test(c) ? 6.2 : /[ .,·]/.test(c) ? 3.6 : 6.6), 0))
 
 export const LANGS = ['en', 'pt', 'zh']
-// left: the page's name with its lit cell; right: the words, lime when there was work, grey when not
+// left: the page's name with its red dot; right: the words, Paper when there was work, Grafite when not (Ink and Paper hold on a light README and on a dark one)
 export function badgeSvg(label, value, { lit = true } = {}) {
   const lw = width(label) + 26, vw = width(value) + 20, w = lw + vw, h = 20
-  const fill = lit ? '#cbf34d' : '#3b4330', text = lit ? '#1a2208' : '#c8d0bc'
+  const fill = lit ? '#F4F1EB' : '#4a4a47', text = lit ? '#121212' : '#F4F1EB'
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" role="img" aria-label="${esc(label)}: ${esc(value)}">
 <title>${esc(label)}: ${esc(value)}</title>
-<clipPath id="r"><rect width="${w}" height="${h}" rx="3"/></clipPath>
-<g clip-path="url(#r)"><rect width="${lw}" height="${h}" fill="#07090a"/><rect x="${lw}" width="${vw}" height="${h}" fill="${fill}"/></g>
-<rect x="7" y="6" width="8" height="8" rx="2" fill="#cbf34d"/>
+<clipPath id="r"><rect width="${w}" height="${h}"/></clipPath>
+<g clip-path="url(#r)"><rect width="${lw}" height="${h}" fill="#121212"/><rect x="${lw}" width="${vw}" height="${h}" fill="${fill}"/></g>
+<circle cx="11" cy="10" r="3.5" fill="#E10600"/>
 <g font-family="${FONT}" font-size="11" text-rendering="geometricPrecision">
-<text x="${19 + (lw - 26) / 2}" y="14" fill="#eef3e2" text-anchor="middle" textLength="${lw - 26}" lengthAdjust="spacingAndGlyphs">${esc(label)}</text>
+<text x="${19 + (lw - 26) / 2}" y="14" fill="#F4F1EB" text-anchor="middle" textLength="${lw - 26}" lengthAdjust="spacingAndGlyphs">${esc(label)}</text>
 <text x="${lw + vw / 2}" y="14" fill="${text}" font-weight="bold" text-anchor="middle" textLength="${vw - 20}" lengthAdjust="spacingAndGlyphs">${esc(value)}</text>
 </g>
 </svg>`
