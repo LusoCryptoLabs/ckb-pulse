@@ -11,7 +11,7 @@ import { methodPage } from '../method.mjs'
 
 const base = 'https://pulse.example'
 // what the menu reaches, as agreed on 2026-11-02: see, keep up, for builders
-const PLACES = ['/', '/fiber', '/digest?p=week', '/?tab=notices', '/feed.xml', '/?tab=suggest', '/use#badge', '/use#ai']
+const PLACES = ['/', '/digest?p=week', '/?tab=notices', '/feed.xml', '/?tab=suggest', '/use#badge', '/use#ai']
 
 test('a path keeps its hash after the language', () => {
   assert.equal(href(base, '/use#ai', 'pt'), `${base}/use?lang=pt#ai`)
@@ -20,9 +20,9 @@ test('a path keeps its hash after the language', () => {
 
 for (const lang of ['en', 'pt', 'zh']) {
   test(`the ${lang} menu has every destination and no missing word`, () => {
-    const t = words(lang), html = menuHtml(t, { base, lang, current: 'fiber' })
+    const t = words(lang), html = menuHtml(t, { base, lang, current: 'digest' })
     for (const path of PLACES) assert.ok(html.includes(`href="${href(base, path, lang).replace(/&/g, '&amp;')}"`), path)
-    assert.match(html, /data-act="fiber" href="[^"]*" aria-current="page"/)
+    assert.match(html, /data-act="digest" href="[^"]*" aria-current="page"/)
     assert.equal((html.match(/aria-current="page"/g) || []).length, 1)
     for (const k of html.matchAll(/>([a-z]+\.[a-z.]+)</g)) assert.fail(`word missing: ${k[1]}`)
     assert.ok(html.includes(`${base}/use?lang=${lang}`) && html.includes(`${base}/?about=1&amp;lang=${lang}`))
@@ -41,10 +41,8 @@ test('the live page switches language in place, a server page links to itself in
   assert.ok(server.includes('href="/method?lang=pt"') && !server.includes('data-lang='))
 })
 
-test('the views mark the page they are on', () => {
-  const html = viewsHtml(words('en'), { base, lang: 'en', current: 'fiber' })
-  assert.match(html, /href="https:\/\/pulse\.example\/fiber\?lang=en" aria-current="page">Fiber</)
-  assert.equal((html.match(/<a /g) || []).length, 2)
+test('one view is not a switch: with the Fiber map paused the views are not drawn', () => {
+  assert.equal(viewsHtml(words('en'), { base, lang: 'en', current: 'live' }), '')
 })
 
 test('the server pages open with the bar and load the menu', () => {

@@ -7,10 +7,15 @@ const LANGS = [['en', 'EN'], ['zh', '中文'], ['pt', 'PT']]
 const RSS = '<svg viewBox="0 0 16 16"><circle cx="4" cy="12" r="1.6" fill="currentColor"/><path d="M3 7.5a5.5 5.5 0 0 1 5.5 5.5M3 3a10 10 0 0 1 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
 
 // the destinations of the same weight: shown side by side on wide screens, first in the menu everywhere
-export const VIEWS = [['live', '/', 'v.live'], ['fiber', '/fiber', 'v.fiber']]
+// The Fiber map is PAUSED (2026-11-18). Nothing links to it, server.mjs sends its address to the live page and answers
+// 503 to its API, and its collector does not start. Set this to false to bring it back: the page, its words and its
+// tests are all still here.
+export const FIBER_PAUSED = true
+const unpaused = ([id]) => !(FIBER_PAUSED && id === 'fiber')
+export const VIEWS = [['live', '/', 'v.live'], ['fiber', '/fiber', 'v.fiber']].filter(unpaused)
 // [id, path, words, hint words, tile] by what a person came for; act names what the live page does in place
 export const GROUPS = [
-  ['m.see', [['live', '/', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['digest', '/digest?p=week', 'm.digest', '', '7']]],
+  ['m.see', [['live', '/', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['digest', '/digest?p=week', 'm.digest', '', '7']].filter(unpaused)],
   ['m.keep', [['notices', '/?tab=notices', 'm.notices', 'm.notices.s', '!'], ['feed', '/feed.xml', 'm.feed', '', 'rss']]],
   ['m.build', [['add', '/?tab=suggest', 'm.add', '', '+'], ['badge', '/use#badge', 'm.badge', '', 'B'], ['ai', '/use#ai', 'm.ai', 'm.ai.s', 'AI']]],
 ]
@@ -22,6 +27,7 @@ export function href(base, path, lang) {
 }
 
 export function viewsHtml(t, { base = '', lang = 'en', current = '' } = {}) {
+  if (VIEWS.length < 2) return '' // one destination is not a switch
   return `<nav class="pm-views" aria-label="${esc(t('m.views'))}">${VIEWS.map(([id, path, k]) => `<a href="${esc(href(base, path, lang))}"${id === current ? ' aria-current="page"' : ''}>${esc(t(k))}</a>`).join('')}</nav>`
 }
 

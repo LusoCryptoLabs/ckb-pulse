@@ -17,7 +17,7 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 
 ## Pages
 
-`/` the live page, `/fiber`, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
+`/` the live page, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
 
 ## Test
 
@@ -31,7 +31,7 @@ The rules (what counts as CKB work, manifests, the burst cap, agents and schedul
 
 ## Visits
 
-Page views and visitors per day for the page, the Fiber map, the digest, the feed and the badges, at `GET /api/visits` (30 days) and in `DATA_DIR/visits.json` (90 days). No cookies and no accounts: a visitor is a hash of the day's salt, the address and the browser, and the salt and the hashes are dropped when the day ends, so only the counts remain. Uptime checks, crawlers, link previews, scripts and headless browsers count apart, as `bots`, by their user agent: on 2026-10-26 they made 1997 of the page's views, while its script was fetched 26 times.
+Page views and visitors per day for the page, the digest, the feed and the badges, at `GET /api/visits` (30 days) and in `DATA_DIR/visits.json` (90 days). No cookies and no accounts: a visitor is a hash of the day's salt, the address and the browser, and the salt and the hashes are dropped when the day ends, so only the counts remain. Uptime checks, crawlers, link previews, scripts and headless browsers count apart, as `bots`, by their user agent: on 2026-10-26 they made 1997 of the page's views, while its script was fetched 26 times.
 
 Also counted per day, as plain numbers with no one in them: the share channel used (`POST /api/count`, a fixed list in `visits.mjs`) and the kind of card drawn, in `counts`, with the robots that fetch a card for a link preview in `botCounts`. `OPT_OUT` in `config.mjs` lists the logins of people who asked to leave: their work is dropped when it comes in and removed from what is stored.
 
@@ -58,6 +58,8 @@ Every repository read once stays counted after it goes quiet or leaves the page.
 Once a day: every script the CKB explorer knows with a source repository (its repository is then followed too), and the mainnet contracts projects record in their committed ckb-cli migrations, measured on a public CKB node (`CKB_RPC`, default mainnet.ckb.dev): CKB in live cells that use each one and its last use. Shown in each project's card, with a tag in the scene.
 
 ## Fiber
+
+**Paused since 2026-11-18**: `/fiber` goes to the live page, `/api/fiber` answers 503, the menu does not list it and its collector does not start. The code is still here: `FIBER_PAUSED` in `public/menu.js` brings it back.
 
 `/fiber` maps the Fiber payment network on mainnet and testnet. Nodes, public channels and their updates come from a Fiber node of your own that only listens (no channels, no funds, auto-accept off): set `FIBER_MAINNET_RPC` and `FIBER_TESTNET_RPC` to its RPC. Openings and closings come from the chain block by block, as cells under Fiber's FundingLock appear and are spent, so private channels count there too (`CKB_RPC`, `CKB_TESTNET_RPC`). Payments travel encrypted between nodes and are not visible.
 
@@ -101,7 +103,7 @@ Every page shares `public/theme.css`, the look of the Cellula pages: Space Grote
 
 ## Menu
 
-Every page (the live page, `/fiber`, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, Fiber, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. On wide screens the two views (live, Fiber) also sit side by side next to the name. Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
+Every page (the live page, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. When there are two views they also sit side by side next to the name on wide screens (only the live page now). Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
 
 ## Share
 
@@ -114,8 +116,8 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /api/stream`: new events, Server-Sent Events
 - `GET /og/highlights.png?p=`, `/og/repo.png?name=`, `/og/person.png?login=`, each with `lang=en|pt|zh`: share pictures
 - `GET /api/push/key`, `POST /api/push` with `{sub, repos, people, news, lang}`, `POST /api/push/off` with `{endpoint}`: browser notices
-- `GET /api/fiber?net=mainnet|testnet`: the Fiber map, channels open on chain, a week of openings and closings
-- `GET /api/fiber/stream`: Fiber changes as they happen, Server-Sent Events
+- `GET /api/fiber?net=mainnet|testnet`: the Fiber map, channels open on chain, a week of openings and closings (paused: 503)
+- `GET /api/fiber/stream`: Fiber changes as they happen, Server-Sent Events (paused: 503)
 - `GET /version.json`: the build the server runs, for the new-version notice
 - `POST /api/propose` with `{"login"}`, then `GET /api/propose?id=`: a suggestion and how its check went
 - `GET /digest?p=day|week|month&lang=`: the highlights as a page; `GET /feed.xml?lang=`: the Atom feed

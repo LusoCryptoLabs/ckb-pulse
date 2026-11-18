@@ -14,6 +14,7 @@ import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
+import { FIBER_PAUSED } from './public/menu.js'
 import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
@@ -106,7 +107,7 @@ async function shareCard(req, res, url) {
   if (url.pathname === '/og/digest.png') { const w = weekByLabel(q.get('w') || ''); if (w) png = await card(`dg|${q.get('w')}|${lang}|${host}`, () => highlightsCard({ leaders: weekLeaders(w), period: 'week', lang, host, groupOf })) }
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}|${q.get('v') || ''}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
-  if (url.pathname === '/og/fiber.png') { const d = fiberState(q.get('net') === 'testnet' ? 'testnet' : 'mainnet'); if (d) png = await card(`fb|${d.net}|${lang}|${host}|${q.get('v') || ''}`, () => fiberCard({ d, lang, host })) }
+  if (url.pathname === '/og/fiber.png' && !FIBER_PAUSED) { const d = fiberState(q.get('net') === 'testnet' ? 'testnet' : 'mainnet'); if (d) png = await card(`fb|${d.net}|${lang}|${host}|${q.get('v') || ''}`, () => fiberCard({ d, lang, host })) }
   if (url.pathname === '/og/use.png') png = await card(`u|${lang}|${host}|${q.get('v') || ''}`, () => useCard({ ...useFacts(), lang, host }))
   if (!png) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
   res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=600' })
@@ -184,6 +185,13 @@ function handle(req, res) {
     return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, fiber: fiberHealth(), visits: visits(1).days[0], build: BUILD }))
   }
   if (url.pathname === '/' || url.pathname === '/index.html') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
+  // the Fiber map is paused: its address goes to the live page for now, its API and stream answer 503 (menu.js, FIBER_PAUSED)
+  if (FIBER_PAUSED && (url.pathname === '/fiber' || url.pathname === '/fiber.html')) {
+    const l = pick(url.searchParams.get('lang'))
+    res.writeHead(302, { location: l ? `/?lang=${l}` : '/', 'cache-control': 'no-store' })
+    return res.end()
+  }
+  if (FIBER_PAUSED && url.pathname.startsWith('/api/fiber')) { res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end('{"status":"paused"}') }
   if (url.pathname === '/fiber' || url.pathname === '/fiber.html') { hit('fiber', ipOf(req), req.headers['user-agent']); const net = url.searchParams.get('net') === 'testnet' ? 'testnet' : 'mainnet', d = fiberState(net), lang = langOf(url.searchParams), t = words(lang), base = baseOf(req); const tags = previewTags({ title: `${t('fb.title')} · ${t('fb.' + net)}`, desc: t('fb.tagline'), img: withStamp(`${base}/og/fiber.png?net=${net}&lang=${lang}`, d && [d.nodes.length, d.channels.length, d.chain, d.block]), url: `${base}/fiber?net=${net}` }); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, FIBER.replace('<!--og-->', tags)) }
   // the digest as a page and as a feed; badges for READMEs. GitHub's image proxy keeps a badge for its max-age
   // a kept week, at an address that never changes
@@ -333,4 +341,4 @@ const server = http.createServer((req, res) => {
 process.on('uncaughtException', (err) => console.warn('uncaught', err.stack || err.message))
 process.on('unhandledRejection', (err) => console.warn('unhandled', err?.stack || err))
 server.listen(PORT, () => console.log(`ckb-pulse on :${PORT}`))
-if (!OFFLINE) { start(); startFiber(DATA_DIR) }
+if (!OFFLINE) { start(); if (!FIBER_PAUSED) startFiber(DATA_DIR) }
