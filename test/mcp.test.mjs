@@ -30,6 +30,7 @@ const mcp = makeMcp({
   highlights: pulse.highlightsNow, news: pulse.news, projects: pulse.projectsNow, project: pulse.repoDetail, person: pulse.personProfile,
   peopleIn: pulse.peopleIn, updates: pulse.latestUpdates,
   funded: () => ({ readAt: null, grants: [{ topic: 9845, name: 'Fiber Link', grant: '$20,000', since: '2026-02-07', status: 'progress', repos: [], commits: 4, people: 2, lastWork: null, lastReport: null, updates: 3, milestones: [], delivered: null, bars: [1, 2] }] }),
+  arrivals: (days) => (days === 30 ? ['alice', 'bob'] : ['bob']),
   trends: () => ({ repos: 3, of: 3, months: [{ month: '2026-10', devs: 4, newDevs: 1, commits: 9 }] }),
 })
 const base = 'https://pulse.example'
@@ -66,7 +67,7 @@ test('a batch answers its requests only, and refuses more than 20 messages', asy
 
 test('tools/list: every tool has a schema and says it only reads', async () => {
   const { tools } = (await rpc('tools/list')).json.result
-  assert.deepEqual(tools.map((t) => t.name), ['overview', 'find_projects', 'project', 'person', 'who_works_on', 'recent_updates', 'dao_funded', 'trends'])
+  assert.deepEqual(tools.map((t) => t.name), ['overview', 'find_projects', 'project', 'person', 'who_works_on', 'recent_updates', 'dao_funded', 'new_builders', 'trends'])
   for (const t of tools) { assert.equal(t.inputSchema.type, 'object'); assert.equal(t.annotations.readOnlyHint, true); assert.equal(t.run, undefined) }
 })
 
@@ -131,4 +132,33 @@ test('project, overview, dao_funded and trends answer from the server readers', 
   assert.equal(f.grants[0].thread, 'https://talk.nervos.org/t/9845')
   assert.equal(f.grants[0].bars, undefined)
   assert.equal((await tool('trends', {})).months[0].devs, 4)
+})
+
+test('find_projects: plurals, hyphens, OR, sort and pages', async () => {
+  // "spore-sdk" is found by "spore sdk" and "sdks"; a plural finds the singular
+  assert.deepEqual((await tool('find_projects', { query: 'spore-sdk' })).projects.map((p) => p.name), ['sporeprotocol/spore-sdk'])
+  assert.deepEqual((await tool('find_projects', { query: 'sdks' })).projects.map((p) => p.name), ['sporeprotocol/spore-sdk'])
+  assert.deepEqual((await tool('find_projects', { query: 'networks' })).projects.map((p) => p.name), ['nervosnetwork/fiber'])
+  // either side of OR
+  const either = (await tool('find_projects', { query: 'fiber OR spore' })).projects.map((p) => p.name).sort()
+  assert.deepEqual(either, ['nervosnetwork/fiber', 'sporeprotocol/spore-sdk'])
+  assert.equal((await tool('find_projects', { query: 'fiber spore' })).found, 0) // all words still means all
+  // sort by people: ccc has carol, alice and erin, fiber alice and bob
+  assert.equal((await tool('find_projects', { sort: 'people' })).projects[0].name, 'ckb-devrel/ccc')
+  assert.match((await tool('find_projects', { sort: 'nonsense' })).error, /sort must be one of/)
+  // pages
+  const first = await tool('find_projects', { limit: 2 })
+  assert.equal(first.projects.length, 2); assert.equal(first.nextOffset, 2)
+  const next = await tool('find_projects', { limit: 2, offset: 2 })
+  assert.equal(next.projects.length, 1); assert.equal(next.nextOffset, undefined)
+  assert.ok(!first.projects.some((p) => next.projects.some((q) => q.name === p.name)))
+})
+
+test('new_builders lists arrivals, alphabetical, with links', async () => {
+  const r = await tool('new_builders', {})
+  assert.deepEqual(r.people.map((p) => p.login), ['alice', 'bob'])
+  assert.equal(r.days, 30); assert.equal(r.count, 2)
+  assert.equal(r.people[0].pulse, 'https://pulse.example/?person=alice')
+  assert.deepEqual((await tool('new_builders', { days: 7 })).people.map((p) => p.login), ['bob'])
+  assert.equal((await tool('new_builders', { days: 9999 })).days, 60)
 })
