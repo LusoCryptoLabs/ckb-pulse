@@ -41,7 +41,7 @@ const TOOLS = [
   {
     name: 'overview',
     title: 'What is happening in CKB',
-    description: 'The CKB ecosystem over the last day, week or month: how many updates, people and projects, the most active projects, people and organisations, and the projects new to Pulse. Ranked numbers cap bursts at 10 updates per person, project and hour, as the page does. AI accounts are listed apart, never among the people.',
+    description: 'The CKB ecosystem over the last day, week or month: how many updates, people and projects, the most active projects, people and organisations, and the projects new to Pulse. Ranked numbers cap bursts at 10 updates per person, project and hour, as the page does. AI accounts and the people who make Pulse are listed apart, never among the ranked people.',
     inputSchema: { type: 'object', properties: { period: { type: 'string', enum: ['day', 'week', 'month'], description: 'day, week (the default) or month' } } },
     run: (a, { api, link }) => {
       const period = ['day', 'week', 'month'].includes(a.period) ? a.period : 'week', h = api.highlights()[period]
@@ -52,6 +52,7 @@ const TOOLS = [
         peopleByCommits: h.peopleCommits.map(([login, commits]) => ({ login, commits })),
         reviewers: (h.reviewers || []).map(([login, reviews]) => ({ login, reviews })),
         pullRequestsAccepted: (h.merged || []).map(([login, accepted]) => ({ login, accepted })),
+        operators: (h.operators || []).map(([login, updates]) => ({ login, updates, note: 'makes Pulse; counted in the totals, not ranked' })),
         aiAccounts: (h.ai || []).map(([login, updates]) => ({ login, updates, note: 'declares itself an AI; not counted as a person' })),
         organisations: h.orgs.map(([name, updates]) => ({ name, updates })),
         newProjects: api.news().slice(0, 10).map(({ name, desc, lang, createdAt }) => ({ name, desc, lang, createdAt, pulse: link.project(name) })),

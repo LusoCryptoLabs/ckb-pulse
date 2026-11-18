@@ -859,7 +859,7 @@ function leaders(ev, now) {
   const out = {}
   for (const [key, ms] of [['day', DAY], ['week', 7 * DAY], ['month', MONTH]]) {
     const from = new Date(now - ms).toISOString()
-    const m = { repos: new Map(), commits: new Map(), pushes: new Map(), people: new Map(), peopleCommits: new Map(), orgs: new Map(), reviewers: new Map(), merged: new Map(), ai: new Map() }
+    const m = { repos: new Map(), commits: new Map(), pushes: new Map(), people: new Map(), peopleCommits: new Map(), orgs: new Map(), reviewers: new Map(), merged: new Map(), ai: new Map(), operators: new Map() }
     let aiUpdates = 0
     const add = (map, k, n = 1) => map.set(k, (map.get(k) || 0) + n)
     const avatar = new Map(), burst = new Map()
@@ -867,6 +867,8 @@ function leaders(ev, now) {
       // an AI account has its own list and does not enter the human ones
       if (e.ai && e.at >= from && e.kind !== 'branch') { aiUpdates++; add(m.ai, e.actor); if (e.avatar) avatar.set(e.actor, e.avatar); continue }
       if (e.bot || e.at < from || e.kind === 'branch') continue
+      // the people who make Pulse are not ranked: their work is in the totals and in a list of its own, with their mark
+      if (isOperator(e.actor)) { add(m.operators, e.actor); if (e.avatar) avatar.set(e.actor, e.avatar); continue }
       // a burst must not win a medal: on 2026-10-03 an agent working as one person opened 62 branches and 43 pull
       // requests in two hours. Per person, per project and per hour at most 10 updates count; opening a branch never does
       const b = `${e.actor}|${e.repo}|${e.at.slice(0, 13)}`, nb = (burst.get(b) || 0) + 1
@@ -891,7 +893,7 @@ function leaders(ev, now) {
       stats: { updates, people: who.size, projects: where.size, ai: aiUpdates }, bars,
       repos: top(m.repos), commits: top(m.commits), pushes: top(m.pushes), orgs: top(m.orgs),
       people: top(m.people).map(([l, n]) => [l, n, avatar.get(l) || '']), peopleCommits: top(m.peopleCommits).map(([l, n]) => [l, n, avatar.get(l) || '']),
-      reviewers: top(m.reviewers).map(([l, n]) => [l, n, avatar.get(l) || '']), merged: top(m.merged).map(([l, n]) => [l, n, avatar.get(l) || '']), ai: top(m.ai).map(([l, n]) => [l, n, avatar.get(l) || '']),
+      reviewers: top(m.reviewers).map(([l, n]) => [l, n, avatar.get(l) || '']), merged: top(m.merged).map(([l, n]) => [l, n, avatar.get(l) || '']), ai: top(m.ai).map(([l, n]) => [l, n, avatar.get(l) || '']), operators: top(m.operators).map(([l, n]) => [l, n, avatar.get(l) || '']),
     }
   }
   return out
