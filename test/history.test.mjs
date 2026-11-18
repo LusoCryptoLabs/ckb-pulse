@@ -56,14 +56,15 @@ test('arrivals are people whose first commit anywhere is recent, alphabetical', 
 
 test('the community pace is the last complete week against the median of the eight before', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'history-'))
-  const now = Date.parse('2026-11-18T12:00:00Z') // a Wednesday: the last complete week started on Monday 9 November
+  const now = Date.parse('2026-11-18T12:00:00Z') // a Wednesday: the last complete week started on Sunday 8 November
   const wk = (d) => Math.floor(Date.parse(d) / 1000)
-  const mondays = ['2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02']
+  const mondays = ['2026-09-13', '2026-09-20', '2026-09-27', '2026-10-04', '2026-10-11', '2026-10-18', '2026-10-25', '2026-11-01'] // Sundays, as GitHub's weeks are
   const rows = mondays.map((m, i) => [wk(m + 'T00:00:00Z'), 'alice', 100 + i * 10]) // 100 to 170, median 135
-  rows.push([wk('2026-11-09T00:00:00Z'), 'alice', 200], [wk('2026-11-09T00:00:00Z'), 'renovate-bot', 999], [wk('2026-11-16T00:00:00Z'), 'alice', 5])
+  rows.push([wk('2026-11-08T00:00:00Z'), 'alice', 200], [wk('2026-11-08T00:00:00Z'), 'renovate-bot', 999], [wk('2026-11-15T00:00:00Z'), 'alice', 5])
   fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify({ repos: { 'a/b': { at: now, rows } } }))
   loadHistory(dir)
-  assert.deepEqual(rhythm(now), { week: '2026-11-09', commits: 200, median: 135 })
+  assert.deepEqual(rhythm(now), { week: '2026-11-08', commits: 200, median: 135 })
+  assert.equal(new Date(wk('2026-11-08T00:00:00Z') * 1000).getUTCDay(), 0)
 })
 
 test('a person has a first month and the months they committed in, no more', () => {

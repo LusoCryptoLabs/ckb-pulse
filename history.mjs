@@ -91,12 +91,13 @@ export function arrivals(days = 30, now = Date.now()) {
   return [...first].filter(([, w]) => w >= cut).map(([login]) => login).sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
 }
 // The community's pace: commits in the last complete week of the projects Pulse has read, next to the median of the eight
-// weeks before it. A collective line, no goal and no ranking of people. Weeks start on Monday (GitHub's statistics)
+// weeks before it. A collective line, no goal and no ranking of people. GitHub's statistics start a week on Sunday 00:00
+// UTC (checked on the lab's 13,537 rows: every one is a Sunday); the first version assumed Monday and read nothing
 export function rhythm(now = Date.now()) {
   const per = new Map()
   for (const r of Object.values(H.repos)) for (const [w, login, c] of r.rows) { if (isAutomaticAuthor(login)) continue; per.set(w, (per.get(w) || 0) + c) }
-  // the Monday that starts the current week, 00:00 UTC
-  const start = (() => { const d = new Date(now); const dow = (d.getUTCDay() + 6) % 7; return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow) / 1000) })()
+  const d = new Date(now)
+  const start = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay()) / 1000) // this week's Sunday
   const last = start - 604800, before = []
   for (let i = 1; i <= 8; i++) before.push(per.get(last - i * 604800) || 0)
   if (!per.size || before.every((v) => v === 0)) return null
