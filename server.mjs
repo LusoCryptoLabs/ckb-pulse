@@ -19,6 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
 import { lessonsPage, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
@@ -158,9 +159,11 @@ const DATA_DIR = process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data')
 initPush(DATA_DIR)
 initVisits(DATA_DIR)
 loadDigests(DATA_DIR)
+loadImpact(DATA_DIR)
 // PULSE_OFFLINE=1 serves what is on disk and polls nothing (the HTTP tests)
 const OFFLINE = process.env.PULSE_OFFLINE === '1'
 if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
+if (!OFFLINE) startImpact({ repos: () => snapshot().repos, dir: DATA_DIR })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
 const icons = {}
@@ -226,6 +229,17 @@ function handle(req, res) {
       return res.end()
     }
     if (data) return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex', vary: 'cookie, accept-language' }, lessonsPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/lessons`, data }))
+  }
+  // which of the projects Pulse follows depend on a CKB library: a page for the people who maintain it, and the same as JSON
+  if (url.pathname === '/impact') {
+    hit('impact', ipOf(req), req.headers['user-agent'])
+    const lib = LIBS.some((l) => l.id === url.searchParams.get('lib')) ? url.searchParams.get('lib') : LIBS[0].id
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, impactPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/impact`, lib, data: impactNow() }))
+  }
+  if (url.pathname === '/api/impact') {
+    const lib = LIBS.some((l) => l.id === url.searchParams.get('lib')) ? url.searchParams.get('lib') : LIBS[0].id, r = impactOf(impactNow(), lib)
+    res.writeHead(r ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' })
+    return res.end(JSON.stringify(r || { status: 'counting' }))
   }
   // what is counted and what is not
   if (url.pathname === '/method') {

@@ -6,7 +6,7 @@ import { today } from './public/menu.js'
 import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-const PARTS = ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'limits']
+const PARTS = ['source', 'update', 'window', 'rank', 'bots', 'impact', 'follow', 'own', 'limits']
 
 export function methodPage({ lang, base, url }) {
   const t = words(lang), title = `CKB Pulse · ${t('me.title')}`, desc = t('me.lead')

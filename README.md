@@ -125,6 +125,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /version.json`: the build the server runs, for the new-version notice
 - `POST /api/propose` with `{"login"}`, then `GET /api/propose?id=`: a suggestion and how its check went
 - `GET /digest?p=day|week|month&lang=`: the highlights as a page; `GET /feed.xml?lang=`: the Atom feed
+- `GET /impact?lib=ccc|lumos|spore|ckb-std&lang=`: which of the projects Pulse follows depend on a CKB library, for the people who maintain it; `GET /api/impact?lib=`: the same as JSON (503 `{"status":"counting"}` until the first count). Read from the package.json (Cargo.toml for Rust) at the root of each public project, about twice a day, so a dependency kept in a sub-folder is missed and the real numbers are higher
 - `GET /badge/repo.svg?name=`, `/badge/person.svg?login=`, `/badge/ckb.svg`, each with `lang=`: badges
 - `GET /api/visits`: views and visitors per day, 30 days
 - `POST /mcp`: the same data for AI agents, see below
