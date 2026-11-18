@@ -92,3 +92,11 @@ test('the funded page is gone: old links go to the live page, the JSON answers 4
   assert.equal(status(await get('/api/funded')), 410)
   assert.equal(status(await get('/og/funded.png')), 404)
 })
+
+test('/api/person answers with dated facts, and refuses a bad login', async () => {
+  const r = await get('/api/person?login=alice')
+  assert.equal(status(r), 200)
+  assert.match(r, /"login":"alice"/)
+  assert.equal(status(await get('/api/person?login=a%20b')), 400)
+  assert.equal(status(await get('/api/person')), 400)
+})

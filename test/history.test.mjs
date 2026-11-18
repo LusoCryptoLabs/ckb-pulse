@@ -7,7 +7,7 @@ import path from 'node:path'
 
 // history.mjs loads the GitHub client, which needs a token to load
 process.env.GITHUB_TOKEN ||= 'test'
-const { loadHistory, trends, repoMonths, arrivals } = await import('../history.mjs')
+const { loadHistory, trends, repoMonths, arrivals, rhythm, personHistory } = await import('../history.mjs')
 
 test('quiet and departed repositories stay in the trends', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'history-'))
@@ -52,4 +52,30 @@ test('arrivals are people whose first commit anywhere is recent, alphabetical', 
   } }))
   loadHistory(dir)
   assert.deepEqual(arrivals(30, now), ['alice', 'bob', 'carol'])
+})
+
+test('the community pace is the last complete week against the median of the eight before', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'history-'))
+  const now = Date.parse('2026-11-18T12:00:00Z') // a Wednesday: the last complete week started on Monday 9 November
+  const wk = (d) => Math.floor(Date.parse(d) / 1000)
+  const mondays = ['2026-09-14', '2026-09-21', '2026-09-28', '2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02']
+  const rows = mondays.map((m, i) => [wk(m + 'T00:00:00Z'), 'alice', 100 + i * 10]) // 100 to 170, median 135
+  rows.push([wk('2026-11-09T00:00:00Z'), 'alice', 200], [wk('2026-11-09T00:00:00Z'), 'renovate-bot', 999], [wk('2026-11-16T00:00:00Z'), 'alice', 5])
+  fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify({ repos: { 'a/b': { at: now, rows } } }))
+  loadHistory(dir)
+  assert.deepEqual(rhythm(now), { week: '2026-11-09', commits: 200, median: 135 })
+})
+
+test('a person has a first month and the months they committed in, no more', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'history-'))
+  const wk = (d) => Math.floor(Date.parse(d) / 1000), thisYear = new Date().toISOString().slice(0, 4)
+  fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify({ repos: {
+    'a/b': { at: Date.now(), rows: [[wk('2020-03-02T00:00:00Z'), 'Dana', 4], [wk(`${thisYear}-01-12T00:00:00Z`), 'dana', 1], [wk(`${thisYear}-01-19T00:00:00Z`), 'dana', 2]] },
+    'c/d': { at: Date.now(), rows: [[wk(`${thisYear}-01-26T00:00:00Z`), 'dana', 1]] },
+  } }))
+  loadHistory(dir)
+  const p = personHistory('DANA')
+  assert.equal(p.since, '2020-03')
+  assert.ok(p.active >= 0 && p.active <= 12)
+  assert.equal(personHistory('nobody'), null)
 })

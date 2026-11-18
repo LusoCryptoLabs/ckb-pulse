@@ -89,13 +89,16 @@ const TOOLS = [
   {
     name: 'person',
     title: 'One CKB developer',
-    description: 'What one person works on across the CKB projects Pulse follows: their projects, the areas and languages of those projects, and the kinds of updates they make. Counts every update, with no cap on bursts, so numbers can be higher than on the page and in overview.',
+    description: 'What one person works on across the CKB projects Pulse follows: their projects, the areas and languages of those projects, and the kinds of updates they make, and dated facts (first commit seen, months with commits, reviews, accepted pull requests, last release). Counts every update, with no cap on bursts, so numbers can be higher than on the page and in overview.',
     inputSchema: { type: 'object', properties: { login: { type: 'string', description: 'the GitHub login' } }, required: ['login'] },
     run: (a, { api, link }) => {
-      const p = api.person(loginArg(a.login))
+      const login = loginArg(a.login), m = api.marks ? api.marks(login) : null
+      // an account that declares itself an AI is a category of its own, not a person
+      if (m?.ai) return { about: ABOUT, login, ai: true, note: 'This account declares itself an AI. It is listed apart and not counted as a person.', github: `https://github.com/${login}` }
+      const p = api.person(login)
       if (!p) throw told(`No updates by ${a.login} in the projects Pulse follows in the last 30 days`)
       const { avatar, ...rest } = p
-      return { about: ABOUT, ...rest, pulse: link.person(p.login), github: `https://github.com/${p.login}` }
+      return { about: ABOUT, ...rest, marks: m?.marks || [], pulse: link.person(p.login), github: `https://github.com/${p.login}` }
     },
   },
   {

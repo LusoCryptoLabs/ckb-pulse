@@ -533,7 +533,7 @@ function renderTrend() {
   const ms = T2.months, last = ms.length - 2, m = ms[last], ago = ms[last - 12]
   $('trend').innerHTML = `<h3>${esc(t('t.title'))}</h3><svg viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(ms, 'devs', last)}</svg>
 <div class="t-axis"><span>${esc(monthName(ms[0].month))}</span><span>${esc(monthName(ms[ms.length - 1].month))}</span></div>
-<p class="t-line">${esc(t('t.line', { devs: m.devs, month: monthName(m.month), newDevs: m.newDevs, yearAgo: ago ? ago.devs : 0 }))}</p>
+<p class="t-line">${esc(t('t.line', { devs: m.devs, month: monthName(m.month), newDevs: m.newDevs, yearAgo: ago ? ago.devs : 0 }))}</p>${S.rhythm ? `<p class="t-line">${esc(t('rh.line', { commits: S.rhythm.commits, median: S.rhythm.median }))}</p>` : ''}
 <p class="hint">${esc(T2.repos < T2.of ? t('t.counting', { repos: T2.repos, of: T2.of }) : t('t.source'))}</p>`
 }
 
@@ -1191,6 +1191,14 @@ ${kindPills ? `<div class="pills kinds">${kindPills}</div>` : ''}
 ${badgesFor(login, ['people', 'peopleCommits', 'reviewers', 'merged'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>${badgeRow('person', login)}
 <h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li><button type="button" class="row" data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></button></li>`).join('')}</ol>`
   focusDrawer()
+  // dated facts about this person, from the server: the first commit seen here, months with commits, reviews, accepted
+  // pull requests, the last release. Facts, not levels
+  if (flag !== 'ai') fetch(`api/person?login=${encodeURIComponent(login)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+    if (!j?.marks?.length || $('drawer').hidden || $('drawer-body').querySelector('h2')?.firstChild?.textContent !== login) return
+    const text = (m) => t('mk.' + m.id, { month: m.month ? monthName(m.month) : '', n: m.n, of: m.of, date: m.date ? new Date(m.date + 'T00:00:00Z').toLocaleDateString(t('locale'), { dateStyle: 'medium', timeZone: 'UTC' }) : '' })
+    const el = document.createElement('div'); el.className = 'pills marks'; el.innerHTML = j.marks.map((m) => `<span>${esc(text(m))}</span>`).join('')
+    $('drawer-body').querySelector('.pills.kinds, .person')?.after(el)
+  }).catch(() => {})
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
 }
 

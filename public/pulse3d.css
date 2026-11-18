@@ -509,3 +509,6 @@ body.bars .now .ticker { white-space: nowrap; }
 .tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 6px; font: 700 11px var(--num, monospace); font-style: normal; letter-spacing: 0.04em; vertical-align: middle; }
 .tag-ai { background: #2b2a4a; color: #c9c6ff; border: 1px solid #5b57b0; }
 .tag-op { background: #1f2a14; color: #cbf34d; border: 1px solid #4d6a1a; }
+
+/* dated facts on a person's card */
+.drawer .marks span { border-color: rgba(203, 243, 77, 0.35); color: var(--fg, #f0ece2); }

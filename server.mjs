@@ -5,8 +5,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
-import { trends, repoRows, arrivals } from './history.mjs'
+import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
+import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders } from './digest.mjs'
@@ -168,7 +168,7 @@ function readJson(req, max, done) {
 }
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
-const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals })
+const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks })
 
 function handle(req, res) {
   let url
@@ -194,7 +194,7 @@ function handle(req, res) {
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
   }
   // the page of the DAO grants was taken out on 2026-11-18: old links go to the live page, the JSON is gone
   if (url.pathname === '/funded') { res.writeHead(301, { location: '/', 'cache-control': 'public, max-age=3600' }); return res.end() }
@@ -248,6 +248,12 @@ function handle(req, res) {
   if (url.pathname.startsWith('/og/')) { shareCard(req, res, url).catch((err) => { console.warn('card', err.message); if (!res.headersSent) res.writeHead(500); res.end() }); return }
   if (url.pathname === '/version.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ v: BUILD })) }
   if (url.pathname === '/api/state') { const e = stateNow.get(); return sendEntry(req, res, 200, { 'content-type': 'application/json', 'cache-control': 'no-cache' }, e.buf, e) }
+  // dated facts about one person, for their card
+  if (url.pathname === '/api/person') {
+    const login = url.searchParams.get('login') || ''
+    if (!/^[A-Za-z0-9-]{1,39}$/.test(login)) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end('{"error":"bad login"}') }
+    return sendJson(req, res, personMarks(login))
+  }
   if (url.pathname === '/api/repo') {
     const d = repoDetail(url.searchParams.get('name') || '')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }

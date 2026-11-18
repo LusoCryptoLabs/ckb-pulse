@@ -66,3 +66,14 @@ test('the daily scan reads the bio of the people at the top and marks the ones t
   assert.ok(pulse.highlightsNow().week.ai.some(([l]) => l === 'newagent'))
   assert.ok(!pulse.highlightsNow().week.people.some(([l]) => l === 'newagent'))
 })
+
+test('marks are dated facts: reviews and accepted pull requests in 30 days, no levels, nothing for an AI account', () => {
+  const m = pulse.personMarks('alice')
+  assert.equal(m.login, 'alice')
+  assert.ok(!m.marks.some((x) => x.id === 'reviewer')) // 2 reviews are under the 5 it takes
+  const b = pulse.personMarks('bob')
+  assert.deepEqual(b.marks.find((x) => x.id === 'merged'), { id: 'merged', n: 2 })
+  for (let i = 0; i < 5; i++) ev('carol', 20 + i, 'review')
+  assert.deepEqual(pulse.personMarks('carol').marks.find((x) => x.id === 'reviewer'), { id: 'reviewer', n: 5 })
+  assert.deepEqual(pulse.personMarks('Hanssen0-Alter-Ego'), { login: 'Hanssen0-Alter-Ego', ai: true, marks: [] })
+})
