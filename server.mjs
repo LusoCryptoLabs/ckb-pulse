@@ -19,6 +19,7 @@ import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
+import { methodPage } from './method.mjs'
 import { withStamp } from './og.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
@@ -207,6 +208,11 @@ function handle(req, res) {
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, usePage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/use`, img: withStamp(`${baseOf(req)}/og/use.png?lang=${langOf(url.searchParams, req)}`, useFacts()) }))
+  }
+  // what is counted and what is not
+  if (url.pathname === '/method') {
+    hit('method', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, methodPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/method` }))
   }
   if (url.pathname === '/llms.txt') {
     hit('llms', ipOf(req), req.headers['user-agent'])

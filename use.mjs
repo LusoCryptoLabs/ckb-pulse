@@ -53,7 +53,7 @@ ${parts.map(([id, body]) => `<section class="use" id="${id}"><h2>${esc(t(`use.${
 export function llmsTxt({ base }) {
   return `# CKB Pulse
 
-> Who is building on Nervos CKB, live: public GitHub activity in the CKB projects Pulse follows, people only (bots and AI agents left out), over the last 30 days. GitHub data, not on-chain data. Made by LusoCryptoLabs, MIT.
+> Who is building on Nervos CKB, live: public GitHub activity in the CKB projects Pulse follows, people only (accounts marked as bots and the branches agents open are left out; an agent working through a normal account cannot be told apart), over the last 30 days. GitHub data, not on-chain data. Made by LusoCryptoLabs, MIT.
 
 Pulse is a Model Context Protocol server at ${base}/mcp (Streamable HTTP, one JSON answer per request, no session, read-only, nothing to install). In Claude Code: \`${install(base)}\`
 
@@ -68,6 +68,7 @@ ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n
 - [Fiber map](${base}/fiber): Fiber nodes and public channels on mainnet and testnet
 - [Funded by the community](${base}/funded): the CKB Community Fund DAO grants, code next to reports
 - [What you can do](${base}/use): every feature, for people
+- [How Pulse counts](${base}/method): what an update is, the caps, what is left out
 
 ## JSON API
 
