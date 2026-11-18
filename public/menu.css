@@ -41,6 +41,8 @@
 
 /* the bar of the server pages */
 .pm-bar { display: flex; align-items: center; gap: 14px; margin: 0 0 22px; }
+.pm-lock { display: contents; }
+.pm-by-lcl { display: none; }
 .pm-brand { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; color: var(--pm-fg); font-weight: 800; font-size: 17px; text-decoration: none; white-space: nowrap; }
 .pm-brand i { width: 9px; height: 9px; border-radius: 50%; background: var(--pm-lime); box-shadow: 0 0 8px var(--pm-lime); }
 .pm-bar .pm-views { order: 1; }

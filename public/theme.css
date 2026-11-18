@@ -38,14 +38,19 @@ html[data-theme^="lcl"] .bars i { background: linear-gradient(var(--fg), var(--m
 html[data-theme^="lcl"] blockquote { border-left-color: var(--signal); }
 html[data-theme^="lcl"] .go a { background: var(--signal); color: #fff; }
 html[data-theme^="lcl"] .go a.alt { background: none; color: var(--fg); border-color: var(--mut); }
-/* straight blocks and panels; the chips and buttons stay pills */
-html[data-theme^="lcl"] .kpis div, html[data-theme^="lcl"] .bars, html[data-theme^="lcl"] .medals li, html[data-theme^="lcl"] section.me, html[data-theme^="lcl"] section.use,
-html[data-theme^="lcl"] article.ln, html[data-theme^="lcl"] pre, html[data-theme^="lcl"] blockquote, html[data-theme^="lcl"] code,
-html[data-theme^="lcl"] .pm-panel, html[data-theme^="lcl"] .ps-panel, html[data-theme^="lcl"] .pm-btn, html[data-theme^="lcl"] .pm-bar .ps-btn,
-html[data-theme^="lcl"] .pm-row, html[data-theme^="lcl"] .pm-tile { border-radius: 0; }
+/* every corner straight, buttons and chips included: only the dots are round */
+html[data-theme^="lcl"] * { border-radius: 0 !important; }
+html[data-theme^="lcl"] .pm-tile b { border-radius: 50% !important; }
 /* the bar and the menu: the same tokens, the red dot as the live signal */
 html[data-theme^="lcl"] .pmenu, html[data-theme^="lcl"] .pm-bar, html[data-theme^="lcl"] .pm-views { --pm-glass: color-mix(in srgb, var(--bg) 88%, transparent); --pm-line: var(--edge); --pm-soft: color-mix(in srgb, var(--fg) 8%, transparent); }
-html[data-theme^="lcl"] .pm-brand i { background: var(--signal); box-shadow: none; border-radius: 50%; }
+/* the name, and under it "by" and the studio's wordmark, whose red centre dot is the one red mark of the bar */
+html[data-theme^="lcl"] .pm-brand i { display: none; }
+html[data-theme^="lcl"] .pm-lock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-right: auto; min-width: 0; }
+html[data-theme^="lcl"] .pm-brand { margin-right: 0; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+html[data-theme^="lcl"] .pm-by-lcl { display: flex; align-items: center; gap: 8px; color: var(--mut); font: 400 11px/1 var(--font-num); letter-spacing: 0.14em; text-decoration: none; }
+html[data-theme^="lcl"] .pm-by-lcl img { display: block; width: clamp(120px, calc(100vw - 190px), 176px); height: auto; } /* never under the kit's 120 px, and clear of the two buttons on a 320 px phone */
+html[data-theme="lcl"] .pm-by-lcl .on-light, html[data-theme="lcl-light"] .pm-by-lcl .on-dark { display: none; }
+html[data-theme^="lcl"] .pm-by-lcl:hover span { color: var(--fg); }
 html[data-theme^="lcl"] .pm-row:hover, html[data-theme^="lcl"] .ps-panel a:hover, html[data-theme^="lcl"] .ps-panel button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
 html[data-theme^="lcl"] .pm-row[aria-current="page"] { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
 html[data-theme^="lcl"] .pm-tile, html[data-theme^="lcl"] .pm-fiber, html[data-theme^="lcl"] .pm-ai, html[data-theme^="lcl"] .pm-notices { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
