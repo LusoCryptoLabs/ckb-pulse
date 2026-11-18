@@ -1,12 +1,12 @@
-// The screen for calls (/present): the menu, the landing and the use page lead to it, in every language; it carries its slides,
-// its words and its way out; the old address (?screen=1) goes there; and the live page keeps the screen's layout for the
+// The screen for calls (/present): the menu, the landing and the use page lead to it, in every language; it is one page with its
+// numbers, its words and its way out; the old address (?screen=1) goes there; and the live page keeps the screen's layout for the
 // frame the landing shows (?embed=1).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { GROUPS, menuHtml } from '../public/menu.js'
 import { usePage } from '../use.mjs'
-import { presentPage, SLIDES, CLIENT_WORDS } from '../present.mjs'
+import { presentPage, CLIENT_WORDS } from '../present.mjs'
 import { landingPage } from '../landing.mjs'
 import { WORDS } from '../public/words.js'
 import { words } from '../cards.mjs'
@@ -27,35 +27,38 @@ test('the menu, the landing and the use page lead to the screen for calls, in ev
   }
 })
 
-test('the screen has its five slides, each with a heading and a plain line in every language, and the words its script needs', () => {
-  assert.deepEqual(SLIDES.map(([id]) => id), ['live', 'projects', 'people', 'week', 'ccc'])
+test('the screen is one page with the numbers, the two lists, the scene and the latest updates, in every language, with the words its script needs', () => {
   for (const lang of ['en', 'pt', 'zh']) {
     const html = presentPage({ lang, base, url: `${base}/present` }), t = words(lang)
-    for (const [id] of SLIDES) {
-      assert.ok(html.includes(`id="s-${id}"`), `${lang} ${id}`)
-      assert.ok(html.includes(`<h2>${t('pr.' + id + '.h')}</h2>`), `${lang} ${id} heading`)
-      assert.ok(t('pr.' + id + '.h') !== 'pr.' + id + '.h' && (id === 'live' ? t('pr.live.p') : t('pr.' + id + '.p')) !== 'pr.' + id + '.p', `${lang} ${id} words`)
-    }
+    for (const id of ['n-up', 'n-people', 'n-projects', 'week', 'ccc', 'r-projects', 'r-people', 'feed', 'scene', 'clock', 'pr-full', 'pr-leave']) assert.ok(html.includes(`id="${id}"`), `${lang} ${id}`)
+    for (const k of ['pr.sub', 'pr.last24', 'pr.latest', 'pr.projects.h', 'pr.people.h', 'pr.leave', 'k.updates', 'k.people', 'k.projects']) assert.ok(html.includes(t(k)) && t(k) !== k, `${lang} ${k}`)
     const data = JSON.parse(html.match(/<script type="application\/json" id="pr-words">([\s\S]*?)<\/script>/)[1])
-    for (const k of CLIENT_WORDS) assert.equal(data[k], WORDS[lang][k], `${lang} ${k}`)
-    assert.ok(data['pr.ccc.n'].includes('{active}'), 'the placeholder is the script\'s to fill, so it travels raw')
+    for (const k of CLIENT_WORDS) assert.equal(data[k], WORDS[lang][k] ?? WORDS.en[k], `${lang} ${k}`)
+    for (const k of ['pr.week.line', 'pr.ccc.line', 'ago.min', 'v.comment']) assert.ok(/\{\w+\}/.test(data[k]), `${k} travels raw, with its placeholders`)
     assert.equal(data.lang, lang)
-    assert.match(html, new RegExp(`<iframe src="${base}/live\\?embed=1&amp;lang=${lang}"`), 'the scene is the live page, alone')
+    assert.ok(html.includes(`data-live="${base}/live?embed=1&amp;lang=${lang}"`), 'the scene is the live page, alone')
+    assert.ok(html.includes(`<img class="shot on-dark" src="${base}/landing-dark.jpg"`) && html.includes(`<img class="shot on-light" src="${base}/landing-light.jpg"`), 'a still of it until it runs, and for a phone')
     assert.ok(html.includes('type="module" src="https://pulse.example/present.js"') && html.includes('name="robots" content="noindex"'))
-    for (const id of ['pr-prev', 'pr-next', 'pr-play', 'pr-full', 'pr-leave', 'pr-hint', 'pr-prog']) assert.ok(html.includes(`id="${id}"`), `${lang} ${id}`)
     assert.ok(html.includes(`href="${base}/live?lang=${lang}"`), 'the way out is the live page')
-    assert.ok(!/\b(pr|k|b)\.[a-z.]+\b(?=[<"])/.test(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style>[\s\S]*?<\/style>/, '').replace(/https?:[^\s"]+/g, '')), `${lang}: a word shows its key`)
+    assert.ok(!/\b(pr|k|b|v)\.[a-z.]+\b(?=[<"])/.test(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style>[\s\S]*?<\/style>/, '').replace(/https?:[^\s"]+/g, '')), `${lang}: a word shows its key`)
   }
   for (const lang of ['en', 'pt', 'zh']) for (const k of Object.keys(WORDS.en).filter((k) => k.startsWith('pr.'))) assert.ok(WORDS[lang][k], `${lang} ${k}`)
 })
 
-test('the script turns by itself, by key and by button, rests after three seconds, and asks only for what the live page asks for', () => {
+test('the screen fits a projector, a laptop window and a phone: a grid that holds the height on a wide window, one column that scrolls elsewhere', () => {
+  const css = presentPage({ lang: 'en', base, url: base }).match(/<style>([\s\S]*?)<\/style>/)[1]
+  assert.ok(css.includes('@media(min-width:900px) and (min-height:520px){') && css.includes('height:100dvh;overflow:hidden;display:grid'), 'a wide window holds its own height')
+  assert.ok(css.includes('grid-template-areas:"top top top" "nums scene lists" "feed feed feed"'))
+  assert.ok(css.includes('font-size:clamp(11px,min(1.9vh,1.1vw),26px)'), 'type follows the window, so a projector reads from the back')
+  assert.ok(/body\.pr\{margin:0;[^}]*padding:16px 16px 48px\}/.test(css), 'elsewhere it is an ordinary page that scrolls')
+  assert.ok(!/position:fixed/.test(css), 'nothing floats over anything else')
+})
+
+test('the script fills the numbers and the lists from the live page\'s own calls, takes new updates as they happen, and starts the scene only where it is welcome', () => {
   const js = read('present.js')
-  for (const need of ["fetch('api/state')", "fetch('api/impact?lib=ccc')", "fetch('api/last?lang='", "'ArrowRight'", "'ArrowLeft'", "e.key === ' '", "e.key === 'f'", "e.key === 'Escape'", '3000', 'setInterval(load, 60000)', "toggleAttribute('inert'"]) assert.ok(js.includes(need), need)
-  for (const [id] of SLIDES) assert.ok(id === 'live' || js.includes(`ready.${id}`), `${id} is passed over until it has its numbers`)
-  const pcss = presentPage({ lang: 'en', base, url: base }).match(/<style>([\s\S]*?)<\/style>/)[1]
-  assert.ok(pcss.includes('@media(pointer:coarse){.pr-hint{display:none}}'), 'the hint about keys is not shown on a touch screen, where it covered the title')
-  assert.ok(!/https?:\/\//.test(js.replace(/https?:\/\/www\.w3\.org[^'"]*/g, '')), 'no outside address')
+  for (const need of ["fetch('api/state')", "fetch('api/impact?lib=ccc')", "new EventSource('api/stream')", 'setInterval(load, 60000)', "(min-width: 900px) and (min-height: 520px)", '(prefers-reduced-motion: reduce)', 'saveData', "e.source === f.contentWindow", "e.data?.pulse === 'ready'", '.filter((e) => !e.bot)']) assert.ok(js.includes(need), need)
+  assert.ok(!/https?:\/\//.test(js), 'no outside address')
+  assert.ok(!js.includes('setTimeout(() => step'), 'nothing turns by itself')
 })
 
 test('the live page keeps the screen layout for the landing frame, and the old address goes to the new page', () => {
