@@ -57,7 +57,7 @@ test('on a running server: the address goes to the live page, the API says pause
   const child = spawn(process.execPath, ['server.mjs'], { env: { ...process.env, PORT: String(port), DATA_DIR: dir, PULSE_OFFLINE: '1', GITHUB_TOKEN: 'offline' }, stdio: 'ignore' })
   try {
     for (let i = 0; i < 100; i++) { try { if ((await get(port, '/health')).status === 200) break } catch {} await new Promise((r) => setTimeout(r, 100)) }
-    for (const [p, to] of [['/fiber', '/'], ['/fiber?lang=pt', '/?lang=pt'], ['/fiber.html', '/'], ['/fiber?net=testnet&lang=zh', '/?lang=zh']]) {
+    for (const [p, to] of [['/fiber', '/live'], ['/fiber?lang=pt', '/live?lang=pt'], ['/fiber.html', '/live'], ['/fiber?net=testnet&lang=zh', '/live?lang=zh']]) {
       const r = await get(port, p)
       assert.equal(r.status, 302, p)
       assert.equal(r.headers.location, to, p)

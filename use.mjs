@@ -26,7 +26,7 @@ export function usePage({ lang, base, url, img = '' }) {
   const title = `CKB Pulse · ${t('use.title')}`, desc = t('use.lead')
   const go = (links) => `<p class="go">${links.map(([href, k, alt]) => `<a${alt ? ' class="alt"' : ''} href="${esc(href)}">${esc(t(k))}</a>`).join('')}</p>`
   const parts = [
-    ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/?${L}`, 'use.watch.a'], [`${base}/?screen=1&${L}`, 'use.watch.screen', 1]])}`],
+    ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/live?${L}`, 'use.watch.a'], [`${base}/?screen=1&${L}`, 'use.watch.screen', 1]])}`],
     ['follow', `<p>${esc(t('use.follow.p'))}</p>${go([[`${base}/digest?p=week&${L}`, 'use.follow.digest'], [`${base}/?tab=new&${L}`, 'use.follow.notify', 1], [`${base}/feed.xml?${L}`, 'use.follow.feed', 1]])}`],
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
     ['impact', `<p>${esc(t('use.impact.p'))}</p>${go([[`${base}/impact?${L}`, 'use.impact.a']])}`],
@@ -68,7 +68,7 @@ ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n
 
 ## Pages
 
-- [Live page](${base}/): projects, people and updates as they happen; ?repo=owner/repo and ?person=login open one
+- [Live page](${base}/live): projects, people and updates as they happen; ?repo=owner/repo and ?person=login open one
 - [Digest](${base}/digest?p=week): the highlights of a day, week or month (p=day|week|month)
 ${FIBER_PAUSED ? '' : `- [Fiber map](${base}/fiber): Fiber nodes and public channels on mainnet and testnet
 `}- [Who builds on what](${base}/impact?lib=ccc): which of the projects Pulse follows use CCC, Lumos, Spore SDK or ckb-std (lib=ccc|lumos|spore|ckb-std)
