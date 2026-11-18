@@ -10,7 +10,7 @@ export function privacyPage({ lang, base, url }) {
   const t = words(lang), title = `CKB Pulse · ${t('pv.title')}`, desc = t('pv.lead')
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
-<link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}${READING_CSS}</style></head><body><main>
+${menuHead(base)}<style>${CSS}${READING_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/privacy', share: { url: `${url}?lang=${lang}&d=${today()}`, title } })}
 ${pageHead({ eyebrow: t('pv.nav'), title: t('pv.h1'), lede: esc(desc) })}
 ${PARTS.map((id) => `<section class="me" id="${id}"><h2>${esc(t(`pv.${id}.h`))}</h2><p>${esc(t(`pv.${id}.p`))}</p></section>`).join('\n')}

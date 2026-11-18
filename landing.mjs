@@ -34,7 +34,7 @@ export function landingPage({ lang, base, url, stats = null, img = '' }) {
   const group = (g) => `<h2>${esc(t('use.group.' + g))}</h2><div class="cards">${DOORS[g].map(([id, path, k, line]) => `<a class="card" id="d-${id}" href="${esc(withLang(base, path, lang))}"><b>${esc(t(k))}</b><span>${esc(t(line))}</span></a>`).join('')}</div>`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8">${SKIP_SCRIPT}<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
-<link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
+${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/?landing=1', share: { url: `${base}/?lang=${lang}&d=${today()}`, title, image: img || undefined } })}
 ${pageHead({ eyebrow: t('ld.eyebrow'), title: t('ld.h1'), lede: esc(desc) })}
 <p class="go"><a href="${esc(withLang(base, '/live', lang))}">${esc(t('ld.cta'))}</a><a class="alt" href="${esc(withLang(base, '/digest?p=week', lang))}">${esc(t('m.digest'))}</a></p>

@@ -18,7 +18,7 @@ export function feedPage({ lang, base, url, news, groupOf, now = Date.now() }) {
   const day = (at) => new Date(at).toLocaleDateString(t('locale'), { day: 'numeric', month: 'short', timeZone: 'UTC' })
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
-<link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(feed)}"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
+<link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(feed)}">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/feed', share: { url: `${base}/feed?lang=${lang}&d=${today()}`, title } })}
 ${pageHead({ eyebrow: t('fd.eyebrow'), title: t('fd.h1'), lede: esc(desc) })}
 <ol class="steps"><li>${esc(t('fd.s1'))}</li><li>${esc(t('fd.s2'))}</li><li>${esc(t('fd.s3'))}</li></ol>
