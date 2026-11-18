@@ -8,7 +8,7 @@ import crypto from 'node:crypto'
 import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
-import { initVisits, hit, visits } from './visits.mjs'
+import { initVisits, hit, visits, count } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
@@ -18,6 +18,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
@@ -99,6 +100,7 @@ function page(req, url) {
 async function shareCard(req, res, url) {
   const q = url.searchParams, lang = pick(q.get('lang')) || 'en', host = req.headers.host || 'localhost'
   let png = null
+  { const t = url.pathname.match(/^\/og\/(highlights|repo|person|fiber|use|digest)\.png$/); if (t) count('card_' + t[1], req.headers['user-agent']) }
   if (url.pathname === '/og/highlights.png') { const p = PERIODS.includes(q.get('p')) ? q.get('p') : 'week'; png = await card(`h|${p}|${lang}|${host}|${q.get('v') || ''}`, () => highlightsCard({ leaders: highlightsNow(), period: p, lang, host, groupOf })) }
   if (url.pathname === '/og/digest.png') { const w = weekByLabel(q.get('w') || ''); if (w) png = await card(`dg|${q.get('w')}|${lang}|${host}`, () => highlightsCard({ leaders: weekLeaders(w), period: 'week', lang, host, groupOf })) }
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
@@ -208,6 +210,15 @@ function handle(req, res) {
   if (url.pathname === '/method') {
     hit('method', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, methodPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/method` }))
+  }
+  // what is kept about visitors and about people on the page, and how to ask to leave
+  if (url.pathname === '/privacy') {
+    hit('privacy', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, privacyPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/privacy` }))
+  }
+  // a share channel used or a button pressed, as a count and nothing else (a beacon: no answer needed)
+  if (url.pathname === '/api/count' && req.method === 'POST') {
+    return readJson(req, 512, (j) => { count(String(j?.name || ''), req.headers['user-agent']); res.writeHead(204, { 'cache-control': 'no-store' }); res.end() })
   }
   if (url.pathname === '/llms.txt') {
     hit('llms', ipOf(req), req.headers['user-agent'])

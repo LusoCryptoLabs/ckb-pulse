@@ -110,7 +110,12 @@ export const isNoiseActor = (login) => /\[bot\]$/i.test(login) || login === 'Cop
 // actions-user 9,722 commits in one project, claude 6,296 in 59, renovate-bot 252, dependabot-support 180,
 // dependabot-bot 75, cursoragent 21, snyk-bot 4, deepsourcebot 1. September 2026 read 111 developers with two of them.
 export const AUTOMATIC_AUTHORS = new Set(['actions-user', 'claude', 'cursoragent', 'renovate-bot', 'dependabot-support', 'dependabot-bot', 'snyk-bot', 'deepsourcebot'])
-export const isAutomaticAuthor = (login) => isNoiseActor(login) || AUTOMATIC_AUTHORS.has(String(login).toLowerCase())
+// People who asked to leave (to hello@lusocryptolabs.com or in an issue): lowercase GitHub logins. Their work is dropped
+// when it comes in, taken out of what is stored, and left out of the history, the lists, the cards and the feeds.
+// Named on /privacy. Empty on 2026-11-18: nobody has asked.
+export const OPT_OUT = new Set([])
+export const isOptedOut = (login) => OPT_OUT.has(String(login).toLowerCase())
+export const isAutomaticAuthor = (login) => isNoiseActor(login) || AUTOMATIC_AUTHORS.has(String(login).toLowerCase()) || isOptedOut(login)
 // Accounts that say they are an AI, not a person (their own bio: "AI assistant ... not a human contributor", seen on
 // Hanssen0-Alter-Ego, 2026-11-18). They are a category of their own, marked IA: out of the people counts and the human
 // medals, listed apart with the mark. More are found daily from the bios of the people at the top of the lists.

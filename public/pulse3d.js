@@ -597,12 +597,12 @@ function openShare(anchor, { params, image, title }) {
   const url = withParams(location.pathname, { ...params, d: new Date().toISOString().slice(0, 10) }), img = withParams(image, {}), enc = encodeURIComponent
   const m = document.createElement('div')
   m.className = 'share-menu'
-  m.innerHTML = (navigator.share ? `<button type="button" data-act="native">${esc(t('sh.native'))}</button>` : '') +
-    `<button type="button" data-act="copy">${esc(t('sh.copy'))}</button>` +
-    `<a href="https://x.com/intent/post?text=${enc(title)}&url=${enc(url)}" target="_blank" rel="noopener">X</a>` +
-    `<a href="https://t.me/share/url?url=${enc(url)}&text=${enc(title)}" target="_blank" rel="noopener">Telegram</a>` +
-    `<a href="https://wa.me/?text=${enc(`${title} ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>` +
-    `<a href="${esc(img)}" download="ckb-pulse.png">${esc(t('sh.image'))}</a>`
+  m.innerHTML = (navigator.share ? `<button type="button" data-act="native" data-count="share_native">${esc(t('sh.native'))}</button>` : '') +
+    `<button type="button" data-act="copy" data-count="share_copy">${esc(t('sh.copy'))}</button>` +
+    `<a data-count="share_x" href="https://x.com/intent/post?text=${enc(title)}&url=${enc(url)}" target="_blank" rel="noopener">X</a>` +
+    `<a data-count="share_telegram" href="https://t.me/share/url?url=${enc(url)}&text=${enc(title)}" target="_blank" rel="noopener">Telegram</a>` +
+    `<a data-count="share_whatsapp" href="https://wa.me/?text=${enc(`${title} ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>` +
+    `<a data-count="share_image" href="${esc(img)}" download="ckb-pulse.png">${esc(t('sh.image'))}</a>`
   anchor.after(m)
   // in a phone's half-open sheet the menu started below its edge: only "Copy link" and "X" showed (2026-11-01)
   requestAnimationFrame(() => m.scrollIntoView({ block: 'nearest' }))
