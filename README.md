@@ -17,7 +17,7 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 
 ## Pages
 
-`/` the live page, `/fiber`, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp` and `/llms.txt`. Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
+`/` the live page, `/fiber`, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
 
 ## Test
 
@@ -32,6 +32,8 @@ The rules (what counts as CKB work, manifests, the burst cap, agents and schedul
 ## Visits
 
 Page views and visitors per day for the page, the Fiber map, the digest, the feed and the badges, at `GET /api/visits` (30 days) and in `DATA_DIR/visits.json` (90 days). No cookies and no accounts: a visitor is a hash of the day's salt, the address and the browser, and the salt and the hashes are dropped when the day ends, so only the counts remain. Uptime checks, crawlers, link previews, scripts and headless browsers count apart, as `bots`, by their user agent: on 2026-10-26 they made 1997 of the page's views, while its script was fetched 26 times.
+
+Also counted per day, as plain numbers with no one in them: the share channel used (`POST /api/count`, a fixed list in `visits.mjs`) and the kind of card drawn, in `counts`, with the robots that fetch a card for a link preview in `botCounts`. `OPT_OUT` in `config.mjs` lists the logins of people who asked to leave: their work is dropped when it comes in and removed from what is stored.
 
 ## What it follows
 

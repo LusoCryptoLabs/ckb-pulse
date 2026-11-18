@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isOptedOut, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -111,6 +111,8 @@ export function load() {
     // branch; stored proposals are looked up once (markAgentProposals)
     // 2 (2026-10-19): ccr- branches, Claude Code's cloud sessions
     if (state.agentRule !== AGENT_RULE) for (const e of state.events) if (!e.bot && (e.kind === 'push' || e.kind === 'branch') && isAgentBranch(e.ref)) Object.assign(e, { bot: true, agent: true })
+    // who asked to leave is taken out of what is stored
+    state.events = state.events.filter((e) => !isOptedOut(e.actor))
     // accounts that declare themselves AI are their own category (2026-11-18): their stored events leave the human counts
     markAI()
     markSchedules()
@@ -199,6 +201,7 @@ async function normalise(e) {
   // an event GitHub marks private: its repository went private (or always was), so whatever it showed leaves the page
   if (e.public === false) { const r = state.repos[e.repo?.name]; if (r && r.private !== true) { r.private = true; hlCache = null; console.log(`private now: ${r.name}`) } return null }
   let actor = e.actor?.login || '', avatar = e.actor?.avatar_url || ''
+  if (isOptedOut(actor)) return null // asked to leave: nothing of theirs comes in
   const repo = e.repo?.name
   const p = e.payload || {}
   // automation stays as quiet sparks on the grid; it costs no extra lookups and never enters the feed
@@ -410,7 +413,7 @@ export async function readCommits(full, now = Date.now()) {
     if (at > ripe) return []
     // merges made on github.com are committed by web-flow: the author is the person
     const actor = c.author?.login || (c.committer?.login !== 'web-flow' ? c.committer?.login : '')
-    if (!actor) continue
+    if (!actor || isOptedOut(actor)) continue
     if (!by.has(actor)) by.set(actor, { avatar: c.author?.avatar_url || c.committer?.avatar_url || '', list: [] })
     by.get(actor).list.push({ c, date })
   }

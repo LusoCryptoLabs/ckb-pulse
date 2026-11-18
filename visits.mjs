@@ -38,6 +38,18 @@ function dayRec(day) {
   }
   return d
 }
+// What people did, as numbers per day and nothing else: a share channel used, a card drawn. No address, no browser, no
+// hash: a count has no one in it. Preview robots (X, Telegram, WhatsApp fetching a card) count apart, as bots, which is
+// how a share shows up before anyone clicks
+export const COUNTS = ['share_copy', 'share_x', 'share_telegram', 'share_whatsapp', 'share_image', 'share_native', 'badge_copy',
+  'card_highlights', 'card_repo', 'card_person', 'card_fiber', 'card_use', 'card_digest']
+export function count(name, ua, now = Date.now()) {
+  if (!COUNTS.includes(name)) return false
+  const d = dayRec(dayOf(now)), box = isBot(ua) ? (d.botCounts ||= {}) : (d.counts ||= {})
+  box[name] = (box[name] || 0) + 1
+  dirty = true
+  return true
+}
 // one request to a page; ip and ua as the proxy gives them
 export function hit(page, ip, ua, now = Date.now()) {
   const d = dayRec(dayOf(now))
@@ -53,9 +65,9 @@ export function visits(n = 30, now = Date.now()) {
   const days = []
   for (let i = n - 1; i >= 0; i--) {
     const day = dayOf(now - i * 864e5), r = V.days[day]
-    days.push({ day, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
+    days.push({ day, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
   }
-  const total = { views: {}, visitors: {}, bots: {} }
-  for (const d of days) for (const k of ['views', 'visitors', 'bots']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
+  const total = { views: {}, visitors: {}, bots: {}, counts: {}, botCounts: {} }
+  for (const d of days) for (const k of ['views', 'visitors', 'bots', 'counts', 'botCounts']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
   return { days, total }
 }

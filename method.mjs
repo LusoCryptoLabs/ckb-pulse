@@ -17,6 +17,7 @@ export function methodPage({ lang, base, url }) {
 ${pageBar(t, { base, lang, current: '', here: '/method' })}
 ${pageHead({ eyebrow: t('me.nav'), title: t('me.h1'), lede: esc(desc) })}
 ${PARTS.map((id) => `<section class="me" id="${id}"><h2>${esc(t(`me.${id}.h`))}</h2><p>${esc(t(`me.${id}.p`))}</p></section>`).join('\n')}
+<section class="me" id="privacy"><h2>${esc(t('pv.nav'))}</h2><p><a href="${esc(base)}/privacy?lang=${lang}">${esc(t('pv.title'))}</a></p></section>
 <section class="me" id="wrong"><h2>${esc(t('me.wrong.h'))}</h2><p>${esc(t('me.wrong.p'))}</p><p class="go"><a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('me.wrong.a'))}</a></p></section>
 <footer>${maker(t)}
 <p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(url)}?lang=${l}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>

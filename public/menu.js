@@ -33,7 +33,7 @@ export function menuHtml(t, { base = '', lang = 'en', current = '', here = '' } 
     : `<button type="button" data-lang="${l}" lang="${l === 'zh' ? 'zh-CN' : l}" aria-pressed="${l === lang}">${name}</button>`).join('')
   return `<details class="pmenu"><summary class="pm-btn" aria-label="${esc(t('m.menu'))}" title="${esc(t('m.menu'))}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
 <div class="pm-panel" role="menu">${GROUPS.map(([g, rows]) => `<div class="pm-group pm-${g.slice(2)}"><p>${esc(t(g))}</p>${rows.map(row).join('')}</div>`).join('')}
-<div class="pm-foot"><a data-act="about" href="${esc(href(base, '/?about=1', lang))}">${esc(t('m.about'))}</a><a href="${esc(href(base, '/use', lang))}">${esc(t('m.all'))}</a><a href="${esc(href(base, '/method', lang))}">${esc(t('me.nav'))}</a><span class="pm-langs">${langs}</span>
+<div class="pm-foot"><a data-act="about" href="${esc(href(base, '/?about=1', lang))}">${esc(t('m.about'))}</a><a href="${esc(href(base, '/use', lang))}">${esc(t('m.all'))}</a><a href="${esc(href(base, '/method', lang))}">${esc(t('me.nav'))}</a><a href="${esc(href(base, '/privacy', lang))}">${esc(t('pv.nav'))}</a><span class="pm-langs">${langs}</span>
 <span class="pm-by"><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('m.issue'))}</a></span></div></div></details>`
 }
 
@@ -44,11 +44,11 @@ export const today = () => new Date().toISOString().slice(0, 10)
 export function shareHtml(t, { url, title, image }) {
   const enc = encodeURIComponent, out = 'target="_blank" rel="noopener"'
   return `<details class="pshare"><summary class="ps-btn">${SHARE_ICON}<span>${esc(t('sh.share'))}</span></summary><div class="ps-panel">`
-    + `<button type="button" data-copy="${esc(url)}" data-copied="${esc(t('sh.copied'))}">${esc(t('sh.copy'))}</button>`
-    + `<a href="https://x.com/intent/post?text=${enc(title)}&amp;url=${enc(url)}" ${out}>X</a>`
-    + `<a href="https://t.me/share/url?url=${enc(url)}&amp;text=${enc(title)}" ${out}>Telegram</a>`
-    + `<a href="https://wa.me/?text=${enc(`${title} ${url}`)}" ${out}>WhatsApp</a>`
-    + (image ? `<a href="${esc(image)}" ${out}>${esc(t('sh.image'))}</a>` : '') + '</div></details>'
+    + `<button type="button" data-count="share_copy" data-copy="${esc(url)}" data-copied="${esc(t('sh.copied'))}">${esc(t('sh.copy'))}</button>`
+    + `<a data-count="share_x" href="https://x.com/intent/post?text=${enc(title)}&amp;url=${enc(url)}" ${out}>X</a>`
+    + `<a data-count="share_telegram" href="https://t.me/share/url?url=${enc(url)}&amp;text=${enc(title)}" ${out}>Telegram</a>`
+    + `<a data-count="share_whatsapp" href="https://wa.me/?text=${enc(`${title} ${url}`)}" ${out}>WhatsApp</a>`
+    + (image ? `<a data-count="share_image" href="${esc(image)}" ${out}>${esc(t('sh.image'))}</a>` : '') + '</div></details>'
 }
 
 // the bar the server pages share: the name back to the live page, the views, the menu
@@ -63,6 +63,9 @@ if (typeof document !== 'undefined') {
   document.addEventListener('click', async (e) => {
     const d = e.target.closest?.('details.pmenu, details.pshare')
     shut(d)
+    // a count of what was used, and nothing about who: the name of the button goes to the server (see /privacy)
+    const used = e.target.closest?.('[data-count]')
+    if (used) { try { navigator.sendBeacon('/api/count', JSON.stringify({ name: used.dataset.count })) } catch {} }
     const copy = e.target.closest?.('[data-copy]')
     if (copy) { e.preventDefault(); try { await navigator.clipboard.writeText(copy.dataset.copy); copy.textContent = copy.dataset.copied } catch { prompt('', copy.dataset.copy) } setTimeout(() => { if (d) d.open = false }, 900); return }
     if (d && e.target.closest('.pm-panel a, .pm-panel button, .ps-panel a')) d.open = false

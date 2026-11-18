@@ -100,3 +100,36 @@ test('/api/person answers with dated facts, and refuses a bad login', async () =
   assert.equal(status(await get('/api/person?login=a%20b')), 400)
   assert.equal(status(await get('/api/person')), 400)
 })
+
+test('/privacy answers in every language, with every section and the contact', async () => {
+  for (const [lang, word] of [['en', 'What Pulse'], ['pt', 'O que o Pulse'], ['zh', 'Pulse 保存了']]) {
+    const r = await get(`/privacy?lang=${lang}`)
+    assert.equal(status(r), 200)
+    assert.ok(r.includes(word), lang)
+    for (const id of ['shows', 'visits', 'counts', 'device', 'notices', 'history', 'leave', 'sale', 'contact']) assert.ok(r.includes(`id="${id}"`), `${lang} ${id}`)
+    assert.ok(r.includes('mailto:hello@lusocryptolabs.com'), lang)
+    assert.ok(!/pv\.[a-z]+\.[a-z]/.test(r), 'a missing word shows its key')
+  }
+})
+
+// a POST with a browser's user agent counts as a person, one that says it is a script as a bot: counts, never who
+const url = (p) => `http://127.0.0.1:${port}${p}`
+const HUMAN = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) AppleWebKit/605.1.15 Safari/604.1'
+const countPost = (name, ua) => fetch(url('/api/count'), { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': ua }, body: JSON.stringify({ name }) })
+const visits = async () => (await fetch(url('/api/visits'))).json()
+test('a share channel is counted per day, a stranger name is not, and nobody is in the count', async () => {
+  assert.equal((await countPost('share_x', HUMAN)).status, 204)
+  assert.equal((await countPost('share_x', HUMAN)).status, 204)
+  assert.equal((await countPost('share_telegram', 'curl/8.0')).status, 204) // a script: counted as a bot
+  assert.equal((await countPost('drop table', HUMAN)).status, 204) // answered the same, counted nowhere
+  const j = await visits()
+  assert.equal(j.total.counts.share_x, 2)
+  assert.equal(j.total.botCounts.share_telegram, 1)
+  assert.equal(j.total.counts['drop table'], undefined)
+  assert.ok(!JSON.stringify(j.days.at(-1)).includes('iPhone')) // the browser is not kept
+})
+test('a card drawn is counted by kind', async () => {
+  const before = (await visits()).total.botCounts.card_digest || 0
+  await fetch(url('/og/digest.png?w=2026-W46'), { headers: { 'user-agent': 'Twitterbot/1.0' } }) // a link preview
+  assert.equal((await visits()).total.botCounts.card_digest, before + 1)
+})
