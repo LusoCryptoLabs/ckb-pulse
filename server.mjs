@@ -18,6 +18,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { lessonsPage } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -205,6 +206,11 @@ function handle(req, res) {
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, usePage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/use`, img: withStamp(`${baseOf(req)}/og/use.png?lang=${langOf(url.searchParams, req)}`, useFacts()) }))
+  }
+  // what the ecosystem learned this week, by topic; unlisted until reviewed
+  if (url.pathname === '/lessons') {
+    hit('lessons', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, lessonsPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/lessons` }))
   }
   // what is counted and what is not
   if (url.pathname === '/method') {
