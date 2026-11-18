@@ -1199,24 +1199,6 @@ export const LESSONS = {
      ]
     },
     {
-     "title": "Allowlist JoyID keyType before verifying signatures",
-     "lesson": "Before verifying a JoyID message signature, check the trusted identity's keyType against the allowlist main_key, sub_key, main_session_key, sub_session_key, and return false otherwise. Without this check an unknown keyType can fall into the weaker session-key path. Take keyType, publicKey and challenge from the caller's trusted identity, and ignore those fields (and alg) in the wallet's signature response.",
-     "concepts": [
-      "Witnesses and signatures",
-      "Login and authorization",
-      "Security hardening"
-     ],
-     "status": "current",
-     "note": "",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "3872393275",
-       "subject": "fix(core): reject unsupported JoyID verification key types"
-      }
-     ]
-    },
-    {
      "title": "Registering NervosDao on devnet",
      "lesson": "CCC has no KnownScript.NervosDao entry for devnet, so register it by hand. The cell dep is the genesis tx 0 output whose type script hash equals the DAO code hash 0x82d76d1b…3f2e, with hashType 'type' and depType 'code'. Find that output index by hashing each output's type script rather than hardcoding it.",
      "concepts": [
@@ -1542,42 +1524,6 @@ export const LESSONS = {
        "repo": "toastmanAu/daowow",
        "hash": "0f65a89193",
        "subject": "feat: the checker for claim, return and burn transactions"
-      }
-     ]
-    },
-    {
-     "title": "Never spread untrusted JoyID signature JSON over trusted fields",
-     "lesson": "In CCC's verifyMessageJoyId, spreading JSON.parse(signature) after challenge, pubkey and keyType let an attacker override them and pass verification for the wrong key or message. Take only signature and message from the signer's JSON. Derive pubkey, key type, alg and (for session keys) the signed message from the caller's identity and challenge.",
-     "concepts": [
-      "Witnesses and signatures",
-      "Login and authorization",
-      "Security hardening"
-     ],
-     "status": "current",
-     "note": "",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "f60bb7441b",
-       "subject": "fix(core): verify JoyID signatures against the given key and message"
-      }
-     ]
-    },
-    {
-     "title": "Manual verification of binary messages signed by JoyID passkeys",
-     "lesson": "In @joyid/ckb 1.1.4, verifySignature binds only UTF-8 text challenges, so binary messages signed by main_key or sub_key must be verified by hand. Parse the WebAuthn payload (37-byte authData plus clientData JSON) and require clientData.challenge == base64url(message bytes). Then verify over authData || sha256(clientData) with P-256 (DER, lowS:false) or RSA, using the public key from the trusted identity rather than the response.",
-     "concepts": [
-      "Witnesses and signatures",
-      "Data encoding (molecule, hex, bigints)",
-      "Security hardening"
-     ],
-     "status": "current",
-     "note": "",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "6e01010acc",
-       "subject": "fix(core): verify binary JoyID passkey challenges"
       }
      ]
     },
