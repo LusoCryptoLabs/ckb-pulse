@@ -20,6 +20,8 @@ const status = (r) => +r.split(' ')[1]
 
 before(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pulse-'))
+  // one kept digest week, for /digest/<week>
+  fs.writeFileSync(path.join(dir, 'digests.json'), JSON.stringify({ weeks: [{ at: Date.parse('2026-11-16T08:01:00Z'), stats: { updates: 970, people: 90, projects: 99 }, repos: [['ckb-devrel/ccc', 30]], commits: [], people: [['alice', 9]], orgs: [['ckb-devrel', 30]], news: [] }] }))
   port = await new Promise((r) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => r(p)) }) })
   child = spawn(process.execPath, ['server.mjs'], { env: { ...process.env, PORT: String(port), DATA_DIR: dir, PULSE_OFFLINE: '1', GITHUB_TOKEN: 'offline' }, stdio: ['ignore', 'pipe', 'pipe'] })
   child.on('exit', () => { exited = true })
@@ -63,4 +65,15 @@ test('/method answers in every language with every section', async () => {
     for (const id of ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'funded', 'limits', 'wrong']) assert.ok(r.includes(`id="${id}"`), `${lang} ${id}`)
     assert.ok(!/\bme\.[a-z]+\.[a-z]\b/.test(r), 'a missing word shows its key')
   }
+})
+
+test('a kept digest week has its own page and card, an unknown one is a 404', async () => {
+  const r = await get('/digest/2026-W46?lang=en')
+  assert.equal(status(r), 200)
+  assert.ok(r.includes('<b>970</b>') && r.includes('The week 2026-W46'))
+  assert.equal(status(await get('/digest/2025-W01')), 404)
+  const png = await get('/og/digest.png?w=2026-W46')
+  assert.equal(status(png), 200)
+  assert.match(png, /content-type: image\/png/i)
+  assert.equal(status(await get('/og/digest.png?w=2025-W01')), 404)
 })

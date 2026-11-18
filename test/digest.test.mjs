@@ -60,3 +60,28 @@ test('a digest every Monday, even the one after a first digest on a Thursday', (
   assert.equal(digestDue(monday, Date.parse('2026-10-27T08:30:00Z')), false) // Tuesday
   assert.equal(digestDue(monday, Date.parse('2026-11-02T08:00:00Z')), true)
 })
+
+test('each kept week has an address that does not change, and the feed links to it', async () => {
+  const { weekLabel, labelOf, weekByLabel } = await import('../digest.mjs')
+  // the Monday digests: the week that ended on 2026-11-16 is ISO week 46
+  assert.equal(weekLabel(Date.parse('2026-11-16T08:01:00Z')), '2026-W46')
+  assert.equal(weekLabel(Date.parse('2026-11-09T08:01:00Z')), '2026-W45')
+  assert.equal(weekLabel(Date.parse('2027-01-04T08:01:00Z')), '2026-W53') // the year turns inside a week
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'digest-weeks-'))
+  fs.writeFileSync(path.join(dir, 'digests.json'), JSON.stringify({ weeks: [
+    { at: Date.parse('2026-10-22T09:00:00Z'), stats: { updates: 50, people: 5, projects: 4 }, repos: [], commits: [], people: [], orgs: [], news: [] },
+    { at: Date.parse('2026-10-26T08:01:00Z'), stats: { updates: 970, people: 90, projects: 99 }, repos: [['a/b', 3]], commits: [], people: [['alice', 3]], orgs: [], news: [] },
+  ] }))
+  loadDigests(dir)
+  // the Thursday digest and the Monday after it fall in the same ISO week: the earlier one is named by its date
+  assert.equal(labelOf(weeks()[1]), '2026-W43')
+  assert.equal(labelOf(weeks()[0]), '2026-10-22')
+  assert.equal(weekByLabel('2026-W43').stats.updates, 970)
+  const feed = feedXml({ lang: 'en', news: [], groupOf, base: 'https://pulse.example' })
+  assert.match(feed, /href="https:\/\/pulse\.example\/digest\/2026-W43\?lang=en"/)
+  assert.match(feed, /href="https:\/\/pulse\.example\/digest\/2026-10-22\?lang=en"/)
+  const page = digestPage({ period: 'week', lang: 'en', leaders: { week: { stats: weekByLabel('2026-W43').stats, repos: [], commits: [], people: [], orgs: [], bars: [] } }, news: [], trends: null, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest', fixed: { label: '2026-W43', at: weeks()[1].at } })
+  assert.match(page, /<b>970<\/b>/)
+  assert.match(page, /The week 2026-W43, kept on 26 October 2026/)
+  assert.match(page, /og\/digest\.png\?w=2026-W43/)
+})
