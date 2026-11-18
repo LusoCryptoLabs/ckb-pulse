@@ -20,6 +20,7 @@ import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
 import { landingPage } from './landing.mjs'
+import { feedPage } from './feed.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
 import { lessonsPage, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
@@ -271,6 +272,16 @@ function handle(req, res) {
   if (url.pathname === '/llms.txt') {
     hit('llms', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' }, llmsTxt({ base: baseOf(req) }))
+  }
+  // a person who opens the feed address in a browser would see raw XML: they are sent to a page that explains it and gives
+  // the link to copy; a feed reader (which asks for atom or rss, not for a page) gets the XML, and ?raw=1 asks for it too
+  if (url.pathname === '/feed' ) {
+    hit('feedpage', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, feedPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/feed`, news: news(), groupOf }))
+  }
+  if (url.pathname === '/feed.xml' && !url.searchParams.has('raw') && /text\/html/.test(req.headers.accept || '') && !/atom|rss/.test(req.headers.accept || '')) {
+    res.writeHead(302, { location: `/feed?lang=${langOf(url.searchParams, req)}`, 'cache-control': 'no-store', vary: 'accept' })
+    return res.end()
   }
   if (url.pathname === '/feed.xml') {
     hit('feed', ipOf(req), req.headers['user-agent'])

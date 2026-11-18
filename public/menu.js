@@ -16,7 +16,7 @@ export const VIEWS = [['live', '/live', 'v.live'], ['fiber', '/fiber', 'v.fiber'
 // [id, path, words, hint words, tile] by what a person came for; act names what the live page does in place
 export const GROUPS = [
   ['m.see', [['live', '/live', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['digest', '/digest?p=week', 'm.digest', '', '7'], ['screen', '/?screen=1', 'm.screen', 'm.screen.s', 'TV'], ['impact', '/impact', 'm.impact', '', 'U']].filter(unpaused)],
-  ['m.keep', [['notices', '/?tab=notices', 'm.notices', 'm.notices.s', '!'], ['feed', '/feed.xml', 'm.feed', '', 'rss']]],
+  ['m.keep', [['notices', '/?tab=notices', 'm.notices', 'm.notices.s', '!'], ['feed', '/feed', 'm.feed', '', 'rss']]],
   ['m.build', [['add', '/?tab=suggest', 'm.add', '', '+'], ['badge', '/use#badge', 'm.badge', '', 'B'], ['ai', '/use#ai', 'm.ai', 'm.ai.s', 'AI']]],
 ]
 
