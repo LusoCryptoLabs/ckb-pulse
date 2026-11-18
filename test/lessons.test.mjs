@@ -8,7 +8,7 @@ import http from 'node:http'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import { lessonsPage, shownLessons, access, cookieOf, loadLessons } from '../lessons.mjs'
+import { lessonsPage, lessonPage, lessonsApi, lessonsMcp, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
 import { OPT_OUT } from '../config.mjs'
 
 const lesson = (o = {}) => ({ title: 'Example lesson one', lesson: 'Do the example thing.', concepts: ['Example concept'], status: 'current', note: '', sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 'fix: an example' }], ...o })
@@ -16,15 +16,15 @@ const DATA = { from: '2026-11-11', to: '2026-11-18', read: 3, topics: [{ area: '
 const page = (data, lang = 'en') => lessonsPage({ lang, base: 'https://pulse.example', url: 'https://pulse.example/lessons', data })
 const KEY = 'test-key-0123456789'
 
-test('the page shows the topic, the lesson and a link to its commit, and is not indexed', () => {
+test('the page shows the topic and the lesson, linked to its page, which links its commit; neither is indexed', () => {
   const html = page(DATA)
   assert.ok(html.includes('Example topic') && html.includes('Example lesson one') && html.includes('Do the example thing.'))
-  assert.ok(html.includes('https://github.com/owner/repo/commit/abc1234'))
+  assert.ok(lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: DATA, id: 'example-topic/example-lesson-one' }).includes('https://github.com/owner/repo/commit/abc1234'))
   assert.ok(html.includes('<meta name="robots" content="noindex">'))
 })
 
 test('the page speaks each language and shows no word key', () => {
-  for (const [lang, word] of [['en', 'What CKB'], ['pt', 'O que a CKB'], ['zh', 'CKB 本周']]) {
+  for (const [lang, word] of [['en', 'What CKB'], ['pt', 'O que a CKB'], ['zh', 'CKB 学到了什么']]) {
     const html = page(DATA, lang)
     assert.ok(html.includes(word), lang)
     assert.ok(!/\bls\.[a-z]+\b/.test(html), `${lang}: a missing word shows its key`)
@@ -73,6 +73,92 @@ test('loadLessons reads the file on the volume and says null when it is missing 
     fs.writeFileSync(path.join(dir, 'lessons.json'), JSON.stringify(DATA))
     assert.equal(loadLessons(dir).read, 3)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+// version 2 of the export, as the lessons repository writes it
+const L2 = (o = {}) => ({ id: 'ccc/keep-the-change', area: 'ccc', title: 'Keep the change output', lesson: 'Never drop the change output when the fee grows.', note: '', patterns: ['outputs[change].capacity -= fee'],
+  concepts: ['Transaction building and fees'], kind: ['bug fix'], applies_to: ['@ckb-ccc/core >= 1.0'], status: 'current', superseded_by: null, evidence: 'L1', confidence: 'high',
+  first_seen: '2026-11-12', last_touched: '2026-11-17', last_checked: null,
+  sources: [{ repo: 'owner/repo', hash: 'abc1234', date: '2026-11-12', subject: 'fix: keep change' }, { repo: 'other/app', hash: 'def5678', date: '2026-11-17', subject: 'fix: change' }],
+  related: ['scripts/witness-args'], history: [{ date: '2026-11-18', what: 'feat(lessons): add what the projects learned' }], ...o })
+const V2 = { version: 2, from: '2026-11-11', to: '2026-11-18', read: 353, areas: { ccc: { name: 'CCC (TypeScript SDK)', summary: 'Building with CCC.' }, scripts: { name: 'Rust scripts', summary: 'On chain.' } },
+  lessons: [L2(), L2({ id: 'scripts/witness-args', area: 'scripts', title: 'Read witness args from the right index', lesson: 'Use the group index, not the input index.', concepts: ['Witnesses and signatures'], related: ['ccc/keep-the-change'], sources: [{ repo: 'third/lock', hash: '9999999', date: '2026-11-14', subject: 'fix(lock): index' }], applies_to: [], evidence: 'L0', patterns: [], history: [] })] }
+const P2 = (o = {}) => lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/lessons', data: V2, ...o })
+
+test('version 2: the page lists every lesson by topic, linked to its own page, and the first week\'s file still reads', () => {
+  const html = P2()
+  assert.ok(html.includes('href="https://pulse.example/lessons/ccc/keep-the-change?lang=en"') && html.includes('CCC (TypeScript SDK)') && html.includes('Rust scripts'))
+  assert.ok(html.includes('353 commits read, 2 lessons'))
+  assert.ok(html.includes('name="q"') && html.includes('role="search"'), 'a search box')
+  assert.ok(page(DATA).includes('href="https://pulse.example/lessons/example-topic/example-lesson-one?lang=en"'), 'the old file gets ids from its topic and title')
+})
+
+test('search: every word must match, the title counts most, and an area or a project narrows it', () => {
+  const ls = visible(V2).lessons
+  assert.deepEqual(searchLessons(ls, { q: 'change output' }).map((l) => l.id), ['ccc/keep-the-change'])
+  assert.deepEqual(searchLessons(ls, { q: 'change witness' }), [], 'both words, or nothing')
+  assert.deepEqual(searchLessons(ls, { q: 'witnesses' }).map((l) => l.id), ['scripts/witness-args'], 'a plural finds the singular')
+  assert.deepEqual(searchLessons(ls, { q: 'fix' }).map((l) => l.id).length, 2, 'sources count too')
+  assert.deepEqual(searchLessons(ls, { area: 'scripts' }).map((l) => l.id), ['scripts/witness-args'])
+  assert.deepEqual(searchLessons(ls, { repo: 'Other/App' }).map((l) => l.id), ['ccc/keep-the-change'])
+  const html = P2({ q: 'witness' })
+  assert.ok(html.includes('1 lessons found.') && html.includes('Read witness args') && !html.includes('Keep the change output</a>'))
+  assert.ok(P2({ q: 'nothing-like-this' }).includes('No lesson matches.'))
+})
+
+test('a lesson\'s page has the rule, the pattern, its sources with dates, related lessons, evidence and history', () => {
+  const html = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/lessons/ccc/keep-the-change', data: V2, id: 'ccc/keep-the-change' })
+  for (const want of ['Never drop the change output', 'outputs[change].capacity -= fee', '2026-11-12 · <a href="https://github.com/owner/repo/commit/abc1234"', 'https://github.com/other/app/commit/def5678',
+    'href="https://pulse.example/lessons/scripts/witness-args?lang=en">Read witness args', 'seen in two or more projects', '@ckb-ccc/core &gt;= 1.0', '2026-11-18 · feat(lessons): add what the projects learned', 'Last checked by a person</dt><dd>never', '<meta name="robots" content="noindex">'])
+    assert.ok(html.includes(want), want)
+  assert.equal(lessonPage({ lang: 'en', base: 'x', url: 'x', data: V2, id: 'ccc/no-such' }), null)
+  assert.equal(lessonPage({ lang: 'en', base: 'x', url: 'x', data: V2, id: '../../etc/passwd' }), null)
+  const bad = lessonPage({ lang: 'pt', base: 'x', url: 'x', data: { ...V2, lessons: [L2({ title: '<script>alert(1)</script>', patterns: ['<img src=x onerror=1>'] })] }, id: 'ccc/keep-the-change' })
+  assert.ok(!bad.includes('<script>alert') && !bad.includes('<img src=x') && bad.includes('Padrão'))
+})
+
+test('a project that left takes its lessons and the links to them along', () => {
+  OPT_OUT.add('third')
+  try {
+    const v = visible(V2)
+    assert.deepEqual(v.lessons.map((l) => l.id), ['ccc/keep-the-change'])
+    assert.deepEqual(v.lessons[0].related, [], 'no link to a lesson that is gone')
+  } finally { OPT_OUT.delete('third') }
+})
+
+test('the key as a bearer token opens the API and MCP; a wrong one does not', () => {
+  const url = new URL('http://x/lessons/api')
+  assert.equal(access({ headers: { authorization: `Bearer ${KEY}` } }, url, KEY), 'bearer')
+  assert.equal(access({ headers: { authorization: 'Bearer nope' } }, url, KEY), null)
+  assert.equal(access({ headers: { authorization: KEY } }, url, KEY), null, 'only as a bearer token')
+})
+
+test('the API answers a search briefly and one lesson in full, with a link to its page', () => {
+  const s = lessonsApi(V2, new URL('http://x/lessons/api?q=change'), 'https://pulse.example')
+  assert.equal(s.status, 200)
+  assert.equal(s.json.count, 1)
+  assert.deepEqual(Object.keys(s.json.lessons[0]).sort(), ['area', 'concepts', 'evidence', 'id', 'last_touched', 'lesson', 'status', 'title', 'url'])
+  assert.equal(s.json.lessons[0].url, 'https://pulse.example/lessons/ccc/keep-the-change')
+  const one = lessonsApi(V2, new URL('http://x/lessons/api?id=scripts/witness-args'), 'b')
+  assert.equal(one.json.sources[0].repo, 'third/lock')
+  assert.equal(lessonsApi(V2, new URL('http://x/lessons/api?id=none/none'), 'b').status, 404)
+  assert.equal(lessonsApi(V2, new URL('http://x/lessons/api?limit=1'), 'b').json.lessons.length, 1)
+})
+
+test('the MCP server lists its four tools and answers them; a bad argument is told to the model', async () => {
+  const handle = lessonsMcp(() => V2)
+  const call = async (method, params) => (await handle({ jsonrpc: '2.0', id: 1, method, params }, { base: 'https://pulse.example' })).json
+  assert.equal((await call('initialize', {})).result.serverInfo.name, 'ckb-lessons')
+  assert.deepEqual((await call('tools/list')).result.tools.map((t) => t.name), LESSON_TOOLS)
+  assert.deepEqual(LESSON_TOOLS, ['search_lessons', 'get_lesson', 'lessons_from_project', 'list_areas'])
+  const found = JSON.parse((await call('tools/call', { name: 'search_lessons', arguments: { query: 'witness index' } })).result.content[0].text)
+  assert.deepEqual(found.lessons.map((l) => l.id), ['scripts/witness-args'])
+  const one = JSON.parse((await call('tools/call', { name: 'get_lesson', arguments: { id: 'ccc/keep-the-change' } })).result.content[0].text)
+  assert.equal(one.evidence, 'L1')
+  const bad = (await call('tools/call', { name: 'get_lesson', arguments: { id: '../x' } })).result
+  assert.equal(bad.isError, true)
+  const areas = JSON.parse((await call('tools/call', { name: 'list_areas', arguments: {} })).result.content[0].text)
+  assert.deepEqual(areas.areas.map((a) => [a.id, a.lessons]), [['ccc', 1], ['scripts', 1]])
 })
 
 const free = () => new Promise((r) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => r(p)) }) })
@@ -125,6 +211,43 @@ test('the route is closed when there is no key configured, or no file on the vol
   })
   await withServer({ LESSONS_KEY: KEY }, {}, async (port) => {
     assert.equal((await get(port, `/lessons?k=${KEY}`)).status, (await get(port, '/no-such-page-here')).status)
+  })
+})
+
+const post = (port, p, body, headers = {}) => new Promise((resolve, reject) => {
+  const data = JSON.stringify(body)
+  const r = http.request({ host: '127.0.0.1', port, path: p, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data), ...headers } }, (res) => {
+    let b = ''; res.on('data', (c) => { b += c }); res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: b }))
+  })
+  r.on('error', reject); r.end(data)
+})
+
+test('on a running server: a lesson page, the API and MCP open with the key and are unknown routes without it', async () => {
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2) }, async (port) => {
+    const nothing = await get(port, '/no-such-page-here')
+    for (const p of ['/lessons/ccc/keep-the-change', '/lessons/api?q=change', '/lessons/api?k=wrong']) {
+      const r = await get(port, p, { authorization: 'Bearer wrong' })
+      assert.equal(r.status, nothing.status, p); assert.equal(r.body, nothing.body, p)
+    }
+    const shut = await post(port, '/lessons/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' })
+    assert.equal(shut.status, nothing.status, 'MCP without the key')
+    const auth = { authorization: `Bearer ${KEY}` }
+    const api = await get(port, '/lessons/api?q=change', auth)
+    assert.equal(api.status, 200)
+    assert.equal(JSON.parse(api.body).lessons[0].id, 'ccc/keep-the-change')
+    assert.match(String(api.headers['cache-control']), /private, no-store/)
+    assert.equal(api.headers['x-robots-tag'], 'noindex')
+    const mcp = await post(port, '/lessons/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'get_lesson', arguments: { id: 'scripts/witness-args' } } }, auth)
+    assert.equal(mcp.status, 200)
+    assert.equal(JSON.parse(JSON.parse(mcp.body).result.content[0].text).title, 'Read witness args from the right index')
+    const key = await get(port, `/lessons/ccc/keep-the-change?k=${KEY}&lang=pt`)
+    assert.equal(key.status, 303); assert.equal(key.headers.location, '/lessons/ccc/keep-the-change?lang=pt', 'the key leaves the address of a lesson page too')
+    const cookie = String(key.headers['set-cookie']).split(';')[0]
+    const page = await get(port, '/lessons/ccc/keep-the-change?lang=pt', { cookie })
+    assert.equal(page.status, 200); assert.ok(page.body.includes('Never drop the change output') && page.body.includes('Lições relacionadas'))
+    assert.equal((await get(port, '/lessons/ccc/no-such', { cookie })).status, nothing.status, 'an unknown lesson is an unknown route')
+    const found = await get(port, '/lessons?q=witness', { cookie })
+    assert.ok(found.body.includes('Read witness args') && !found.body.includes('>Keep the change output</a>'))
   })
 })
 
