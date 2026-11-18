@@ -162,7 +162,7 @@ ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).ma
 ${arrivals.length ? `<section><h2>${esc(t('dg.arrived'))}</h2><p class="names">${arrivals.slice(0, 60).map(person).join(' · ')}${arrivals.length > 60 ? ` · ${esc(t('dg.more', { n: arrivals.length - 60 }))}` : ''}</p><p><small>${esc(t('dg.arrivedNote'))}</small></p></section>` : ''}
 ${rhythm && !fixed ? `<section><h2>${esc(t('rh.title'))}</h2><p>${esc(t('rh.line', { commits: rhythm.commits, median: rhythm.median }))}</p><p><small>${esc(t('rh.note'))}</small></p></section>` : ''}
 ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs: cur.devs, month, newDevs: cur.newDevs, yearAgo: ago?.devs ?? 0 }))}</p></section>` : ''}
-<footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed.xml">feed.xml</a></p>
+<footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed?lang=${lang}">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
 ${useLink(t, base, lang)}${maker(t)}
 ${langLinks((l) => q(period, l))}</footer>
@@ -171,7 +171,8 @@ ${langLinks((l) => q(period, l))}</footer>
 
 // ---------- the feed ----------
 const iso = (ms) => new Date(ms).toISOString()
-export function feedXml({ lang, news, groupOf, base }) {
+// what the feed carries, newest first: the last twelve weekly digests and the new projects
+export function feedEntries({ lang, news, groupOf, base }) {
   const t = words(lang), host = base.replace(/^https?:\/\//, '')
   const entries = []
   for (const w of [...D.weeks].reverse().slice(0, 12)) {
@@ -189,6 +190,10 @@ export function feedXml({ lang, news, groupOf, base }) {
     entries.push({ id: `tag:${host},${iso(at).slice(0, 10)}:new/${n.name}`, title: `${t('n.title')}: ${short(n.name)} · ${t.group(n.group)}`, at, link: `${base}/?repo=${encodeURIComponent(n.name)}&lang=${lang}`, html: `<p>${esc(n.desc || t('d.noDesc'))}</p><p><a href="https://github.com/${esc(n.name)}">github.com/${esc(n.name)}</a></p>` })
   }
   entries.sort((a, b) => b.at - a.at)
+  return entries
+}
+export function feedXml({ lang, news, groupOf, base }) {
+  const t = words(lang), entries = feedEntries({ lang, news, groupOf, base })
   return `<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xml:lang="${lang === 'zh' ? 'zh-CN' : lang}">
 <title>CKB Pulse</title><subtitle>${esc(t('tagline'))}</subtitle><id>${esc(base)}/</id><link href="${esc(base)}/"/><link rel="self" href="${esc(base)}/feed.xml?lang=${lang}"/><updated>${iso(entries[0]?.at || Date.now())}</updated><icon>${esc(base)}/icon-192.png</icon>

@@ -11,7 +11,7 @@ import { methodPage } from '../method.mjs'
 
 const base = 'https://pulse.example'
 // what the menu reaches, as agreed on 2026-11-02: see, keep up, for builders
-const PLACES = ['/live', '/digest?p=week', '/?screen=1', '/impact', '/?tab=notices', '/feed.xml', '/?tab=suggest', '/use#badge', '/use#ai']
+const PLACES = ['/live', '/digest?p=week', '/?screen=1', '/impact', '/?tab=notices', '/feed', '/?tab=suggest', '/use#badge', '/use#ai']
 
 test('a path keeps its hash after the language', () => {
   assert.equal(href(base, '/use#ai', 'pt'), `${base}/use?lang=pt#ai`)
