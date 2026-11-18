@@ -93,6 +93,14 @@ test('version 2: the page lists every lesson by topic, linked to its own page, a
   assert.ok(page(DATA).includes('href="https://pulse.example/lessons/example-topic/example-lesson-one?lang=en"'), 'the old file gets ids from its topic and title')
 })
 
+test('the index says how the lessons were checked, in words, when the export carries it', () => {
+  const checked = { date: '2026-11-18', sample: 60, of: 89, right: 20, partly_right: 37, not_ckb: 3, wrong: 0 }
+  for (const [lang, want] of [['en', '60 of 89 lessons. 20 right, 37 partly right'], ['pt', '60 de 89 lições. 20 certas, 37 em parte certas'], ['zh', '89 条经验中抽查 60 条。20 条正确']]) {
+    assert.ok(P2({ lang, data: { ...V2, checked } }).includes(want), lang)
+  }
+  assert.ok(!P2().includes('partly right'), 'nothing is said when nothing was measured')
+})
+
 test('search: every word must match, the title counts most, and an area or a project narrows it', () => {
   const ls = visible(V2).lessons
   assert.deepEqual(searchLessons(ls, { q: 'change output' }).map((l) => l.id), ['ccc/keep-the-change'])

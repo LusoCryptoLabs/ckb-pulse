@@ -56,7 +56,7 @@ export function loadLessons(dir) {
 /** The export as { from, to, read, areas: {slug: {name, summary}}, lessons: [...] }. Version 2 is the lessons repository's
  * export; the first week's file (topics of lessons, no ids) still reads, with ids made from the topic and the title. */
 export function normalise(data) {
-  if (data?.version === 2) return { from: data.from, to: data.to, read: data.read, areas: data.areas || {}, lessons: data.lessons || [] }
+  if (data?.version === 2) return { from: data.from, to: data.to, read: data.read, checked: data.checked || null, areas: data.areas || {}, lessons: data.lessons || [] }
   const areas = {}, lessons = []
   for (const t of data?.topics || []) {
     const a = slug(t.area)
@@ -141,6 +141,7 @@ export function lessonsPage({ lang, base, url, data, q = '', area = '' }) {
 ${pageBar(t, { base, lang, current: '', here: '/lessons' })}
 ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
 <p>${esc(t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>
+${v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
 <form class="lq" method="get" action="${esc(base)}/lessons" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
 ${searching
     ? `<p>${esc(found.length ? t('ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}/lessons?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.map((l) => card(t, base, lang, l)).join('\n')}`
