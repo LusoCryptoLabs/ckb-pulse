@@ -184,7 +184,7 @@ export function startFiber(dir) {
 
 // what the page needs for one network
 export function fiberState(net) {
-  const s = S[net]
+  const s = Object.hasOwn(S, net) ? S[net] : null
   if (!s) return null
   const funding = Object.values(s.funding || {})
   return {

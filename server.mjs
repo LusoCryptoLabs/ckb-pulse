@@ -153,8 +153,10 @@ initPush(DATA_DIR)
 initVisits(DATA_DIR)
 loadDigests(DATA_DIR)
 loadFunded(DATA_DIR)
-startFunded()
-startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
+// PULSE_OFFLINE=1 serves what is on disk and polls nothing (the HTTP tests)
+const OFFLINE = process.env.PULSE_OFFLINE === '1'
+if (!OFFLINE) startFunded()
+if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
 const icons = {}
@@ -169,8 +171,9 @@ setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': pi
 const fundedNow = () => ({ readAt: fundedRead() ? new Date(fundedRead()).toISOString() : null, grants: FUNDED.map((f) => grantView(f, { repos: fundedRepos(f.follow), rows: repoRows, events: peopleEvents() })) })
 const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, funded: fundedNow, trends: () => trends(knownRepos()) })
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, 'http://x')
+function handle(req, res) {
+  let url
+  try { url = new URL(req.url, 'http://x') } catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('bad request') }
   // liveness stays 200; collector.ok turns false when no organisation feed has answered for 10 minutes, and the VPS
   // watcher (sentinela, SONDA_pulse-*) mails when it does
   if (url.pathname === '/health') {
@@ -268,7 +271,9 @@ const server = http.createServer((req, res) => {
   }
   const vm = url.pathname.match(/^\/vendor\/([0-9a-f]{12})\/(.+)$/)
   const rel = vm ? `/vendor/${vm[2]}` : url.pathname
-  const f = path.join(ROOT, rel === '/' ? 'index.html' : decodeURIComponent(rel))
+  let name
+  try { name = decodeURIComponent(rel) } catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('bad request') }
+  const f = path.join(ROOT, rel === '/' ? 'index.html' : name)
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found') }
   // the page's own files change together on every deploy: always ask again (a 304 when nothing changed). three.js and
   // d3 under the current hash never change; an old hash or the old unversioned address still answers
@@ -278,7 +283,16 @@ const server = http.createServer((req, res) => {
   if (/^(text\/|application\/(json|manifest\+json)|image\/svg)/.test(type)) return sendText(req, res, 200, headers, fs.readFileSync(f), f)
   res.writeHead(200, headers)
   fs.createReadStream(f).pipe(res)
+}
+// a request that throws gets a 500 and the process keeps running; anything that still escapes is logged, not fatal
+const server = http.createServer((req, res) => {
+  try { handle(req, res) } catch (err) {
+    console.warn('request', req.method, String(req.url).slice(0, 200), err.message)
+    if (!res.headersSent) res.writeHead(500, { 'content-type': 'text/plain' })
+    res.end('error')
+  }
 })
+process.on('uncaughtException', (err) => console.warn('uncaught', err.stack || err.message))
+process.on('unhandledRejection', (err) => console.warn('unhandled', err?.stack || err))
 server.listen(PORT, () => console.log(`ckb-pulse on :${PORT}`))
-start()
-startFiber(DATA_DIR)
+if (!OFFLINE) { start(); startFiber(DATA_DIR) }
