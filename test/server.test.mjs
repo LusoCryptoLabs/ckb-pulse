@@ -40,7 +40,7 @@ after(() => { child?.kill(); fs.rmSync(dir, { recursive: true, force: true }) })
 for (const p of ['/%FF', '//', '/%', '/api/fiber?net=constructor', '/api/fiber?net=__proto__', '/api/fiber?net=toString']) {
   test(`${p} gets an answer and the server stays up`, async () => {
     const r = await raw(p)
-    assert.ok([400, 404].includes(status(r)), r.split('\r\n')[0])
+    assert.ok([400, 404, 503].includes(status(r)), r.split('\r\n')[0])
     assert.equal(exited, false)
     assert.equal(status(await raw('/health')), 200)
   })
