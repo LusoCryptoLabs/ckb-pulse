@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
+import { isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows, arrivals } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits } from './visits.mjs'
@@ -221,7 +221,7 @@ function handle(req, res) {
     const q = url.searchParams, lang = langOf(q)
     let svg = null
     if (url.pathname === '/badge/repo.svg') svg = repoBadge(repoWeek(q.get('name') || ''), lang)
-    if (url.pathname === '/badge/person.svg') svg = personBadge(personDetail(q.get('login') || ''), lang)
+    if (url.pathname === '/badge/person.svg') svg = personBadge(personDetail(q.get('login') || ''), lang, isAI(q.get('login') || ''))
     if (url.pathname === '/badge/ckb.svg') svg = allBadge(highlightsNow().week.stats, lang)
     if (!svg) { res.writeHead(404); return res.end('not found') }
     hit('badge', ipOf(req), req.headers['user-agent'])

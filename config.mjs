@@ -111,6 +111,13 @@ export const isNoiseActor = (login) => /\[bot\]$/i.test(login) || login === 'Cop
 // dependabot-bot 75, cursoragent 21, snyk-bot 4, deepsourcebot 1. September 2026 read 111 developers with two of them.
 export const AUTOMATIC_AUTHORS = new Set(['actions-user', 'claude', 'cursoragent', 'renovate-bot', 'dependabot-support', 'dependabot-bot', 'snyk-bot', 'deepsourcebot'])
 export const isAutomaticAuthor = (login) => isNoiseActor(login) || AUTOMATIC_AUTHORS.has(String(login).toLowerCase())
+// Accounts that say they are an AI, not a person (their own bio: "AI assistant ... not a human contributor", seen on
+// Hanssen0-Alter-Ego, 2026-11-18). They are a category of their own, marked IA: out of the people counts and the human
+// medals, listed apart with the mark. More are found daily from the bios of the people at the top of the lists.
+export const AI_ACCOUNTS = new Set(['hanssen0-alter-ego', 'codex'])
+export const AI_BIO = /\b(?:ai|artificial intelligence)[ -](?:powered |based )?(?:assistant|agent|bot)\b|\bnot a human\b|\bautomated (?:account|agent)\b|\bi am an ai\b/i
+// The people behind Pulse. Their work counts by the same rules; their name carries the mark Operator wherever it shows
+export const OPERATORS = new Set(['lusocryptolabs'])
 // AI agents working under a person's account push to branches of their own (Claude Code, Codex, Copilot, Cursor,
 // Devin). Their pushes, the branches they open and the pull requests they propose count as automatic; the person who
 // merges the work still counts. Measured 2026-10-10 on the lab's 30 days: 60 such events among about 2,260 by people.

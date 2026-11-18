@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -29,7 +29,7 @@ export const bus = new EventEmitter()
 // how the collector is doing, for /health: the last time an organisation feed answered (a 304 counts) and the last event
 export const health = { startedAt: Date.now(), lastPollOk: 0, lastEventAt: 0 }
 bus.setMaxListeners(1000)
-export const state = { version: STATE_VERSION, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, fundedAt: 0, agentRule: 0, startedAt: Date.now() }
+export const state = { version: STATE_VERSION, profiles: {}, repos: {}, events: [], builders: [], orgRepos: [], orgReposAt: 0, discoveredAt: 0, groupsSeen: null, extra: {}, checked: {}, crawledAt: 0, filledAt: 0, announced: null, historyAt: 0, onchainAt: 0, fundedAt: 0, agentRule: 0, startedAt: Date.now() }
 const ids = new Set()
 // commits counted from a repository's commits list rather than from a push (readCommits), and what the pushes GitHub
 // did send say: their heads, and each repository's latest. Kept as pushes arrive: read once per round of the commit
@@ -56,6 +56,33 @@ function readShas() {
   for (const e of state.events) for (const s of e.shas || []) commitShas.add(s)
 }
 
+// ---------- accounts that declare themselves AI ----------
+// the list in config.mjs, plus the ones whose own bio says so (read daily for the people at the top of the lists)
+export const isAI = (login) => AI_ACCOUNTS.has(String(login).toLowerCase()) || !!state.profiles?.[String(login).toLowerCase()]?.ai
+// their stored events become automatic and carry the mark, except releases (as for bots)
+function markAI() {
+  let n = 0
+  for (const e of state.events) if (isAI(e.actor) && !e.ai) { e.ai = true; if (e.kind !== 'release') e.bot = true; n++ }
+  if (n) { hlCache = null; console.log(`AI accounts: ${n} stored events marked`) }
+}
+export const isOperator = (login) => OPERATORS.has(String(login).toLowerCase())
+// who is at the top of the lists, and has no bio on file from the last 14 days: read it once, and keep what it says
+async function aiScan() {
+  const now = Date.now(), L = leaders(state.events.filter((e) => followedNow(now)(e.repo)), now), todo = new Set()
+  for (const p of ['day', 'week', 'month']) for (const c of ['people', 'peopleCommits', 'reviewers', 'merged']) for (const [login] of L[p][c] || []) {
+    const k = login.toLowerCase(), have = state.profiles[k]
+    if (!isAI(login) && !isOperator(login) && (!have || now - have.at > 14 * DAY)) todo.add(login)
+  }
+  for (const login of [...todo].slice(0, 30)) {
+    try {
+      const r = await gh(`/users/${login}`)
+      state.profiles[login.toLowerCase()] = { at: now, ai: AI_BIO.test(`${r.body?.bio || ''}`) }
+      await sleep(400)
+    } catch (err) { console.warn('bio', login, err.message) }
+  }
+  markAI(); save()
+}
+
 // ---------- persistence ----------
 export function load() {
   if (!fs.existsSync(FILE)) return
@@ -79,13 +106,15 @@ export function load() {
     // branch; stored proposals are looked up once (markAgentProposals)
     // 2 (2026-10-19): ccr- branches, Claude Code's cloud sessions
     if (state.agentRule !== AGENT_RULE) for (const e of state.events) if (!e.bot && (e.kind === 'push' || e.kind === 'branch') && isAgentBranch(e.ref)) Object.assign(e, { bot: true, agent: true })
+    // accounts that declare themselves AI are their own category (2026-11-18): their stored events leave the human counts
+    markAI()
     markSchedules()
     console.log(`loaded ${state.events.length} events, ${Object.keys(state.repos).length} repos, ${state.builders.length} builders`)
   } catch (err) { console.error('could not read state:', err.message) }
 }
 function save() {
   const tmp = FILE + '.tmp'
-  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, moveRule: state.moveRule, historyAt: state.historyAt, onchainAt: state.onchainAt, agentRule: state.agentRule }))
+  fs.writeFileSync(tmp, JSON.stringify({ version: STATE_VERSION, repos: state.repos, events: state.events, builders: state.builders, orgRepos: state.orgRepos, orgReposAt: state.orgReposAt, discoveredAt: state.discoveredAt, groupsSeen: state.groupsSeen, extra: state.extra, checked: state.checked, crawledAt: state.crawledAt, filledAt: state.filledAt, announced: state.announced, ctxRule: state.ctxRule, moveRule: state.moveRule, historyAt: state.historyAt, onchainAt: state.onchainAt, agentRule: state.agentRule, profiles: state.profiles, aiRule: state.aiRule }))
   fs.renameSync(tmp, FILE)
 }
 setInterval(save, 60e3).unref()
@@ -139,16 +168,16 @@ function tagsFor(repo, text) {
 }
 
 // ---------- one GitHub event -> one line ----------
-const pr = (url) => once('pr:' + url, async () => { const r = await gh(url); return r.body ? { title: r.body.title, merged: r.body.merged, html: r.body.html_url, head: r.body.head?.ref || '' } : null })
+const pr = (url) => once('pr:' + url, async () => { const r = await gh(url); return r.body ? { title: r.body.title, merged: r.body.merged, html: r.body.html_url, head: r.body.head?.ref || '', author: r.body.user?.login || '', authorAvatar: r.body.user?.avatar_url || '' } : null })
 const prHtml = (apiUrl) => (apiUrl || '').replace('https://api.github.com/repos/', 'https://github.com/').replace('/pulls/', '/pull/')
 async function normalise(e) {
   // an event GitHub marks private: its repository went private (or always was), so whatever it showed leaves the page
   if (e.public === false) { const r = state.repos[e.repo?.name]; if (r && r.private !== true) { r.private = true; hlCache = null; console.log(`private now: ${r.name}`) } return null }
-  const actor = e.actor?.login || ''
+  let actor = e.actor?.login || '', avatar = e.actor?.avatar_url || ''
   const repo = e.repo?.name
   const p = e.payload || {}
   // automation stays as quiet sparks on the grid; it costs no extra lookups and never enters the feed
-  const bot = isNoiseActor(actor)
+  let bot = isNoiseActor(actor)
   let kind = null, title = '', url = `https://github.com/${repo}`, ref = '', commits = 0, agent = false
   switch (e.type) {
     case 'PushEvent': {
@@ -174,6 +203,11 @@ async function normalise(e) {
       if (!d) return null
       kind = a === 'merged' ? 'pr_merged' : a === 'closed' ? (d.merged ? 'pr_merged' : 'pr_closed') : 'pr_open'
       title = d.title; url = d.html
+      // a merged pull request is credited to its author, the one who did the work (decided 2026-11-18). When the author
+      // is a bot or an AI account the merge stays with whoever merged it
+      if (kind === 'pr_merged' && d.author && d.author.toLowerCase() !== actor.toLowerCase() && !isNoiseActor(d.author) && !isAutomaticAuthor(d.author) && !isAI(d.author)) {
+        actor = d.author; avatar = d.authorAvatar || ''; bot = false
+      }
       agent = kind === 'pr_open' && isAgentBranch(d.head) // proposed by an agent; merging or closing it is a person's call
       break
     }
@@ -209,7 +243,8 @@ async function normalise(e) {
   }
   const r = await ensureMeta(repo, e.type === 'PublicEvent')
   if (r.private !== false) return null
-  return { id: e.id, kind, repo, group: r.group, actor, avatar: e.actor?.avatar_url || '', title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: (bot || agent) && kind !== 'release', ...(agent ? { agent: true } : {}), ...(commits ? { commits } : {}) }
+  const ai = isAI(actor)
+  return { id: e.id, kind, repo, group: r.group, actor, avatar, title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: (bot || agent || ai) && kind !== 'release', ...(agent ? { agent: true } : {}), ...(ai ? { ai: true } : {}), ...(commits ? { commits } : {}) }
 }
 
 // ---------- intake ----------
@@ -657,6 +692,7 @@ async function discoverLoop() {
   for (;;) {
     if (Date.now() - (state.historyAt || 0) > DAY) { try { await refreshHistory(knownRepos()); state.historyAt = Date.now(); save() } catch (err) { console.warn('history', err.message) } }
     if (Date.now() - (state.onchainAt || 0) > DAY) { try { await refreshOnchain(knownRepos()); await followOnchain(); await findMoves([]); state.onchainAt = Date.now(); save() } catch (err) { console.warn('onchain', err.message) } }
+    if (Date.now() - (state.aiAt || 0) > DAY) { try { await aiScan(); state.aiAt = Date.now() } catch (err) { console.warn('ai scan', err.message) } }
     // fundedAt is not saved: a deploy that adds a project to FUNDED follows it at once
     if (Date.now() - (state.fundedAt || 0) > DAY) {
       try { await followFunded(); await refreshHistory(FUNDED.flatMap((f) => fundedRepos(f.follow))); state.fundedAt = Date.now(); save() } catch (err) { console.warn('funded', err.message) }
@@ -719,7 +755,8 @@ function announceNews() {
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
 
 // the pure rules, for the tests
-export { ckbContext, vetRepo, leaders, manifestOk, normalise, intake, newsWorthy }
+export { ckbContext, vetRepo, leaders, manifestOk, normalise, intake, newsWorthy, markAI, aiScan }
+export const invalidate = () => { hlCache = null }
 
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
 async function followOnchain() {
@@ -822,10 +859,13 @@ function leaders(ev, now) {
   const out = {}
   for (const [key, ms] of [['day', DAY], ['week', 7 * DAY], ['month', MONTH]]) {
     const from = new Date(now - ms).toISOString()
-    const m = { repos: new Map(), commits: new Map(), pushes: new Map(), people: new Map(), peopleCommits: new Map(), orgs: new Map() }
+    const m = { repos: new Map(), commits: new Map(), pushes: new Map(), people: new Map(), peopleCommits: new Map(), orgs: new Map(), reviewers: new Map(), merged: new Map(), ai: new Map() }
+    let aiUpdates = 0
     const add = (map, k, n = 1) => map.set(k, (map.get(k) || 0) + n)
     const avatar = new Map(), burst = new Map()
     for (const e of ev) {
+      // an AI account has its own list and does not enter the human ones
+      if (e.ai && e.at >= from && e.kind !== 'branch') { aiUpdates++; add(m.ai, e.actor); if (e.avatar) avatar.set(e.actor, e.avatar); continue }
       if (e.bot || e.at < from || e.kind === 'branch') continue
       // a burst must not win a medal: on 2026-10-03 an agent working as one person opened 62 branches and 43 pull
       // requests in two hours. Per person, per project and per hour at most 10 updates count; opening a branch never does
@@ -833,6 +873,8 @@ function leaders(ev, now) {
       burst.set(b, nb)
       if (nb > 10) continue
       add(m.repos, e.repo); add(m.people, e.actor)
+      if (e.kind === 'review') add(m.reviewers, e.actor)
+      if (e.kind === 'pr_merged') add(m.merged, e.actor)
       if (e.avatar) avatar.set(e.actor, e.avatar)
       if (e.kind === 'push') { add(m.pushes, e.repo); add(m.commits, e.repo, e.commits || 1); add(m.peopleCommits, e.actor, e.commits || 1) }
       const g = state.repos[e.repo]?.group
@@ -846,9 +888,10 @@ function leaders(ev, now) {
     const who = new Set(), where = new Set()
     for (const e of ev) { if (e.bot || e.at < from) continue; updates++; who.add(e.actor); where.add(e.repo); const i = Math.floor((Date.parse(e.at) - (now - ms)) / slot); if (i >= 0 && i < slots) bars[i]++ }
     out[key] = {
-      stats: { updates, people: who.size, projects: where.size }, bars,
+      stats: { updates, people: who.size, projects: where.size, ai: aiUpdates }, bars,
       repos: top(m.repos), commits: top(m.commits), pushes: top(m.pushes), orgs: top(m.orgs),
       people: top(m.people).map(([l, n]) => [l, n, avatar.get(l) || '']), peopleCommits: top(m.peopleCommits).map(([l, n]) => [l, n, avatar.get(l) || '']),
+      reviewers: top(m.reviewers).map(([l, n]) => [l, n, avatar.get(l) || '']), merged: top(m.merged).map(([l, n]) => [l, n, avatar.get(l) || '']), ai: top(m.ai).map(([l, n]) => [l, n, avatar.get(l) || '']),
     }
   }
   return out
@@ -940,7 +983,7 @@ function compactHistory(list, repos) {
   const actors = [], actorIdx = new Map()
   const rows = []
   for (const e of list) {
-    if (!actorIdx.has(e.actor)) { actorIdx.set(e.actor, actors.length); actors.push([e.actor, e.avatar || '']) }
+    if (!actorIdx.has(e.actor)) { actorIdx.set(e.actor, actors.length); actors.push([e.actor, e.avatar || '', isAI(e.actor) ? 'ai' : isOperator(e.actor) ? 'op' : '']) }
     else if (e.avatar && !actors[actorIdx.get(e.actor)][1]) actors[actorIdx.get(e.actor)][1] = e.avatar
     rows.push([Math.floor(Date.parse(e.at) / 1000), KIND_LIST.indexOf(e.kind), repoIdx.has(e.repo) ? repoIdx.get(e.repo) : -1, actorIdx.get(e.actor), e.bot ? 1 : 0, e.bot ? '' : (e.title || '').slice(0, 80), e.commits || 0])
   }

@@ -158,3 +158,9 @@ test('new_builders lists arrivals, alphabetical, with links', async () => {
   assert.deepEqual((await tool('new_builders', { days: 7 })).people.map((p) => p.login), ['bob'])
   assert.equal((await tool('new_builders', { days: 9999 })).days, 60)
 })
+
+test('overview carries reviewers, accepted pull requests and the AI accounts apart', async () => {
+  const o = await tool('overview', {})
+  assert.ok(Array.isArray(o.reviewers) && Array.isArray(o.pullRequestsAccepted) && Array.isArray(o.aiAccounts))
+  assert.ok(o.reviewers.some((r) => r.login === 'alice' && r.reviews === 1))
+})

@@ -93,3 +93,12 @@ test('the monthly digest lists who joined, in order, with a note that it is not 
   assert.match(html, /not a ranking/)
   assert.doesNotMatch(digestPage({ period: 'month', lang: 'en', leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' }), /Joined this month/)
 })
+
+test('the digest lists reviewers, accepted pull requests and the AI accounts apart, with the mark', () => {
+  const lead = { ...leaders, week: { ...leaders.week, reviewers: [['carol', 9]], merged: [['bob', 4]], ai: [['Hanssen0-Alter-Ego', 105, '']] } }
+  const html = digestPage({ period: 'week', lang: 'en', leaders: lead, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' })
+  assert.match(html, /Most reviews/); assert.match(html, /person=carol/)
+  assert.match(html, /Most pull requests accepted/); assert.match(html, /person=bob/)
+  assert.match(html, /AI accounts<\/h2>[\s\S]*Hanssen0-Alter-Ego<\/a> <em class="tag">AI<\/em>/)
+  assert.doesNotMatch(digestPage({ period: 'week', lang: 'en', leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' }), /AI accounts/)
+})

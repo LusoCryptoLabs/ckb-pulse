@@ -33,8 +33,9 @@ export function repoBadge(week, lang) {
   return badgeSvg('CKB Pulse', t('bd.week', { updates: t.cnt('upd', week.updates), people: t.cnt('ppl', week.people) }))
 }
 // a person: updates and projects in 7 days
-export function personBadge(p, lang) {
+export function personBadge(p, lang, ai = false) {
   const t = words(lang)
+  if (ai) return badgeSvg('CKB Pulse', t('bd.ai'), { lit: false }) // an AI account: its own category, not a person
   if (!p) return badgeSvg('CKB Pulse', t('bd.none'), { lit: false })
   if (!p.updates) return badgeSvg('CKB Pulse', t('bd.quiet'), { lit: false })
   return badgeSvg('CKB Pulse', t('bd.person', { updates: t.cnt('upd', p.updates), projects: t.cnt('prj', p.projects.length) }))
