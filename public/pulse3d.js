@@ -490,7 +490,7 @@ if (MOBILE) {
 
 // the most active projects, people and organisations of the last day, week and month, from the server
 // reviewers and merged are the work-type medals next to the volume ones (2026-11-18); ai is the list of accounts that declare themselves AI
-const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['people', 'person'], ['peopleCommits', 'person'], ['reviewers', 'person'], ['merged', 'person'], ['orgs', 'org'], ['ai', 'person']]
+const HL_CATS = [['repos', 'repo'], ['commits', 'repo'], ['pushes', 'repo'], ['people', 'person'], ['peopleCommits', 'person'], ['reviewers', 'person'], ['merged', 'person'], ['orgs', 'org'], ['operators', 'person'], ['ai', 'person']]
 // the mark an account carries: IA for an AI account, Operator for the people behind Pulse
 const tagOf = (flag) => (flag === 'ai' ? `<em class="tag tag-ai" title="${esc(t('ai.note'))}">${esc(t('tag.ai'))}</em>` : flag === 'op' ? `<em class="tag tag-op" title="${esc(t('op.note'))}">${esc(t('tag.op'))}</em>` : '')
 const flagOfLogin = (login) => actors[actorIdx.get(login)]?.[2] || ''
@@ -507,11 +507,11 @@ function renderHighlights() {
       const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
       const said = (label) => `aria-label="${esc(`${i + 1}. ${label}: ${n}`)}"`
       if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" style="background:${kcol(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
-      if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}${tagOf(cat === 'ai' ? 'ai' : flagOfLogin(name))}</span><b>${n}</b></button></li>`
+      if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}${tagOf(cat === 'ai' ? 'ai' : cat === 'operators' ? 'op' : flagOfLogin(name))}</span><b>${n}</b></button></li>`
       return `<li><button type="button" class="row" data-group="${esc(name)}" ${said(gname(name))}>${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></button></li>`
     }).join('')
-    if (cat === 'ai' && !items) return ''
-    return `<h3>${esc(t('h.' + cat))}</h3>${cat === 'ai' ? `<p class="hint">${esc(t('ai.note'))}</p>` : ''}<ol class="hl">${items || `<li class="none">${esc(t('h.empty'))}</li>`}</ol>`
+    if ((cat === 'ai' || cat === 'operators') && !items) return ''
+    return `<h3>${esc(t('h.' + cat))}</h3>${cat === 'ai' ? `<p class="hint">${esc(t('ai.note'))}</p>` : cat === 'operators' ? `<p class="hint">${esc(t('op.list'))}</p>` : ''}<ol class="hl">${items || `<li class="none">${esc(t('h.empty'))}</li>`}</ol>`
   }).join('')
 }
 $('hl-period').addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (b) { hlPeriod = b.dataset.h; renderHighlights() } })

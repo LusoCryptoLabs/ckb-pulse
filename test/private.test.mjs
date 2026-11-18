@@ -13,10 +13,10 @@ test('a private event hides the repository', async () => {
   const name = 'LusoCryptoLabs/video-use', at = new Date(Date.now() - 3600e3).toISOString()
   state.repos[name] = { name, owner: 'LusoCryptoLabs', group: 'LusoCryptoLabs', desc: '', topics: [], private: false, ownerType: 'User', metaAt: Date.now() }
   state.orgRepos = [name]
-  state.events.push({ id: '1', at, kind: 'push', repo: name, actor: 'LusoCryptoLabs', avatar: '', title: 'Render', url: '', ref: 'ccr-7a43f8d5-6t5wrf', commits: 1, bot: false, tags: [] })
+  state.events.push({ id: '1', at, kind: 'push', repo: name, actor: 'alice', avatar: '', title: 'Render', url: '', ref: 'ccr-7a43f8d5-6t5wrf', commits: 1, bot: false, tags: [] })
   assert.ok(snapshot().repos.some((r) => r.name === name))
   assert.equal(highlightsNow().day.repos[0]?.[0], name)
-  assert.equal(await normalise({ id: '2', type: 'PushEvent', public: false, repo: { name }, actor: { login: 'LusoCryptoLabs' }, payload: {}, created_at: at }), null)
+  assert.equal(await normalise({ id: '2', type: 'PushEvent', public: false, repo: { name }, actor: { login: 'alice' }, payload: {}, created_at: at }), null)
   assert.equal(state.repos[name].private, true)
   const s = snapshot()
   assert.ok(!s.repos.some((r) => r.name === name))

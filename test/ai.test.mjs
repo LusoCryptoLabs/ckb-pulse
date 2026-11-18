@@ -77,3 +77,12 @@ test('marks are dated facts: reviews and accepted pull requests in 30 days, no l
   assert.deepEqual(pulse.personMarks('carol').marks.find((x) => x.id === 'reviewer'), { id: 'reviewer', n: 5 })
   assert.deepEqual(pulse.personMarks('Hanssen0-Alter-Ego'), { login: 'Hanssen0-Alter-Ego', ai: true, marks: [] })
 })
+
+test('the people who make Pulse are in the totals and a list of their own, never ranked', () => {
+  pulse.invalidate()
+  const w = pulse.highlightsNow().week
+  assert.ok(!w.people.some(([l]) => l.toLowerCase() === 'lusocryptolabs'))
+  assert.ok(!w.repos.some(([r]) => r.startsWith('lusocryptolabs/')))
+  assert.deepEqual(w.operators.map(([l, c]) => [l, c]), [['lusocryptolabs', 1]])
+  assert.ok(w.stats.updates >= 1 + w.people.reduce((s, [, c]) => s + c, 0) - 1) // their update is part of the totals
+})
