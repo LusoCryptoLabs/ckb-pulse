@@ -9,7 +9,7 @@ import { FIBER_PAUSED, today } from './public/menu.js'
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const install = (base) => `claude mcp add --transport http ckb-pulse ${base}/mcp`
 const API = [
-  ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'],
+  ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'], ['/api/impact?lib=ccc', 'use.api.impact'],
   ...(FIBER_PAUSED ? [] : [['/api/fiber?net=mainnet|testnet', 'use.api.fiber']]), ['/api/stream', 'use.api.stream'],
 ]
 
@@ -29,6 +29,7 @@ export function usePage({ lang, base, url, img = '' }) {
     ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/?${L}`, 'use.watch.a'], [`${base}/?screen=1&${L}`, 'use.watch.screen', 1]])}`],
     ['follow', `<p>${esc(t('use.follow.p'))}</p>${go([[`${base}/digest?p=week&${L}`, 'use.follow.digest'], [`${base}/?tab=new&${L}`, 'use.follow.notify', 1], [`${base}/feed.xml?${L}`, 'use.follow.feed', 1]])}`],
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
+    ['impact', `<p>${esc(t('use.impact.p'))}</p>${go([[`${base}/impact?${L}`, 'use.impact.a']])}`],
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
     ...(FIBER_PAUSED ? [] : [['fiber', `<p>${esc(t('use.fiber.p'))}</p>${go([[`${base}/fiber`, 'use.fiber.a']])}`]]),
     ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul>`],
@@ -39,7 +40,7 @@ export function usePage({ lang, base, url, img = '' }) {
   ]
   // what is for anyone first, what is for people who write code after: the page used to run them together
   const have = new Set(parts.map(([id]) => id))
-  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'data', 'ai']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
+  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'impact', 'data', 'ai']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
   const byId = new Map(parts)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
@@ -70,13 +71,15 @@ ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n
 - [Live page](${base}/): projects, people and updates as they happen; ?repo=owner/repo and ?person=login open one
 - [Digest](${base}/digest?p=week): the highlights of a day, week or month (p=day|week|month)
 ${FIBER_PAUSED ? '' : `- [Fiber map](${base}/fiber): Fiber nodes and public channels on mainnet and testnet
-`}- [What you can do](${base}/use): every feature, for people
+`}- [Who builds on what](${base}/impact?lib=ccc): which of the projects Pulse follows use CCC, Lumos, Spore SDK or ckb-std (lib=ccc|lumos|spore|ckb-std)
+- [What you can do](${base}/use): every feature, for people
 - [How Pulse counts](${base}/method): what an update is, the caps, what is left out
 
 ## JSON API
 
 - [State](${base}/api/state): repositories, highlights and 7 days of history (send If-None-Match)
 - ${base}/api/repo?name=owner/repo: one repository over 30 days
+- ${base}/api/impact?lib=ccc: the projects that use a library, with their last activity
 ${FIBER_PAUSED ? '' : `- ${base}/api/fiber?net=mainnet|testnet: the Fiber map
 `}- ${base}/api/stream${FIBER_PAUSED ? '' : ` and ${base}/api/fiber/stream`}: Server-Sent Events
 - [Feed](${base}/feed.xml): Atom
