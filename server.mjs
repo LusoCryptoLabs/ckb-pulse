@@ -178,7 +178,7 @@ function readJson(req, max, done) {
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
 const fundedNow = () => ({ readAt: fundedRead() ? new Date(fundedRead()).toISOString() : null, grants: FUNDED.map((f) => grantView(f, { repos: fundedRepos(f.follow), rows: repoRows, events: peopleEvents() })) })
-const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, funded: fundedNow, trends: () => trends(knownRepos()) })
+const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, funded: fundedNow, trends: () => trends(knownRepos()), arrivals })
 
 function handle(req, res) {
   let url

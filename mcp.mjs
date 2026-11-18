@@ -8,6 +8,7 @@ const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
 const AREAS = Object.keys(TAGS)
 const ABOUT = 'From public GitHub activity in the CKB projects CKB Pulse follows, over the last 30 days; bots and AI agents left out. GitHub data, not on-chain data.'
 const INSTRUCTIONS = `CKB Pulse watches who builds on Nervos CKB, live, from GitHub. ${ABOUT} Start with overview, then find_projects, project, person and who_works_on. Areas are ${AREAS.join(', ')}.`
+const SORTS = ['updates', 'commits', 'people', 'stars', 'recent']
 const REPO = /^[\w.-]{1,100}\/[\w.-]{1,100}$/, LOGIN = /^[A-Za-z0-9-]{1,39}$/
 const MAX_BODY = 65536, MAX_BATCH = 20
 
@@ -23,8 +24,16 @@ const text = (v, name, max = 200) => {
 const repoArg = (v) => { const s = text(v, 'name'); if (!REPO.test(s)) throw told('name must be a GitHub repository as owner/repo'); return s }
 const loginArg = (v) => { const s = text(v, 'login', 39); if (!LOGIN.test(s)) throw told('login must be a GitHub login'); return s }
 const areaArg = (v) => { const s = text(v, 'area', 20); if (s && !AREAS.includes(s)) throw told(`area must be one of ${AREAS.join(', ')}`); return s }
-// every word of the query in the project's name, description or topics
-const matches = (p, query) => { const hay = `${p.name} ${p.desc} ${p.topics.join(' ')}`.toLowerCase(); return query.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w)) }
+// every word of the query in the project's name, description or topics. Words are letters and digits, so "lock-script"
+// and "lock script" are the same; a plural finds the singular ("wallets" finds a wallet); "a OR b" takes either
+const words = (s) => (String(s).toLowerCase().match(/[\p{L}\p{N}+#]+/gu) || [])
+const stem = (w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)
+const matches = (p, query) => {
+  const hay = words(`${p.name} ${p.desc} ${p.topics.join(' ')}`).map(stem).join(' ')
+  const has = (w) => hay.includes(stem(w))
+  const groups = query.split(/\s+or\s+/i).map(words).filter((g) => g.length)
+  return groups.some((g) => g.every(has))
+}
 const pick = (projects, { area, query }) => projects.filter((p) => (!area || p.tags.includes(area)) && (!query || matches(p, query)))
 const links = (base) => ({ project: (name) => `${base}/?repo=${encodeURIComponent(name)}`, person: (login) => `${base}/?person=${encodeURIComponent(login)}` })
 
@@ -50,13 +59,16 @@ const TOOLS = [
     name: 'find_projects',
     title: 'Find CKB projects',
     description: `Search the projects Pulse follows by words in their name, description or topics, by area (${AREAS.join(', ')}), or both; the most active first. Counts every update, with no cap on bursts, so numbers can be higher than on the page and in overview.`,
-    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words to look for, e.g. "wallet" or "lock script"' }, area: { type: 'string', enum: AREAS }, limit: { type: 'integer', minimum: 1, maximum: 50, description: 'at most this many, 15 by default' } } },
+    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words to look for, e.g. "wallet" or "lock script"; all words must match, "a OR b" takes either; plurals and hyphens do not matter' }, area: { type: 'string', enum: AREAS }, sort: { type: 'string', enum: SORTS, description: 'updates (the default), commits, people, stars or recent (latest update first)' }, limit: { type: 'integer', minimum: 1, maximum: 50, description: 'at most this many, 15 by default' }, offset: { type: 'integer', minimum: 0, description: 'skip this many, to read the next page' } } },
     run: (a, { api, link }) => {
-      const query = text(a.query, 'query'), area = areaArg(a.area), limit = int(a.limit, 1, 50, 15)
-      const found = pick(api.projects(), { area, query }).sort((x, y) => y.updates - x.updates || y.stars - x.stars || x.name.localeCompare(y.name))
+      const query = text(a.query, 'query'), area = areaArg(a.area), limit = int(a.limit, 1, 50, 15), offset = int(a.offset, 0, 100000, 0)
+      const sort = a.sort === undefined ? 'updates' : a.sort
+      if (!SORTS.includes(sort)) throw told(`sort must be one of ${SORTS.join(', ')}`)
+      const by = { updates: (x) => x.updates, commits: (x) => x.commits, people: (x) => x.people, stars: (x) => x.stars, recent: (x) => Date.parse(x.lastAt || 0) || 0 }[sort]
+      const found = pick(api.projects(), { area, query }).sort((x, y) => by(y) - by(x) || y.updates - x.updates || y.stars - x.stars || x.name.localeCompare(y.name))
       return {
-        about: ABOUT, query, area, found: found.length,
-        projects: found.slice(0, limit).map((p) => ({ name: p.name, desc: p.desc, lang: p.lang, stars: p.stars, areas: p.tags, updates: p.updates, commits: p.commits, people: p.people, lastAt: p.lastAt, github: `https://github.com/${p.name}`, pulse: link.project(p.name) })),
+        about: ABOUT, query, area, sort, found: found.length, offset, ...(offset + limit < found.length ? { nextOffset: offset + limit } : {}),
+        projects: found.slice(offset, offset + limit).map((p) => ({ name: p.name, desc: p.desc, lang: p.lang, stars: p.stars, areas: p.tags, updates: p.updates, commits: p.commits, people: p.people, lastAt: p.lastAt, github: `https://github.com/${p.name}`, pulse: link.project(p.name) })),
       }
     },
   },
@@ -116,6 +128,16 @@ const TOOLS = [
         about: 'Code activity from GitHub; reports and milestones from the grant threads on Nervos Talk.', readAt: f.readAt,
         grants: f.grants.map((g) => ({ name: g.name, grant: g.grant, since: g.since, status: g.status, repos: g.repos, commits: g.commits, people: g.people, lastWork: g.lastWork, lastReport: g.lastReport, reports: g.updates, milestones: g.milestones, delivered: g.delivered, thread: `https://talk.nervos.org/t/${g.topic}` })),
       }
+    },
+  },
+  {
+    name: 'new_builders',
+    title: 'Who joined recently',
+    description: 'People whose first commit in a project Pulse follows is from the last days (30 by default), in alphabetical order. This is a list of arrivals, not a ranking. From GitHub statistics, so someone new to GitHub and someone new to these projects look the same.',
+    inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 7, maximum: 60, description: 'how far back, 30 by default' } } },
+    run: (a, { api, link }) => {
+      const days = int(a.days, 7, 60, 30), logins = api.arrivals ? api.arrivals(days) : []
+      return { about: 'First commit in a project Pulse follows, from GitHub statistics; alphabetical, not a ranking.', days, count: logins.length, people: logins.map((login) => ({ login, pulse: link.person(login) })) }
     },
   },
   {
