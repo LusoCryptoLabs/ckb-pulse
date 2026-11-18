@@ -3,7 +3,7 @@
 // Data: /api/state (7 days of compact history, highlights, groups), /api/stream (live), /api/repo (one project).
 // three.js comes only when the scene is first shown (loadScene): the bars, what a phone shows, never need its 370 kB
 import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
-import { menuHtml, viewsHtml } from './menu.js'
+import { menuHtml, viewsHtml, shareTargets } from './menu.js'
 
 const DAY = 864e5
 const IDLE_MS = 15000
@@ -598,15 +598,13 @@ function openShare(anchor, { params, image, title }) {
   if (shareMenu && shareMenu.previousElementSibling === anchor) { closeShare(); return }
   closeShare()
   // the day in the link: X and Telegram keep a preview per address, so each day's share is fetched afresh
-  const url = withParams(location.pathname, { ...params, d: new Date().toISOString().slice(0, 10) }), img = withParams(image, {}), enc = encodeURIComponent
+  const url = withParams(location.pathname, { ...params, d: new Date().toISOString().slice(0, 10) }), img = withParams(image, {})
   const m = document.createElement('div')
   m.className = 'share-menu'
-  m.innerHTML = (navigator.share ? `<button type="button" data-act="native" data-count="share_native">${esc(t('sh.native'))}</button>` : '') +
-    `<button type="button" data-act="copy" data-count="share_copy">${esc(t('sh.copy'))}</button>` +
-    `<a data-count="share_x" href="https://x.com/intent/post?text=${enc(title)}&url=${enc(url)}" target="_blank" rel="noopener">X</a>` +
-    `<a data-count="share_telegram" href="https://t.me/share/url?url=${enc(url)}&text=${enc(title)}" target="_blank" rel="noopener">Telegram</a>` +
-    `<a data-count="share_whatsapp" href="https://wa.me/?text=${enc(`${title} ${url}`)}" target="_blank" rel="noopener">WhatsApp</a>` +
-    `<a data-count="share_image" href="${esc(img)}" download="ckb-pulse.png">${esc(t('sh.image'))}</a>`
+  // the same targets as the plain pages; the picture downloads here and opens in a tab there
+  m.innerHTML = shareTargets(t, { url, title, image: img, native: !!navigator.share }).map((x) => x.key === 'native' || x.key === 'copy'
+    ? `<button type="button" data-act="${x.key}" data-count="${x.count}">${esc(x.label)}</button>`
+    : `<a data-count="${x.count}" href="${esc(x.href)}" ${x.key === 'image' ? 'download="ckb-pulse.png"' : 'target="_blank" rel="noopener"'}>${esc(x.label)}</a>`).join('')
   anchor.after(m)
   // in a phone's half-open sheet the menu started below its edge: only "Copy link" and "X" showed (2026-11-01)
   requestAnimationFrame(() => m.scrollIntoView({ block: 'nearest' }))

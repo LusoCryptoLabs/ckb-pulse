@@ -4,7 +4,7 @@
 import { words } from './cards.mjs'
 import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
-import { FIBER_PAUSED } from './public/menu.js'
+import { FIBER_PAUSED, today } from './public/menu.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const install = (base) => `claude mcp add --transport http ckb-pulse ${base}/mcp`
@@ -40,7 +40,7 @@ export function usePage({ lang, base, url, img = '' }) {
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 <link rel="icon" href="${esc(base)}/icon-192.png"><link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
-${pageBar(t, { base, lang, current: '', here: '/use' })}
+${pageBar(t, { base, lang, current: '', here: '/use', share: { url: `${url}?lang=${lang}&d=${today()}`, title, image: img || undefined } })}
 ${pageHead({ eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}
 <nav class="jump">${parts.map(([id]) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</nav>
 ${parts.map(([id, body]) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${body}</section>`).join('\n')}

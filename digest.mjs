@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
-import { barHtml, shareHtml, today } from './public/menu.js'
+import { barHtml, today } from './public/menu.js'
 import { withStamp } from './og.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -129,9 +129,9 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
-${pageBar(t, { base, lang, current: 'digest', here: fixed ? `/digest/${fixed.label}` : `/digest?p=${period}` })}
+${pageBar(t, { base, lang, current: 'digest', here: fixed ? `/digest/${fixed.label}` : `/digest?p=${period}`, share: { url: `${q(period, lang)}&d=${today()}`, title, image: img } })}
 ${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a>` })}
-<nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}${shareHtml(t, { url: `${q(period, lang)}&d=${today()}`, title, image: img })}</nav>
+<nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
 <p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : ''}
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
 ${L.bars.length ? `<div class="bars" role="img" aria-label="${esc(t('h.note'))}">` : '<div hidden>'}${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>
