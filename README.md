@@ -17,7 +17,7 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 
 ## Pages
 
-`/` the live page, `/fiber`, `/funded`, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp` and `/llms.txt`. Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
+`/` the live page, `/fiber`, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp` and `/llms.txt`. Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
 
 ## Test
 
@@ -83,10 +83,6 @@ Badges are the last 7 days as a small SVG for a README or a site, grey when quie
 
 Each project's and person's card on the page shows its badge with the markdown to copy.
 
-## Funded projects
-
-`/funded` shows the projects the CKB Community Fund DAO pays for (`FUNDED` in `config.mjs`): commits per week on each repository's main branch since the vote, from GitHub's statistics, next to the team's own posts in the proposal's thread on Nervos Talk, read once a day into `DATA_DIR/funded.json`. A post counts as a milestone report or a completion report by its first words. A grant is quiet after 30 days with no work on GitHub and no report, until its completion report. `/api/funded` gives the same as JSON.
-
 ## The scene
 
 The independent builders, the largest cluster, sit by language: each language with four or more repositories gets its own small grid with a label, the rest share one. On a first visit the camera flies to the project and the person of the week before settling; any touch ends the flight.
@@ -99,15 +95,15 @@ In the scene, a phone frames it into whatever the panels leave free, and the pan
 
 ## Look
 
-Every page shares `public/theme.css`, the look of the Cellula pages: Space Grotesk for words and JetBrains Mono for numbers and small labels, lime on a warm black. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/funded`, `/digest`, `/use`) open with a small label, a large title with its key words lit, and one line under it.
+Every page shares `public/theme.css`, the look of the Cellula pages: Space Grotesk for words and JetBrains Mono for numbers and small labels, lime on a warm black. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/digest`, `/use`) open with a small label, a large title with its key words lit, and one line under it.
 
 ## Menu
 
-Every page (the live page, `/fiber`, `/funded`, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, Fiber, funded, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. On wide screens the three views (live, Fiber, funded) also sit side by side next to the name. Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
+Every page (the live page, `/fiber`, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, Fiber, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. On wide screens the two views (live, Fiber) also sit side by side next to the name. Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
 
 ## Share
 
-A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. So do `/funded` (all grants, or one with `?g=<topic>`), `/fiber?net=mainnet|testnet` (the real graph) and `/use`, and a project created in the last 14 days carries a "new on CKB" ribbon. Each picture's address carries a stamp of what it draws (`v=`) and each shared link the day (`d=`), since X and Telegram keep a preview per address; a funded project's picture names its state only when it is in progress or delivered. The cards use the pages' fonts, from `fonts/`. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
+A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. So do `/fiber?net=mainnet|testnet` (the real graph) and `/use`, and a project created in the last 14 days carries a "new on CKB" ribbon. Each picture's address carries a stamp of what it draws (`v=`) and each shared link the day (`d=`), since X and Telegram keep a preview per address; a funded project's picture names its state only when it is in progress or delivered. The cards use the pages' fonts, from `fonts/`. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
 
 ## API
 
@@ -146,7 +142,6 @@ Its tools only read what Pulse already stores (no GitHub call), people only, ove
 - `person`: one person's projects, the areas and languages of those projects, and the kinds of updates they make
 - `who_works_on`: the people most active in an area or in the projects that match some words
 - `recent_updates`: the latest updates, everywhere, in one project or by one person
-- `dao_funded`: the Community Fund DAO grants, code next to reports
 - `trends`: developers, new developers and commits per month
 
 ## Another ecosystem

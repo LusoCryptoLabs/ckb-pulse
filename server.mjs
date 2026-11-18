@@ -5,15 +5,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, fundedRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
+import { start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows, arrivals } from './history.mjs'
-import { loadFunded, startFunded, grantView, fundedPage, fundedRead } from './funded.mjs'
-import { FUNDED } from './config.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders } from './digest.mjs'
 import { limits } from './github.mjs'
-import { highlightsCard, repoCard, personCard, fundedCard, fundedPageCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
+import { highlightsCard, repoCard, personCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { etag, notModified, shared } from './cache.mjs'
@@ -74,7 +72,7 @@ async function card(key, make) {
 }
 // what the /use card draws: the tools, how many projects Pulse follows, the last 30 days
 const useFacts = () => ({ tools: TOOL_INFO.map((x) => x.name), repos: knownRepos().length, month: highlightsNow().month.stats })
-// preview tags for a page whose picture is drawn here (/fiber, /funded, /use)
+// preview tags for a page whose picture is drawn here (/fiber, /use)
 const previewTags = ({ title, desc, img, url }) => [['og:type', 'website'], ['og:site_name', 'CKB Pulse'], ['og:title', title], ['og:description', desc], ['og:image', img], ['og:image:width', '1200'], ['og:image:height', '630'], ['og:url', url]]
   .map(([k, v]) => `<meta property="${k}" content="${attr(v)}">`).join('\n') + `\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="${attr(title)}">\n<meta name="twitter:description" content="${attr(desc)}">\n<meta name="twitter:image" content="${attr(img)}">`
 // the page, with link-preview tags for what is shared: a period's highlights, a project or a person
@@ -105,11 +103,6 @@ async function shareCard(req, res, url) {
   if (url.pathname === '/og/digest.png') { const w = weekByLabel(q.get('w') || ''); if (w) png = await card(`dg|${q.get('w')}|${lang}|${host}`, () => highlightsCard({ leaders: weekLeaders(w), period: 'week', lang, host, groupOf })) }
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}|${q.get('v') || ''}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
-  // the cards added on 2026-11-02: a funded project or the funded page, the Fiber network, /use
-  if (url.pathname === '/og/funded.png') {
-    const { grants } = fundedNow(), g = grants.find((x) => String(x.topic) === q.get('topic'))
-    png = await card(`f|${g?.topic || 'all'}|${lang}|${host}|${q.get('v') || ''}`, () => (g ? fundedCard({ g, lang, host }) : fundedPageCard({ grants, lang, host })))
-  }
   if (url.pathname === '/og/fiber.png') { const d = fiberState(q.get('net') === 'testnet' ? 'testnet' : 'mainnet'); if (d) png = await card(`fb|${d.net}|${lang}|${host}|${q.get('v') || ''}`, () => fiberCard({ d, lang, host })) }
   if (url.pathname === '/og/use.png') png = await card(`u|${lang}|${host}|${q.get('v') || ''}`, () => useCard({ ...useFacts(), lang, host }))
   if (!png) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
@@ -161,10 +154,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(path.dirname(ROOT), 'data')
 initPush(DATA_DIR)
 initVisits(DATA_DIR)
 loadDigests(DATA_DIR)
-loadFunded(DATA_DIR)
 // PULSE_OFFLINE=1 serves what is on disk and polls nothing (the HTTP tests)
 const OFFLINE = process.env.PULSE_OFFLINE === '1'
-if (!OFFLINE) startFunded({ reposOf: (f) => fundedRepos(f.follow) })
 if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#07090a"/><rect x="2" y="2" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/><rect x="8.5" y="2" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="2" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#37401f"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.4" fill="#cbf34d"/></svg>'
@@ -177,8 +168,7 @@ function readJson(req, max, done) {
 }
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
-const fundedNow = () => ({ readAt: fundedRead() ? new Date(fundedRead()).toISOString() : null, grants: FUNDED.map((f) => grantView(f, { repos: fundedRepos(f.follow), rows: repoRows, events: peopleEvents() })) })
-const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, funded: fundedNow, trends: () => trends(knownRepos()), arrivals })
+const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals })
 
 function handle(req, res) {
   let url
@@ -206,13 +196,9 @@ function handle(req, res) {
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
   }
-  // the grants the Community Fund DAO pays for: their code next to their reports, as a page and as JSON
-  if (url.pathname === '/funded' || url.pathname === '/api/funded') {
-    const { readAt, grants } = fundedNow()
-    if (url.pathname === '/api/funded') return sendJson(req, res, { readAt, grants })
-    hit('funded', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, fundedPage({ lang: langOf(url.searchParams, req), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead(), g: url.searchParams.get('g') }))
-  }
+  // the page of the DAO grants was taken out on 2026-11-18: old links go to the live page, the JSON is gone
+  if (url.pathname === '/funded') { res.writeHead(301, { location: '/', 'cache-control': 'public, max-age=3600' }); return res.end() }
+  if (url.pathname === '/api/funded') { res.writeHead(410, { 'content-type': 'application/json' }); return res.end('{"error":"removed"}') }
   // everything Pulse does, for people and for AI agents
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])

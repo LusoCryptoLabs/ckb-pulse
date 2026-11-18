@@ -5,7 +5,7 @@ import { words } from './cards.mjs'
 import { CSS, maker, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-const PARTS = ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'funded', 'limits']
+const PARTS = ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'limits']
 const PAGE_CSS = `section.me{background:#14120e;border:1px solid #36322a;border-radius:20px;padding:14px 18px;margin:14px 0}section.me h2{margin:0 0 4px;font:600 19px var(--font-ui,sans-serif);letter-spacing:-.01em;color:#f0ece2;text-transform:none}section.me p{margin:6px 0}
 .go{display:flex;gap:8px;margin:12px 0 2px}.go a{display:inline-block;padding:7px 14px;border-radius:999px;background:#cbf34d;color:#1a2208;font-weight:700;text-decoration:none;font-size:14px}`
 

@@ -23,7 +23,6 @@
 .pm-tile b { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pm-live { background: var(--pm-lime); color: var(--pm-ink); }
 .pm-fiber, .pm-ai { background: rgba(98, 201, 245, 0.16); color: #62c9f5; }
-.pm-funded { background: rgba(245, 177, 76, 0.16); color: #f5b14c; }
 .pm-notices { background: rgba(255, 95, 143, 0.16); color: #ff7fa6; }
 .pm-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; border-top: 1px solid var(--pm-soft); margin-top: 2px; padding: 9px 8px 3px; font-size: 12.5px; }
 .pm-foot a { color: var(--pm-fg); text-decoration: none; }

@@ -29,7 +29,6 @@ ev('ckb-devrel/ccc', 'erin', 4.5) // a commit read late: stored after newer upda
 const mcp = makeMcp({
   highlights: pulse.highlightsNow, news: pulse.news, projects: pulse.projectsNow, project: pulse.repoDetail, person: pulse.personProfile,
   peopleIn: pulse.peopleIn, updates: pulse.latestUpdates,
-  funded: () => ({ readAt: null, grants: [{ topic: 9845, name: 'Fiber Link', grant: '$20,000', since: '2026-02-07', status: 'progress', repos: [], commits: 4, people: 2, lastWork: null, lastReport: null, updates: 3, milestones: [], delivered: null, bars: [1, 2] }] }),
   arrivals: (days) => (days === 30 ? ['alice', 'bob'] : ['bob']),
   trends: () => ({ repos: 3, of: 3, months: [{ month: '2026-10', devs: 4, newDevs: 1, commits: 9 }] }),
 })
@@ -67,7 +66,7 @@ test('a batch answers its requests only, and refuses more than 20 messages', asy
 
 test('tools/list: every tool has a schema and says it only reads', async () => {
   const { tools } = (await rpc('tools/list')).json.result
-  assert.deepEqual(tools.map((t) => t.name), ['overview', 'find_projects', 'project', 'person', 'who_works_on', 'recent_updates', 'dao_funded', 'new_builders', 'trends'])
+  assert.deepEqual(tools.map((t) => t.name), ['overview', 'find_projects', 'project', 'person', 'who_works_on', 'recent_updates', 'new_builders', 'trends'])
   for (const t of tools) { assert.equal(t.inputSchema.type, 'object'); assert.equal(t.annotations.readOnlyHint, true); assert.equal(t.run, undefined) }
 })
 
@@ -119,7 +118,7 @@ test('recent_updates: newest first, filtered by project or person, no bots', asy
   assert.equal((await tool('recent_updates', { limit: 2 })).updates.length, 2)
 })
 
-test('project, overview, dao_funded and trends answer from the server readers', async () => {
+test('project, overview and trends answer from the server readers', async () => {
   const d = await tool('project', { name: 'NervosNetwork/Fiber' })
   assert.equal(d.name, 'nervosnetwork/fiber')
   assert.ok(d.events.length <= 15 && d.events.every((e) => !('avatar' in e)))
@@ -128,9 +127,6 @@ test('project, overview, dao_funded and trends answer from the server readers', 
   assert.equal(o.updates, 7)
   assert.equal(o.projects, 3) // the count, not overwritten by the list
   assert.deepEqual(o.topProjects.slice(0, 2).map((p) => [p.name, p.updates]), [['ckb-devrel/ccc', 3], ['nervosnetwork/fiber', 3]])
-  const f = await tool('dao_funded', {})
-  assert.equal(f.grants[0].thread, 'https://talk.nervos.org/t/9845')
-  assert.equal(f.grants[0].bars, undefined)
   assert.equal((await tool('trends', {})).months[0].devs, 4)
 })
 

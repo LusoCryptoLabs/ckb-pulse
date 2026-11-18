@@ -53,7 +53,7 @@ const get = (p, al) => new Promise((resolve, reject) => {
   s.on('data', (c) => { out += c }); s.on('end', () => resolve(out)); s.on('error', reject)
 })
 const htmlLang = (r) => (r.match(/<html[^>]*\slang="([^"]+)"/) || [])[1]
-for (const page of ['/digest', '/funded', '/use']) {
+for (const page of ['/digest', '/use']) {
   test(`${page} follows Accept-Language, and ?lang= wins in any case`, async () => {
     assert.match(htmlLang(await get(page, 'pt-PT,pt;q=0.9,en;q=0.8')), /^pt/)
     assert.match(htmlLang(await get(page, 'zh-CN,zh;q=0.9')), /^zh/)
@@ -69,7 +69,7 @@ test('/method answers in every language with every section', async () => {
     const r = await get(`/method?lang=${lang}`)
     assert.equal(status(r), 200)
     assert.ok(r.includes(word), lang)
-    for (const id of ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'funded', 'limits', 'wrong']) assert.ok(r.includes(`id="${id}"`), `${lang} ${id}`)
+    for (const id of ['source', 'update', 'window', 'rank', 'bots', 'follow', 'own', 'limits', 'wrong']) assert.ok(r.includes(`id="${id}"`), `${lang} ${id}`)
     assert.ok(!/\bme\.[a-z]+\.[a-z]\b/.test(r), 'a missing word shows its key')
   }
 })
@@ -83,4 +83,12 @@ test('a kept digest week has its own page and card, an unknown one is a 404', as
   assert.equal(status(png), 200)
   assert.match(png, /content-type: image\/png/i)
   assert.equal(status(await get('/og/digest.png?w=2025-W01')), 404)
+})
+
+test('the funded page is gone: old links go to the live page, the JSON answers 410', async () => {
+  const r = await get('/funded?lang=pt')
+  assert.equal(status(r), 301)
+  assert.match(r, /location: \//i)
+  assert.equal(status(await get('/api/funded')), 410)
+  assert.equal(status(await get('/og/funded.png')), 404)
 })
