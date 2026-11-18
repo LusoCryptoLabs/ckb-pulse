@@ -55,7 +55,7 @@ test('the server pages open with the bar and load the menu', () => {
     assert.ok(html.includes(`<link rel="stylesheet" href="${base}/menu.css">`), name)
     assert.ok(html.includes(`<script type="module" src="${base}/menu.js"></script>`), name)
   }
-  assert.equal(barHtml(words('en'), { base, lang: 'en' }).startsWith('<div class="pm-bar"><a class="pm-brand"'), true)
+  assert.equal(barHtml(words('en'), { base, lang: 'en' }).startsWith('<div class="pm-bar"><span class="pm-lock"><a class="pm-brand"'), true)
 })
 
 test('the live and Fiber pages have a place for the menu and its style, and the "?" button is gone', () => {
@@ -73,4 +73,29 @@ test("every page loads Cellula's look, and a reading page's title lights its sta
   assert.ok(html.includes(`<link rel="stylesheet" href="${base}/theme.css">`))
   for (const f of ['index.html', 'fiber.html']) assert.ok(fs.readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8').includes('href="theme.css"'), f)
   for (const k of ['dg.h1.day', 'dg.h1.week', 'dg.h1.month', 'me.h1', 'use.h1']) assert.match(WORDS.en[k], /\*[^*]+\*/, k)
+})
+
+test('the bar says CKB Pulse and, under it, by LusoCryptoLabs with the studio wordmark, in every language', () => {
+  for (const lang of ['en', 'pt', 'zh']) {
+    const t = words(lang), bar = barHtml(t, { base, lang })
+    assert.ok(bar.indexOf('CKB Pulse') < bar.indexOf('pm-by-lcl'), `${lang}: the name first`)
+    assert.ok(bar.includes('<a class="pm-by-lcl" href="https://lusocryptolabs.com"'), lang)
+    assert.ok(bar.includes(`aria-label="${t('by')}"`), `${lang}: a name for a screen reader`)
+    assert.ok(bar.includes(`src="${base}/lcl-wordmark-paper.svg"`) && bar.includes(`src="${base}/lcl-wordmark.svg"`), `${lang}: both wordmarks, for a dark ground and a light one`)
+  }
+})
+
+test('the two wordmark files exist and keep the red centre dot', () => {
+  for (const f of ['lcl-wordmark.svg', 'lcl-wordmark-paper.svg']) {
+    const svg = fs.readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8')
+    assert.match(svg, /viewBox="0 0 11881 933"/, f)
+    assert.match(svg, /E10600/i, f)
+  }
+})
+
+test('the trial look has every corner straight, with the dots as the only round things', () => {
+  const css = fs.readFileSync(new URL('../public/theme.css', import.meta.url), 'utf8')
+  assert.match(css, /html\[data-theme\^="lcl"\] \* \{ border-radius: 0 !important; \}/)
+  assert.match(css, /\.pm-tile b \{ border-radius: 50% !important; \}/)
+  assert.match(css, /\.eyebrow::before \{[^}]*border-radius: 50%/)
 })

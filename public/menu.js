@@ -68,11 +68,13 @@ export function shareHtml(t, { url, title, image }) {
   return `<details class="pshare"><summary class="ps-btn" aria-label="${esc(t('sh.share'))}" title="${esc(t('sh.share'))}">${SHARE_ICON}<span>${esc(t('sh.share'))}</span></summary><div class="ps-panel">${shareTargets(t, { url, title, image }).map(item).join('')}</div></details>`
 }
 
-// the bar the server pages share: the name back to the live page, the views, the menu
+// the bar the server pages share: the name back to the live page, the views, the menu. Under the name goes "by" and the
+// studio's own wordmark (two files, for a dark ground and a light one; theme.css shows one and, in the current look, none)
+const BY = (t, base) => `<a class="pm-by-lcl" href="https://lusocryptolabs.com" target="_blank" rel="noopener" aria-label="${esc(t('by'))}"><span aria-hidden="true">by</span><img class="on-dark" src="${esc(base)}/lcl-wordmark-paper.svg" alt="" width="176" height="14"><img class="on-light" src="${esc(base)}/lcl-wordmark.svg" alt="" width="176" height="14"></a>`
 // `share` ({ url, title, image }) puts the share button next to the menu, the same place on every public page; a private
 // page passes none
 export function barHtml(t, { base = '', lang = 'en', current = '', here = '', share = null } = {}) {
-  return `<div class="pm-bar"><a class="pm-brand" href="${esc(href(base, '/', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${viewsHtml(t, { base, lang, current })}${share ? shareHtml(t, share) : ''}${menuHtml(t, { base, lang, current, here })}</div>`
+  return `<div class="pm-bar"><span class="pm-lock"><a class="pm-brand" href="${esc(href(base, '/', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${BY(t, base)}</span>${viewsHtml(t, { base, lang, current })}${share ? shareHtml(t, share) : ''}${menuHtml(t, { base, lang, current, here })}</div>`
 }
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links
