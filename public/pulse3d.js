@@ -1108,12 +1108,21 @@ function stepFlight(dt) {
 
 // ================= drawer: a project, a person, or a list =================
 let drawerFrom = null
-function showDrawer() { if ($('drawer').hidden) { drawerFrom = document.activeElement; $('drawer').hidden = false } }
+// An open card is one step in the browser's history: Back (or the phone's back gesture) closes it and stays on the page.
+// It used to leave the site, with the card open and the whole scene behind it
+let cardStep = false
+function showDrawer() {
+  if ($('drawer').hidden) { drawerFrom = document.activeElement; $('drawer').hidden = false }
+  if (!cardStep) { try { history.pushState({ pulseCard: 1 }, '', location.href); cardStep = true } catch {} }
+}
 function closeDrawer() {
   const inside = $('drawer').contains(document.activeElement)
   $('drawer').hidden = true; listShown = false
   if (inside && drawerFrom?.isConnected && drawerFrom.getClientRects().length) drawerFrom.focus({ preventScroll: true })
+  // closed by hand: take the step back out of the history (the popstate it causes finds nothing left to close)
+  if (cardStep) { cardStep = false; try { history.back() } catch {} }
 }
+addEventListener('popstate', () => { if (cardStep) { cardStep = false; if (!$('drawer').hidden) closeDrawer() } })
 // the heading takes the focus, so a keyboard or a screen reader carries on inside; not while the welcome card is up,
 // and, once the details have loaded, not if the focus went somewhere else in the meantime
 function focusDrawer(loaded) {
