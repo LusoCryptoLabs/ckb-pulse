@@ -10,6 +10,7 @@ import { withStamp } from './og.mjs'
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const short = (name) => String(name || '').split('/').pop()
 const DAY = 864e5
+const cap = (s) => (s ? s.charAt(0).toLocaleUpperCase() + s.slice(1) : s)
 const KEEP = 53
 let file = ''
 let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], newest last
@@ -107,6 +108,7 @@ nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{dis
 .bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:var(--surface);border:1px solid var(--edge);border-radius:18px;padding:10px}.bars i{flex:1;background:linear-gradient(#e2ff7a,#8fb81f);border-radius:3px 3px 0 0;min-height:2px}
 ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--edge-soft)}ol li span{min-width:0;overflow-wrap:anywhere}ol li b{color:var(--lime);white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:var(--mut);margin-left:8px}
 .medals li{border:1px solid var(--edge);background:var(--surface);border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:var(--mut);margin:0}.medals strong{font-size:18px}
+details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summary{cursor:pointer;display:inline-block;padding:3px 0;color:var(--mut);list-style:none}details.words summary::-webkit-details-marker{display:none}details.words summary::before{content:"▸";display:inline-block;margin-right:6px;color:var(--lime)}details.words[open] summary::before{content:"▾"}details.words ul{margin:6px 0 4px;padding-left:18px}details.words li{margin:4px 0;color:var(--fg)}details.words p{margin:4px 0 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:44px;color:var(--mut);font-size:14px;border-top:1px solid var(--edge-soft);padding-top:16px}footer img{max-width:100%;height:auto}code{font-family:var(--font-num,monospace);background:var(--surface);border:1px solid var(--edge);border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
 .langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}.lede{font-size:16px}}
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
@@ -123,6 +125,14 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   // the last whole month, as on the page: the current one has only begun
   const m = trends?.months || [], cur = m.at(-2), ago = m.at(-14)
   const month = cur ? new Date(`${cur.month}-15T00:00:00Z`).toLocaleDateString(t('locale'), { month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
+  // the page opens with what it says in one plain sentence, then the busiest project and person; the lists come after
+  const topRepo = L.repos[0]?.[0], topPerson = L.people[0]?.[0]
+  const said = (key, vars, name, linkHtml) => esc(t(key, { ...vars, [name]: '§' })).replace('§', linkHtml)
+  const plain = s.updates
+    ? [esc(cap(t('dg.plain', { people: t.cnt('ppl', s.people), projects: t.cnt('prj', s.projects), updates: t.cnt('upd', s.updates) }))),
+      topRepo && said('dg.plain.repo', {}, 'repo', `<a href="${esc(base)}/?repo=${encodeURIComponent(topRepo)}&lang=${lang}">${esc(short(topRepo))}</a>`),
+      topPerson && said('dg.plain.person', {}, 'person', person(topPerson))].filter(Boolean).join(lang === 'zh' ? '' : ' ')
+    : esc(t('h.empty'))
   const title = `CKB Pulse · ${t('mode.' + period)}`
   const desc = t('og.desc', { updates: t.cnt('upd', s.updates), people: t.cnt('ppl', s.people), projects: t.cnt('prj', s.projects), when: t('when.' + period) })
   const img = fixed ? withStamp(`${base}/og/digest.png?w=${fixed.label}&lang=${lang}`, L) : withStamp(`${base}/og/highlights.png?p=${period}&lang=${lang}`, L)
@@ -130,9 +140,10 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml"><link rel="icon" href="${esc(base)}/icon-192.png">${menuHead(base)}<style>${CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'digest', here: fixed ? `/digest/${fixed.label}` : `/digest?p=${period}`, share: { url: `${q(period, lang)}&d=${today()}`, title, image: img } })}
-${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${esc(t('tagline'))} · <a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a>` })}
+${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${plain}<br><a href="${esc(base)}/?lang=${lang}">${esc(t('dg.live'))}</a>` })}
 <nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
 <p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : ''}
+<details class="words"><summary>${esc(t('dg.words.h'))}</summary><ul>${['update', 'commit', 'pr', 'review'].map((k) => `<li>${esc(t('dg.words.' + k))}</li>`).join('')}</ul><p><a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p></details>
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
 ${L.bars.length ? `<div class="bars" role="img" aria-label="${esc(t('h.note'))}">` : '<div hidden>'}${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>
 ${medals.length ? `<section><h2>${esc(t('dg.medals'))}</h2><ol class="medals">${medals.map(([k, v]) => `<li><small>${esc(t(k))}</small><strong>${v}</strong></li>`).join('')}</ol></section>` : `<p>${esc(t('h.empty'))}</p>`}

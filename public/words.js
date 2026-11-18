@@ -72,6 +72,8 @@ export const WORDS = {
     'bd.week': '{updates} · {people}, 7 days', 'bd.person': '{updates} · {projects}, 7 days', 'bd.all': '{people} · {updates} · {projects}, 7 days', 'bd.quiet': 'no updates in 7 days', 'bd.ai': 'AI account, not counted as a person', 'bd.none': 'not on Pulse', 'bd.unknown': 'not followed',
     'sh.badge': 'Badge for your README', 'sh.badged': 'Markdown copied', 'h.digest': 'Read as a page',
     'dg.live': 'See it live', 'dg.lead': 'The highlights {when}, on {date}.', 'dg.medals': 'Medals', 'dg.about': 'CKB Pulse follows the public work of the CKB ecosystem on GitHub.',
+    'dg.plain': '{people} worked on {projects} in the CKB ecosystem and made {updates}.', 'dg.plain.repo': 'The busiest project was {repo}.', 'dg.plain.person': 'The most active person was {person}.',
+    'dg.words.h': 'What do these words mean?', 'dg.words.update': 'Update: one public thing someone did on GitHub, such as saving a change, proposing one, reviewing one or leaving a comment.', 'dg.words.commit': 'Commit: a saved change to the code of a project, with a note on what changed.', 'dg.words.pr': 'Pull request: a proposed change that the owners of the project can accept, ask to improve or decline.', 'dg.words.review': 'Review: someone reading a change proposed by someone else and saying whether it is ready.',
     'dg.feed': 'Follow this digest and the new projects in your feed reader:', 'dg.badge': 'A badge for your README, live:', 'g.other': 'other languages',
     
     
@@ -199,6 +201,8 @@ export const WORDS = {
     'bd.week': '{updates} · {people}, 7 dias', 'bd.person': '{updates} · {projects}, 7 dias', 'bd.all': '{people} · {updates} · {projects}, 7 dias', 'bd.quiet': 'sem atualizações em 7 dias', 'bd.ai': 'conta de IA, não conta como pessoa', 'bd.none': 'não está no Pulse', 'bd.unknown': 'não seguido',
     'sh.badge': 'Selo para o README', 'sh.badged': 'Markdown copiado', 'h.digest': 'Ler como página',
     'dg.live': 'Ver ao vivo', 'dg.lead': 'Os destaques {when}, a {date}.', 'dg.medals': 'Medalhas', 'dg.about': 'O CKB Pulse segue o trabalho público do ecossistema CKB no GitHub.',
+    'dg.plain': '{people} trabalharam em {projects} do ecossistema CKB e fizeram {updates}.', 'dg.plain.repo': 'O projeto mais ativo foi {repo}.', 'dg.plain.person': 'A pessoa mais ativa foi {person}.',
+    'dg.words.h': 'O que querem dizer estas palavras?', 'dg.words.update': 'Atualização: uma coisa pública que alguém fez no GitHub, como guardar uma mudança, propô-la, revê-la ou deixar um comentário.', 'dg.words.commit': 'Commit: uma mudança guardada no código de um projeto, com uma nota sobre o que mudou.', 'dg.words.pr': 'Pull request: uma mudança proposta que os donos do projeto podem aceitar, pedir para melhorar ou recusar.', 'dg.words.review': 'Revisão: alguém a ler a mudança proposta por outra pessoa e a dizer se está pronta.',
     'dg.feed': 'Siga este resumo e os projetos novos no seu leitor de feeds:', 'dg.badge': 'Um selo para o seu README, ao vivo:', 'g.other': 'outras linguagens',
     
     
@@ -327,6 +331,8 @@ export const WORDS = {
     'bd.week': '7 天：{updates} · {people}', 'bd.person': '7 天：{updates} · {projects}', 'bd.all': '7 天：{people} · {updates} · {projects}', 'bd.quiet': '7 天内无更新', 'bd.ai': 'AI 账号，不计为人', 'bd.none': '不在 Pulse 中', 'bd.unknown': '未关注',
     'sh.badge': 'README 徽章', 'sh.badged': '已复制 Markdown', 'h.digest': '以网页阅读',
     'dg.live': '查看实时', 'dg.lead': '{date}，{when}的亮点。', 'dg.medals': '奖章', 'dg.about': 'CKB Pulse 关注 CKB 生态在 GitHub 上的公开工作。',
+    'dg.plain': '{people}参与了 CKB 生态中的 {projects}，共完成 {updates}。', 'dg.plain.repo': '最活跃的项目是 {repo}。', 'dg.plain.person': '最活跃的人是 {person}。',
+    'dg.words.h': '这些词是什么意思？', 'dg.words.update': '更新：某人在 GitHub 上公开做的一件事，比如保存一次修改、提出修改、评审修改或留下评论。', 'dg.words.commit': '提交（commit）：对项目代码保存下来的一次修改，并附上改动说明。', 'dg.words.pr': '拉取请求（pull request）：一项被提出的修改，项目负责人可以接受、要求改进或拒绝。', 'dg.words.review': '评审：有人阅读他人提出的修改，并说明是否可以通过。',
     'dg.feed': '在你的阅读器中订阅本摘要和新项目：', 'dg.badge': '放在 README 里的实时徽章：', 'g.other': '其他语言',
     
     
