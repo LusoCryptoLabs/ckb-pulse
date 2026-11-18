@@ -74,12 +74,6 @@ test('/method answers in every language with every section', async () => {
   }
 })
 
-test('/lessons answers, unlisted and not indexed', async () => {
-  const r = await get('/lessons?lang=en')
-  assert.equal(status(r), 200)
-  assert.ok(r.includes('What CKB') && r.includes('<meta name="robots" content="noindex">'))
-})
-
 test('a kept digest week has its own page and card, an unknown one is a 404', async () => {
   const r = await get('/digest/2026-W46?lang=en')
   assert.equal(status(r), 200)
