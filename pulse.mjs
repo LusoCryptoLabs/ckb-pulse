@@ -167,11 +167,12 @@ async function normalise(e) {
     }
     case 'PullRequestEvent': {
       const a = p.action
-      if (!['opened', 'closed', 'reopened'].includes(a) || !p.pull_request?.url) return null
-      if (bot) { kind = a === 'closed' ? 'pr_closed' : 'pr_open'; title = p.pull_request.head?.ref || ''; url = prHtml(p.pull_request.url); break }
+      // GitHub sends a merge as its own action ("merged", seen 2026-11-17 on nervosnetwork/fiber), not as "closed"
+      if (!['opened', 'closed', 'merged', 'reopened'].includes(a) || !p.pull_request?.url) return null
+      if (bot) { kind = a === 'closed' || a === 'merged' ? 'pr_closed' : 'pr_open'; title = p.pull_request.head?.ref || ''; url = prHtml(p.pull_request.url); break }
       const d = await pr(p.pull_request.url)
       if (!d) return null
-      kind = a === 'closed' ? (d.merged ? 'pr_merged' : 'pr_closed') : 'pr_open'
+      kind = a === 'merged' ? 'pr_merged' : a === 'closed' ? (d.merged ? 'pr_merged' : 'pr_closed') : 'pr_open'
       title = d.title; url = d.html
       agent = kind === 'pr_open' && isAgentBranch(d.head) // proposed by an agent; merging or closing it is a person's call
       break
