@@ -18,6 +18,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { lessonsPage, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -205,6 +206,18 @@ function handle(req, res) {
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, usePage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/use`, img: withStamp(`${baseOf(req)}/og/use.png?lang=${langOf(url.searchParams, req)}`, useFacts()) }))
+  }
+  // a private page: it opens only with the key (LESSONS_KEY) and reads its data from the data volume (lessons.json);
+  // in every other case it falls through to the answer for a route that does not exist
+  if (url.pathname === '/lessons' && process.env.LESSONS_KEY) {
+    const how = access(req, url, process.env.LESSONS_KEY), data = how && loadLessons(DATA_DIR)
+    if (data && how === 'key') {
+      const clean = new URLSearchParams(url.searchParams)
+      clean.delete('k')
+      res.writeHead(303, { location: `/lessons${clean.size ? `?${clean}` : ''}`, 'set-cookie': `lessons=${cookieOf(process.env.LESSONS_KEY)}; Path=/lessons; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`, 'cache-control': 'no-store' })
+      return res.end()
+    }
+    if (data) return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex', vary: 'cookie, accept-language' }, lessonsPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/lessons`, data }))
   }
   // what is counted and what is not
   if (url.pathname === '/method') {
