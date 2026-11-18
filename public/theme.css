@@ -7,10 +7,14 @@
 @font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 100%; font-display: swap; src: url(vendor/fonts/Archivo-latin-wght.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-400.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url(vendor/fonts/SpaceMono-latin-700.woff2) format("woff2"); }
-/* what shows for the moment before a font arrives, sized to the font so that the swap moves nothing: measured from the files
-   (average letter width, ascent and descent against Arial and Courier New) */
-@font-face { font-family: "Archivo Fallback"; src: local("Arial"), local("Helvetica"); size-adjust: 102.3%; ascent-override: 85.8%; descent-override: 20.5%; line-gap-override: 0%; }
-@font-face { font-family: "Space Mono Fallback"; src: local("Courier New"), local("Courier"); size-adjust: 102%; ascent-override: 109.8%; descent-override: 35.4%; line-gap-override: 0%; }
+/* what shows for the moment before a font arrives, sized to the font so that the swap moves nothing. Measured from the files,
+   per weight (average letter width of a sample against Arial and Arial Bold; Archivo gets wider as it gets heavier, so the
+   heavy weights have their own face). Space Mono is 0.612 em a letter at both weights, Courier New 0.6. */
+@font-face { font-family: "Archivo Fallback"; font-weight: 100 599; src: local("Arial"), local("Helvetica"); size-adjust: 99.4%; ascent-override: 88.3%; descent-override: 21.1%; line-gap-override: 0%; }
+@font-face { font-family: "Archivo Fallback"; font-weight: 600 749; src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Bold"); size-adjust: 96.2%; ascent-override: 91.3%; descent-override: 21.8%; line-gap-override: 0%; }
+@font-face { font-family: "Archivo Fallback"; font-weight: 750 900; src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Bold"); size-adjust: 102.3%; ascent-override: 85.8%; descent-override: 20.5%; line-gap-override: 0%; }
+@font-face { font-family: "Space Mono Fallback"; font-weight: 100 599; src: local("Courier New"), local("Courier"); size-adjust: 102%; ascent-override: 109.8%; descent-override: 35.4%; line-gap-override: 0%; }
+@font-face { font-family: "Space Mono Fallback"; font-weight: 600 900; src: local("Courier New Bold"), local("CourierNewPS-BoldMT"), local("Courier Bold"); size-adjust: 102%; ascent-override: 109.8%; descent-override: 35.4%; line-gap-override: 0%; }
 
 /* the names: --bg the ground, --surface a block, --panel a menu, --edge and --edge-soft the rules, --fg the words, --mut
    the quiet words, --lime the accent of links, numbers and the main chip (Paper on Ink, Ink on Paper; the name is from
