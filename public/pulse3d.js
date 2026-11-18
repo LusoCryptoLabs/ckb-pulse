@@ -831,7 +831,8 @@ function newsToastOnLoad() {
   // a project announced in the last day that this device has not seen yet
   const n = (S?.news || []).find((x) => x.announcedAt && Date.now() - x.announcedAt < DAY && !seenNews.has(x.name))
   if (!n) return
-  if (introOpen) newsWaiting = n; else showNewsToast(n)
+  // where a notice pushes the list down (the bars), it waits for the list to be seen first and then slides it, instead of moving it in the middle of loading
+  if (introOpen) newsWaiting = n; else if (PHONE || NEXT) setTimeout(() => { if (!introOpen) showNewsToast(n); else newsWaiting = n }, 4500); else showNewsToast(n)
 }
 async function onNews(n) {
   if (!S) return
@@ -1538,6 +1539,7 @@ function drawHead() {
   $('window').style.left = `${(wx * 100).toFixed(3)}%`; $('window').style.width = `${((x - wx) * 100).toFixed(3)}%`
   $('head-label').textContent = T.mode === 'live' || T.mode === 'done' ? t('tl.now') : fmtDay(T.t)
   $('head-label').style.transform = `translateX(${x > 0.92 ? -100 : x < 0.08 ? 0 : -50}%)`
+  track.classList.add('ready')
   track.setAttribute('aria-valuenow', String(Math.round(x * 100)))
   track.setAttribute('aria-valuetext', $('head-label').textContent)
 }

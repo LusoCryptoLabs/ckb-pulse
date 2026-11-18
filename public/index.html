@@ -10,7 +10,8 @@
 <meta name="build" content="__BUILD__">
 <!--og-->
 <link rel="icon" type="image/svg+xml" href="icon.svg?v=lcl1"><link rel="icon" type="image/png" sizes="32x32" href="icon-32.png?v=lcl1">
-<link rel="preload" href="vendor/fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/fonts/Archivo-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/fonts/SpaceMono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="pulse3d.css">
 <link rel="stylesheet" href="menu.css">
@@ -85,6 +86,7 @@
     <button type="button" class="icon full" id="btn-full" data-t-label="full"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 </header>
+<script>/* the panels hang from the bottom of the header: measured now, before the first paint, so that the script that measures again later finds it where it is */document.documentElement.style.setProperty('--top',Math.round(document.querySelector('.top').getBoundingClientRect().bottom+6)+'px')</script>
 
 <div class="screen-bar" id="screen-bar"><button type="button" id="screen-full" data-t-label="full"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><a id="screen-exit" href="./" data-href="./" data-t="screen.exit"></a></div>
 
@@ -131,6 +133,7 @@
     <div id="add-result" aria-live="polite"></div>
   </div>
 </aside>
+<script>/* a phone has the list as a sheet that rests low: closed from the first paint, as the page script makes it a moment later */if(matchMedia('(max-width: 860px)').matches||matchMedia('(pointer: coarse)').matches)document.getElementById('side').classList.add('closed')</script>
 
 <aside class="hud drawer" id="drawer" hidden>
   <button type="button" class="close" id="drawer-close" data-t-label="close">×</button>

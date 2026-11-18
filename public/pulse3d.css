@@ -559,3 +559,15 @@ html[lang] .kpis b, html[lang] .done, html[lang] .intro .primary { font-family: 
 html[lang].screen .brand h1 { font-size: 42px; }
 html[lang].screen .pm-by-lcl { font-size: 12px; gap: 9px; }
 html[lang].screen .pm-by-lcl img { width: 160px; }
+
+/* First paint holds the places of what has not arrived. A label that a script fills in with the language, and the three
+   parts of the ticker, take their one line from a zero-width space until then, so that filling them moves nothing; the
+   ticker stays unseen until it has something to say (2026-11-18). */
+[data-t]:empty::before, .now .mode:empty::before, .now .clock:empty::before, .now .ticker:empty::before { content: "\200b"; }
+.wait .now { visibility: hidden; }
+.menu-slot:empty { min-width: 38px; }
+.filters:has(#fams:empty) { visibility: hidden; } /* the chips arrive together, with the numbers on them */
+#fams b { display: inline-block; min-width: 3ch; text-align: right; } /* a count of two digits or of three takes the same room */
+.track:not(.ready) .window, .track:not(.ready) .head { visibility: hidden; } /* the timeline marks wait for their first place */
+.barsview { transition: top 0.3s ease; }
+.kcap:empty::before { content: "\200b"; }
