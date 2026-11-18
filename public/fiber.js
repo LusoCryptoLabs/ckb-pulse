@@ -15,7 +15,9 @@ const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
 const browserLang = (navigator.language || '').toLowerCase()
-let LANG = WORDS[store.get('lang')] ? store.get('lang') : browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('pt') ? 'pt' : 'en'
+// ?lang= in a shared link wins over the language kept in this browser
+const linkLang = ((new URLSearchParams(location.search).get('lang') || '').toLowerCase().slice(0, 2))
+let LANG = WORDS[linkLang] ? linkLang : WORDS[store.get('lang')] ? store.get('lang') : browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('pt') ? 'pt' : 'en'
 const t = (k, v) => String(WORDS[LANG][k] ?? WORDS.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v?.[x] ?? '')
 const fmt = (n) => Math.round(n).toLocaleString(t('locale'))
 const cnt = (base, n) => t(base + (n === 1 ? '.1' : '.n'), { n: fmt(n) })

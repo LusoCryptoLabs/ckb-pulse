@@ -32,7 +32,7 @@ const TOOLS = [
   {
     name: 'overview',
     title: 'What is happening in CKB',
-    description: 'The CKB ecosystem over the last day, week or month: how many updates, people and projects, the most active projects, people and organisations, and the projects new to Pulse.',
+    description: 'The CKB ecosystem over the last day, week or month: how many updates, people and projects, the most active projects, people and organisations, and the projects new to Pulse. Ranked numbers cap bursts at 10 updates per person, project and hour, as the page does.',
     inputSchema: { type: 'object', properties: { period: { type: 'string', enum: ['day', 'week', 'month'], description: 'day, week (the default) or month' } } },
     run: (a, { api, link }) => {
       const period = ['day', 'week', 'month'].includes(a.period) ? a.period : 'week', h = api.highlights()[period]
@@ -49,7 +49,7 @@ const TOOLS = [
   {
     name: 'find_projects',
     title: 'Find CKB projects',
-    description: `Search the projects Pulse follows by words in their name, description or topics, by area (${AREAS.join(', ')}), or both; the most active first.`,
+    description: `Search the projects Pulse follows by words in their name, description or topics, by area (${AREAS.join(', ')}), or both; the most active first. Counts every update, with no cap on bursts, so numbers can be higher than on the page and in overview.`,
     inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words to look for, e.g. "wallet" or "lock script"' }, area: { type: 'string', enum: AREAS }, limit: { type: 'integer', minimum: 1, maximum: 50, description: 'at most this many, 15 by default' } } },
     run: (a, { api, link }) => {
       const query = text(a.query, 'query'), area = areaArg(a.area), limit = int(a.limit, 1, 50, 15)
@@ -74,7 +74,7 @@ const TOOLS = [
   {
     name: 'person',
     title: 'One CKB developer',
-    description: 'What one person works on across the CKB projects Pulse follows: their projects, the areas and languages of those projects, and the kinds of updates they make.',
+    description: 'What one person works on across the CKB projects Pulse follows: their projects, the areas and languages of those projects, and the kinds of updates they make. Counts every update, with no cap on bursts, so numbers can be higher than on the page and in overview.',
     inputSchema: { type: 'object', properties: { login: { type: 'string', description: 'the GitHub login' } }, required: ['login'] },
     run: (a, { api, link }) => {
       const p = api.person(loginArg(a.login))
@@ -86,7 +86,7 @@ const TOOLS = [
   {
     name: 'who_works_on',
     title: 'Who works on what',
-    description: `The people most active in the projects of an area (${AREAS.join(', ')}) or in the projects that match some words, with the projects they work on. Useful to find who to ask about a part of CKB.`,
+    description: `The people most active in the projects of an area (${AREAS.join(', ')}) or in the projects that match some words, with the projects they work on. Useful to find who to ask about a part of CKB. Counts every update, with no cap on bursts.`,
     inputSchema: { type: 'object', properties: { area: { type: 'string', enum: AREAS }, query: { type: 'string', description: 'words that pick the projects, e.g. "wallet" or "spore"' }, limit: { type: 'integer', minimum: 1, maximum: 30, description: 'at most this many people, 10 by default' } } },
     run: (a, { api, link }) => {
       const area = areaArg(a.area), query = text(a.query, 'query'), limit = int(a.limit, 1, 30, 10)

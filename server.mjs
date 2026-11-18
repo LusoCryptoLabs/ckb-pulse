@@ -28,7 +28,13 @@ const clients = new Set(), fiberClients = new Set()
 // the address the digest, the feed and Telegram name; without it, the one the request came to
 const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/$/, '')
 const baseOf = (req) => PUBLIC_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host || 'localhost'}`
-const langOf = (q) => (LANGS.includes(q.get('lang')) ? q.get('lang') : 'en')
+// ?lang= (any case, pt-PT counts as pt); without it, and only for pages a person opens (req given), the browser's own
+// language; a link-preview robot sends none and gets English
+const pick = (s) => { const l = String(s || '').toLowerCase().slice(0, 2); return LANGS.includes(l) ? l : null }
+const fromHeader = (h) => { for (const part of String(h || '').split(',')) { const l = pick(part.trim()); if (l) return l } return null }
+const langOf = (q, req) => pick(q.get('lang')) || (req ? fromHeader(req.headers['accept-language']) : null) || 'en'
+// a page that depends on the browser's language must say so to caches
+const LANG_VARY = 'accept-language'
 const ipOf = (req) => req.headers['x-real-ip'] || req.socket.remoteAddress || ''
 
 // one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
@@ -92,7 +98,7 @@ function page(req, url) {
   return INDEX.replace('<!--og-->', tags)
 }
 async function shareCard(req, res, url) {
-  const q = url.searchParams, lang = LANGS.includes(q.get('lang')) ? q.get('lang') : 'en', host = req.headers.host || 'localhost'
+  const q = url.searchParams, lang = pick(q.get('lang')) || 'en', host = req.headers.host || 'localhost'
   let png = null
   if (url.pathname === '/og/highlights.png') { const p = PERIODS.includes(q.get('p')) ? q.get('p') : 'week'; png = await card(`h|${p}|${lang}|${host}|${q.get('v') || ''}`, () => highlightsCard({ leaders: highlightsNow(), period: p, lang, host, groupOf })) }
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
@@ -123,7 +129,8 @@ function sendText(req, res, status, headers, body, key) {
   sendEntry(req, res, status, headers, buf, e)
 }
 function sendEntry(req, res, status, headers, buf, e) {
-  const h = { ...headers, etag: e.tag, vary: 'accept-encoding' }
+  const { vary, ...rest } = headers
+  const h = { ...rest, etag: e.tag, vary: vary ? `accept-encoding, ${vary}` : 'accept-encoding' }
   if (status === 200 && notModified(req, e.tag)) { res.writeHead(304, h); return res.end() }
   const enc = ENC(req)
   if (!enc || buf.length < 1024) { res.writeHead(status, h); return res.end(buf) }
@@ -186,20 +193,20 @@ function handle(req, res) {
   // the digest as a page and as a feed; badges for READMEs. GitHub's image proxy keeps a badge for its max-age
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
-    const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q)
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+    const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
   }
   // the grants the Community Fund DAO pays for: their code next to their reports, as a page and as JSON
   if (url.pathname === '/funded' || url.pathname === '/api/funded') {
     const { readAt, grants } = fundedNow()
     if (url.pathname === '/api/funded') return sendJson(req, res, { readAt, grants })
     hit('funded', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, fundedPage({ lang: langOf(url.searchParams), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead(), g: url.searchParams.get('g') }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, fundedPage({ lang: langOf(url.searchParams, req), grants, base: baseOf(req), url: `${baseOf(req)}/funded`, readAt: fundedRead(), g: url.searchParams.get('g') }))
   }
   // everything Pulse does, for people and for AI agents
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300' }, usePage({ lang: langOf(url.searchParams), base: baseOf(req), url: `${baseOf(req)}/use`, img: withStamp(`${baseOf(req)}/og/use.png?lang=${langOf(url.searchParams)}`, useFacts()) }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, usePage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/use`, img: withStamp(`${baseOf(req)}/og/use.png?lang=${langOf(url.searchParams, req)}`, useFacts()) }))
   }
   if (url.pathname === '/llms.txt') {
     hit('llms', ipOf(req), req.headers['user-agent'])

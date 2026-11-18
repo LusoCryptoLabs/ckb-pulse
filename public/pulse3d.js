@@ -26,7 +26,9 @@ const MEDAL = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 1h3.2l1
 
 // ================= words =================
 const browserLang = (navigator.language || '').toLowerCase()
-let LANG = WORDS[store.get('lang')] ? store.get('lang') : browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('pt') ? 'pt' : 'en'
+// a shared link names its language (?lang=pt, ?lang=pt-PT, any case) and that wins over the one kept in this browser
+const linkLang = ((new URLSearchParams(location.search).get('lang') || '').toLowerCase().slice(0, 2))
+let LANG = WORDS[linkLang] ? linkLang : WORDS[store.get('lang')] ? store.get('lang') : browserLang.startsWith('zh') ? 'zh' : browserLang.startsWith('pt') ? 'pt' : 'en'
 const t = (k, v) => String(WORDS[LANG][k] ?? WORDS.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v?.[x] ?? '')
 const fam = (k) => KIND_FAMILY[k] || 'code'
 const kcol = (k) => FAMILY[fam(k)]
@@ -217,9 +219,9 @@ function neighbourhoods(list) {
   return { slots, w, d, list: out, subs }
 }
 const subLabels = []
-const subText = (div) => { div.textContent = `${div.dataset.name || t('g.other')} · ${div.dataset.n}` }
+const subText = (div) => { div.textContent = `${div.dataset.name || t('g.other')} · ${cnt('prj', +div.dataset.n)}` }
 const isNewGroup = (g) => !!S?.groups?.find((x) => x.name === g)?.isNew
-function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))} · ${div.dataset.n}${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
+function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))} · ${cnt('prj', +div.dataset.n)}${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
 function buildCells() {
   if (!sceneShown) return
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose() }
@@ -405,7 +407,11 @@ $('btn-filters').addEventListener('click', () => openFilters(!$('filters').class
 $('filters-done').addEventListener('click', () => openFilters(false))
 
 // ================= side panel: latest and highlights =================
-function feed() {
+// during a replay the list is drawn again every 0.4 s (auto): only when it changed, and not under a pointer or a focus,
+// or a click lands on an element that is gone (about half of the clicks failed at 100 ms, 2026-11-18)
+let feedSig = ''
+function feed(auto = false) {
+  if (auto && ($('feed').matches(':hover') || $('feed').contains(document.activeElement))) return
   const list = []
   for (let i = rows.length - 1; i >= 0 && list.length < 60; i--) {
     const w = rows[i]
@@ -413,6 +419,9 @@ function feed() {
     if (filtering() && !matches(w.r, w.k, w.a)) continue
     list.push(w)
   }
+  const sig = list.map((w) => rows.indexOf(w)).join(',') + '|' + LANG
+  if (auto && sig === feedSig && $('feed').children.length) return
+  feedSig = sig
   $('feed').innerHTML = list.map((w) => feedItem(w, false)).join('')
 }
 // one plain sentence per update: who, what, which project; the GitHub title underneath
@@ -624,7 +633,9 @@ function openFromLink() {
     document.querySelector('.tabs [data-tab="top"]').click()
     // a shared week is its medals: on a phone the half sheet left them below its edge
     sheetUp?.()
-    if (h !== 'month') { T.chosen = true; play(h) } else renderHighlights()
+    // the period at once, as the Day and Week buttons show it: a replay started from zero read 0 updates for the first
+    // minutes while the lists already held the final numbers (2026-11-18)
+    if (h !== 'month') { T.chosen = true; whole(h) } else renderHighlights()
   }
   // the New tab, from /use and the menu of the other pages
   else if (['new', 'notices', 'suggest'].includes(tab)) goTo(tab)
@@ -748,7 +759,7 @@ async function onNews(n) {
 // comes back. A screen nobody has touched for 15 minutes reloads by itself, so a page left on a wall stays current.
 const BUILD = document.querySelector('meta[name="build"]')?.content || '__BUILD__'
 let lastInput = Date.now(), updateDismissed = false
-for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, () => { lastInput = Date.now() }, { passive: true })
+for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, () => { lastInput = Date.now(); if (ev === 'keydown') T.lastUser = Date.now() }, { passive: true }) // a key counts as being here for the automatic replay too
 async function checkVersion() {
   if (BUILD === '__BUILD__' || document.visibilityState !== 'visible') return
   try {
@@ -1014,7 +1025,7 @@ function stepHover() {
 // ================= framing =================
 // the panels cover the top, the bottom and (on wide screens) the right: measure them and centre the scene in what is left
 const box = (sel) => document.querySelector(sel).getBoundingClientRect()
-const onScreen = (el) => el && !el.hidden && getComputedStyle(el).visibility !== 'hidden'
+const onScreen = (el) => el && !el.hidden && getComputedStyle(el).visibility !== 'hidden' && el.getClientRects().length > 0
 function hud() {
   const top = Math.max(box('.top').bottom, wideBar() ? box('#filters').bottom : 0, PHONE || NEXT ? box('#viewbar').bottom : 0) + 6
   // on a phone the scene ends at whatever sits lowest on it: the ticker, the sheet at the height it was dragged to,
@@ -1475,7 +1486,7 @@ function stepTime(now, dt) {
     // hold the whole period on screen for a moment, then play it again
     if (idle && now - T.doneAt > 12000) play(T.period, { auto: T.auto })
   }
-  if ((T.mode === 'live' || T.mode === 'replay') && now - lastWindowAt > 400) { lastWindowAt = now; computeWindow(); drawHead(); if (T.mode !== 'live') feed() }
+  if ((T.mode === 'live' || T.mode === 'replay') && now - lastWindowAt > 400) { lastWindowAt = now; computeWindow(); drawHead(); if (T.mode !== 'live') feed(true) }
 }
 
 // ================= live =================
@@ -1587,7 +1598,18 @@ $('intro-go').addEventListener('click', closeIntro)
 $('intro').addEventListener('click', (e) => { if (e.target === $('intro')) closeIntro() })
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && introOpen) closeIntro() })
 applyLang()
-if (!store.get('seen')) openIntro()
+// a shared link opens on what it shares: the welcome card would sit on top of it (it covered the whole card at 390 px),
+// so a first visit through a link gets one line in the panel and in the project card, with the card one tap away
+const SHARED = ['repo', 'person', 'h', 'tab'].some((k) => new URLSearchParams(location.search).has(k))
+const hideNewHere = () => { for (const el of document.querySelectorAll('.newhere')) el.hidden = true }
+if (!store.get('seen')) {
+  if (SHARED) { for (const el of document.querySelectorAll('.newhere')) el.hidden = false; store.set('seen', '1') } else openIntro()
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-newhere]'); if (!b) return
+  if (b.dataset.newhere === 'open') openIntro()
+  hideNewHere()
+})
 
 // ================= frame =================
 let last = performance.now(), slow = 0, frames = 0, acc = 0

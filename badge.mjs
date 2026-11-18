@@ -35,7 +35,8 @@ export function repoBadge(week, lang) {
 // a person: updates and projects in 7 days
 export function personBadge(p, lang) {
   const t = words(lang)
-  if (!p || !p.updates) return badgeSvg('CKB Pulse', t('bd.quiet'), { lit: false })
+  if (!p) return badgeSvg('CKB Pulse', t('bd.none'), { lit: false })
+  if (!p.updates) return badgeSvg('CKB Pulse', t('bd.quiet'), { lit: false })
   return badgeSvg('CKB Pulse', t('bd.person', { updates: t.cnt('upd', p.updates), projects: t.cnt('prj', p.projects.length) }))
 }
 // everyone: the week's counts
