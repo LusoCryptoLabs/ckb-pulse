@@ -33,7 +33,8 @@ export function classify(text) {
   const weekly = /weekly (update|report)|周报|progress update|status update/i.test(head)
   const m = head.slice(0, 60).match(/milestone\s*\.?\s*(\d+)|\bM(\d+)\s+(?:report|completion)|里程碑\s*(\d+)/i)
   if (m && !weekly && /complete|completion|report|done|delivered|已完成|完成/i.test(head)) return { kind: 'milestone', m: +(m[1] || m[2] || m[3]) }
-  if (/completion report|delivery report|grant completion/i.test(head)) return { kind: 'delivered' }
+  // iCKB closed its grant without a report, in a post that says so (topic 8369, post 39, 2026-11-02)
+  if (/completion report|delivery report|grant completion|close the books on this grant|grant is (now )?(closed|fully spent)/i.test(head)) return { kind: 'delivered' }
   if (weekly || /\bupdate\b|\breport\b|release|is live|is out|已收到|进度/i.test(head)) return { kind: 'update' }
   return { kind: 'post' }
 }
