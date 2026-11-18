@@ -157,7 +157,8 @@ body.drawer-open .side { visibility: hidden; }
 .notify { border-top: 1px solid var(--line); padding-top: 12px; margin-bottom: 4px; }
 .notify .hint { margin: 8px 0 0; }
 .add-pane h3.suggest { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 12px; }
-.chain3d { font-size: 10.5px; font-weight: 800; color: #062a33; background: #62c9f5; border-radius: 999px; padding: 0 6px; transition: opacity 0.25s; pointer-events: none; }
+.chain3d { display: block; width: 9px; height: 9px; overflow: hidden; font-size: 0; background: #62c9f5; border-radius: 999px; box-shadow: 0 0 8px rgba(98, 201, 245, 0.7); transition: opacity 0.25s; pointer-events: none; }
+.zoomed .chain3d { width: auto; height: auto; font-size: 10.5px; font-weight: 800; color: #062a33; padding: 0 6px; box-shadow: none; }
 .drawer .oc li { display: block; }
 .drawer .oc li a { text-decoration: none; }
 .drawer .oc li a:hover b { text-decoration: underline; }
@@ -278,6 +279,8 @@ body.drawer-open .side { visibility: hidden; }
 .lbl, .badge3d, .new3d { transition: opacity 0.25s; pointer-events: none; }
 .lbl { font-size: 12.5px; font-weight: 600; color: #d6dec8; background: rgba(10, 9, 7, 0.66); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; white-space: nowrap; letter-spacing: 0.2px; }
 .lbl em { font-style: normal; color: #ff8fa6; margin-left: 4px; }
+.lbl .c { display: none; }
+.zoomed .lbl .c { display: inline; }
 .lbl.sub { font-size: 11px; font-weight: 500; color: #a9b39b; background: rgba(10, 9, 7, 0.5); padding: 1px 7px; }
 .badge3d { font-size: 11.5px; box-shadow: 0 0 14px rgba(255, 205, 80, 0.45); }
 .new3d { font-size: 11px; font-weight: 800; color: #fff; background: #ff6b8b; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }

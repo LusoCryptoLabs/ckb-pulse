@@ -221,7 +221,9 @@ function neighbourhoods(list) {
 const subLabels = []
 const subText = (div) => { div.textContent = `${div.dataset.name || t('g.other')} · ${cnt('prj', +div.dataset.n)}` }
 const isNewGroup = (g) => !!S?.groups?.find((x) => x.name === g)?.isNew
-function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))} · ${cnt('prj', +div.dataset.n)}${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
+// at rest a group shows its name; the count comes with the zoom (.zoomed on the label layer, see cull)
+function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))}<span class="c"> · ${cnt('prj', +div.dataset.n)}</span>${isNewGroup(div.dataset.g) ? `<em>${esc(t('new.org'))}</em>` : ''}` }
+const QUIET_MIN = 3 // groups with fewer projects, and the languages, are named only when the viewer has zoomed in
 function buildCells() {
   if (!sceneShown) return
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose() }
@@ -259,6 +261,7 @@ function buildCells() {
     o.position.set(c.cx, 0.2, c.cz + c.d / 2 + 1.1)
     // above the on-chain tags, which crowd the core organisations and hid "Nervos core" (2026-10-29); under the stars
     o.userData.prio = 650 + c.list.length / 1000
+    o.userData.zoom = c.list.length < QUIET_MIN && !isNewGroup(c.g)
     scene.add(o); groupLabels.push(o)
     // the neighbourhoods' names, under the group's own in priority: a small screen keeps only the group
     if (!MOBILE) for (const sb of c.subs) {
@@ -268,6 +271,7 @@ function buildCells() {
       const so = new CSS2DObject(sd)
       so.position.set(c.cx + sb.x, 0.2, c.cz + sb.z + 0.7)
       so.userData.prio = 60 + sb.n
+      so.userData.zoom = true
       scene.add(so); subLabels.push(so)
     }
   }
@@ -883,12 +887,14 @@ function stepPeople(dt) {
 
 // ================= medals and new projects in the scene =================
 const sceneBadges = [] // CSS2D objects that follow a cell
+const chainSet = new Set() // projects with a contract in use on mainnet
 function placeBadges() {
   if (!sceneShown) return
   for (const o of sceneBadges) o.parent?.remove(o)
   sceneBadges.length = 0
   const L = S?.leaders
-  const best = (cat) => { const m = new Map(); if (L) for (const p of ['day', 'week', 'month']) { const w = L[p]?.[cat]?.[0]; if (w && w[1] > 0) m.set(w[0], p) } return m }
+  // one medal in the scene per kind, the shortest period that has a leader; the week and the month stay in the panel and on the card
+  const best = (cat) => { const m = new Map(); if (L) for (const p of ['day', 'week', 'month']) { const w = L[p]?.[cat]?.[0]; if (w && w[1] > 0) { m.set(w[0], p); break } } return m }
   personWins = best('people')
   for (const s of sprites.values()) { if (s.userData.badge) { s.remove(s.userData.badge); personBadges.delete(s.userData.badge); s.userData.badge = null } personBadge(s) }
   const repoWins = best('repos')
@@ -901,23 +907,31 @@ function placeBadges() {
   for (const [name, p] of repoWins) pin(name, MEDAL + esc(t(`b.repos.${p}`)), 'badge3d', 1000 + ['day', 'week', 'month'].indexOf(p))
   const fresh = (S?.repos || []).filter((r) => r.isNew && !repoWins.has(r.name)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6)
   for (const r of fresh) pin(r.name, esc(t('new.repo')), 'new3d', 50)
-  // contracts in use on mainnet: a small chain tag
-  for (const r of (S?.repos || []).filter((x) => x.onchain && !repoWins.has(x.name)).slice(0, 40)) pin(r.name, esc(t('oc.tag')), 'chain3d', 600)
+  // contracts in use on mainnet: a small dot, with its word once zoomed in (the card and the hover say it too)
+  chainSet.clear()
+  for (const r of (S?.repos || []).filter((x) => x.onchain)) chainSet.add(r.name)
+  for (const r of (S?.repos || []).filter((x) => x.onchain && !repoWins.has(x.name)).slice(0, 40)) pin(r.name, `<span>${esc(t('oc.tag'))}</span>`, 'chain3d', 600)
   // what this device follows wears a star
   for (const r of repos.filter((x) => followsRepo(x.name) && !repoWins.has(x.name)).slice(0, 40)) pin(r.name, '★', 'star3d', 700)
 }
 // names, medals and tags never sit on top of each other or under a panel: the more important one stays
 const overlap = (a, b, m = 0) => a.left < b.right + m && a.right + m > b.left && a.top < b.bottom + m && a.bottom + m > b.top
 let panels = [], panelsAt = 0
+let zoomed = false
+const ZOOM_ON = 0.6, ZOOM_OFF = 0.72 // of the home distance; two values so a label does not flicker at the edge
 function cull(now) {
   // the panels move rarely: measure them a few times a second; the labels move with the blocks, so every frame
   if (now - panelsAt > 250) { panelsAt = now; panels = [...document.querySelectorAll('.hud, .intro')].filter((el) => { if (el.hidden) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden' }).map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height) }
+  // zoomed in (a flight to a project or a group, a pinch, the wheel): the small groups, the languages and the chain words show
+  const d = camera.position.distanceTo(controls.target), h = home.p.distanceTo(home.t) || 1
+  zoomed = zoomed ? d < h * ZOOM_OFF : d < h * ZOOM_ON
+  labelRenderer.domElement.classList.toggle('zoomed', zoomed)
   const items = [...groupLabels, ...subLabels, ...sceneBadges, ...personBadges].filter((o) => o.element.isConnected && o.element.style.display !== 'none')
   items.sort((a, b) => b.userData.prio - a.userData.prio)
   const placed = []
   for (const o of items) {
     const r = o.element.getBoundingClientRect()
-    const hide = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2 || panels.some((p) => overlap(r, p)) || placed.some((p) => overlap(r, p, 4))
+    const hide = (o.userData.zoom && !zoomed) || r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2 || panels.some((p) => overlap(r, p)) || placed.some((p) => overlap(r, p, 4))
     o.element.classList.toggle('culled', hide)
     if (!hide) placed.push(r)
   }
@@ -1025,7 +1039,7 @@ function stepHover() {
   } else if (p.cell >= 0) {
     cell[p.cell].hover = 1
     const r = repos[p.cell], n = W.n[p.cell], b = W.b[p.cell]
-    tip.innerHTML = `<b>${esc(short(r.name))}</b><span class="g">${esc(gname(r.group))}</span>${r.desc ? `<span>${esc(r.desc)}</span>` : ''}<span>${esc(n ? t('tip.repo', { updates: cnt('upd', n), when: when() }) : t('tip.quiet', { when: when() }))}${b ? ` · ${esc(cnt('auto', b))}` : ''}</span><em>${esc(t('tip.open'))}</em>`
+    tip.innerHTML = `<b>${esc(short(r.name))}</b><span class="g">${esc(gname(r.group))}${chainSet.has(r.name) ? ` · ${esc(t('oc.tag'))}` : ''}</span>${r.desc ? `<span>${esc(r.desc)}</span>` : ''}<span>${esc(n ? t('tip.repo', { updates: cnt('upd', n), when: when() }) : t('tip.quiet', { when: when() }))}${b ? ` · ${esc(cnt('auto', b))}` : ''}</span><em>${esc(t('tip.open'))}</em>`
   } else { tip.hidden = true; renderer.domElement.style.cursor = ''; return }
   renderer.domElement.style.cursor = 'pointer'
   tip.hidden = false
