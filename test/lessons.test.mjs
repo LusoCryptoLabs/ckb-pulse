@@ -259,6 +259,44 @@ test('on a running server: a lesson page, the API and MCP open with the key and 
   })
 })
 
+// the released lessons, in the open
+const PUB = { version: 1, generated: '2026-11-19T10:00:00Z', license: { name: 'CC BY 4.0', url: 'https://creativecommons.org/licenses/by/4.0/', credit: 'x' }, notice: 'n',
+  areas: { ccc: { name: 'CCC (TypeScript SDK)', summary: 'Building with CCC.' } },
+  lessons: [{ id: 'ccc/keep-the-change', area: 'ccc', title: 'Keep the change output', lesson: 'Never drop the change output when the fee grows.', note: '', patterns: ['avoid: drop change'], concepts: ['Transaction building and fees'], applies_to: [], status: 'current', evidence: 'L0', first_seen: '2026-11-12', last_touched: '2026-11-17', sources: [{ repo: 'owner/repo', hash: 'abc1234', date: '2026-11-12' }], related: [] }] }
+
+test('the released lessons page is for everyone: indexable, licensed, linked to its own paths and with no key or API in it', () => {
+  const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/learned', data: PUB, pub: true })
+  assert.ok(html.includes('href="https://pulse.example/learned/ccc/keep-the-change?lang=en"') && html.includes('action="https://pulse.example/learned"'))
+  assert.ok(!html.includes('name="robots"') && !html.includes('/lessons'), 'indexable, and nothing points to the private paths')
+  assert.ok(html.includes('1 lessons so far, each one released by a person.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
+  assert.ok(html.includes('Written by a model from public commits'), 'what it is, up front')
+  assert.ok(!html.includes('/lessons/api') && !html.includes('/lessons/mcp'))
+  const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: PUB, id: 'ccc/keep-the-change', pub: true })
+  assert.ok(one.includes('https://github.com/owner/repo/commit/abc1234') && one.includes('CC BY 4.0') && !one.includes('name="robots"') && !one.includes('/lessons'))
+  assert.ok(lessonsPage({ lang: 'zh', base: 'x', url: 'x', data: PUB, pub: true }).includes('由人决定发布'))
+})
+
+test('on a running server: /learned does not exist until a lesson is released, then it opens without a key, and the private pages stay shut', async () => {
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2) }, async (port) => {
+    const nothing = await get(port, '/no-such-page-here')
+    for (const p of ['/learned', '/learned.json', '/learned/ccc/keep-the-change']) { const r = await get(port, p); assert.equal(r.status, nothing.status, `${p}: no file, no route`); assert.equal(r.body, nothing.body) }
+  })
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [] }) }, async (port) => {
+    assert.equal((await get(port, '/learned')).status, (await get(port, '/no-such-page-here')).status, 'a file with no lesson in it is not a page either')
+  })
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify(PUB) }, async (port) => {
+    const nothing = await get(port, '/no-such-page-here')
+    const r = await get(port, '/learned?lang=pt')
+    assert.equal(r.status, 200); assert.ok(r.body.includes('Keep the change output') && !r.body.includes('Read witness args'), 'only the released lesson, not the private file')
+    assert.match(String(r.headers['cache-control']), /public/); assert.equal(r.headers['x-robots-tag'], undefined)
+    const one = await get(port, '/learned/ccc/keep-the-change'); assert.equal(one.status, 200)
+    assert.equal((await get(port, '/learned/scripts/witness-args')).status, nothing.status, 'a lesson only in the private file is not here')
+    const j = await get(port, '/learned.json'); assert.equal(j.status, 200); assert.equal(JSON.parse(j.body).lessons.length, 1); assert.equal(j.headers['access-control-allow-origin'], '*')
+    assert.equal((await get(port, '/lessons')).status, nothing.status, 'the private pages still need the key')
+    assert.equal((await get(port, '/lessons/api?q=change')).status, nothing.status)
+  })
+})
+
 test('the repository holds no lessons data', () => {
   const files = execSync('git ls-files', { cwd: path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..') }).toString().split('\n')
   assert.deepEqual(files.filter((f) => /lessons[-.]data|(^|\/)lessons\.json$/.test(f)), [])

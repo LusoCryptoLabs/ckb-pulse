@@ -41,22 +41,24 @@ export function access(req, url, key) {
   return null
 }
 
-let cached = { file: '', mtime: 0, data: null }
+const cached = new Map() // file -> { mtime, data }
 /** The lessons file of the data volume, read again only when it changes; null when it is missing or not JSON. */
-export function loadLessons(dir) {
-  const file = path.join(dir, 'lessons.json')
+export function loadLessons(dir, name = 'lessons.json') {
+  const file = path.join(dir, name)
   try {
-    const m = fs.statSync(file).mtimeMs
-    if (cached.file !== file || cached.mtime !== m) cached = { file, mtime: m, data: JSON.parse(fs.readFileSync(file, 'utf8')) }
-    return cached.data
+    const m = fs.statSync(file).mtimeMs, c = cached.get(file)
+    if (c?.mtime === m) return c.data
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+    cached.set(file, { mtime: m, data })
+    return data
   } catch { return null }
 }
 
 // ---------------------------------------------------------------- the data, whatever version of the export it is
 /** The export as { from, to, read, areas: {slug: {name, summary}}, lessons: [...] }. Version 2 is the lessons repository's
  * export; the first week's file (topics of lessons, no ids) still reads, with ids made from the topic and the title. */
-export function normalise(data) {
-  if (data?.version === 2) return { from: data.from, to: data.to, read: data.read, checked: data.checked || null, areas: data.areas || {}, lessons: data.lessons || [] }
+export function normalise(data) { // version 1 is the released lessons (public-lessons.json), version 2 the private ones
+  if (data?.version === 2 || data?.version === 1) return { from: data.from, to: data.to, read: data.read, checked: data.checked || null, areas: data.areas || {}, lessons: data.lessons || [] }
   const areas = {}, lessons = []
   for (const t of data?.topics || []) {
     const a = slug(t.area)
@@ -123,55 +125,59 @@ article.ln{background:var(--surface);border:1px solid var(--edge);padding:12px 1
 article.ln.old{opacity:.7}.ln .tg,.lp .tg{font-size:12px;color:var(--mut)}.ln .nt,.lp .nt{font-size:14px;color:var(--f-talk)}.bd{font:400 11px/1 var(--font-num);padding:3px 7px;border:1px solid var(--edge);color:var(--mut);margin-left:6px;vertical-align:middle;white-space:nowrap}.bd.old{color:var(--f-talk);border-color:var(--f-talk)}
 .lp{overflow-wrap:anywhere}.lp .big{font-size:19px;line-height:1.5;margin:8px 0 14px}.lp h2{font:600 15px var(--font-ui,sans-serif);margin:22px 0 8px;text-transform:none;letter-spacing:0;color:var(--fg)}.lp ul{padding-left:18px}.lp li{margin:4px 0;font-size:14px}.lp li a{color:var(--lime)}.lp dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px;margin:10px 0}.lp dt{color:var(--mut)}.lp dd{margin:0}.lp code{font-size:13px;overflow-wrap:anywhere}.lp .back{font-size:14px}`
 
-const head = (t, { lang, base, title, desc }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<meta name="description" content="${esc(desc)}"><meta name="robots" content="noindex">
+const head = (t, { lang, base, title, desc, pub }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">${pub ? '' : '<meta name="robots" content="noindex">'}
 ${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>`
-const href = (base, id, lang) => `${base}/lessons/${id}?lang=${lang}`
+const href = (base, id, lang, pre = '/lessons') => `${base}${pre}/${id}?lang=${lang}`
 const badges = (t, l) => `${l.status === 'superseded' ? `<span class="bd old">${esc(t('ls.old'))}</span>` : ''}<span class="bd" title="${esc(t('ls.evidence.' + (l.evidence || 'L0')))}">${esc(l.evidence || 'L0')}</span>`
-const card = (t, base, lang, l) => `<article class="ln${l.status === 'superseded' ? ' old' : ''}"><h3><a href="${esc(href(base, l.id, lang))}">${esc(l.title)}</a>${badges(t, l)}</h3><p>${esc(l.lesson)}</p>${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
+const card = (t, base, lang, l, pre) => `<article class="ln${l.status === 'superseded' ? ' old' : ''}"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a>${badges(t, l)}</h3><p>${esc(l.lesson)}</p>${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
 <p class="tg">${(l.concepts || []).map((c) => `#${esc(c)}`).join(' ')} · ${esc(t('ls.sources', { n: l.sources.length }))}${l.last_touched ? ` · ${esc(l.last_touched)}` : ''}</p></article>`
 
-export function lessonsPage({ lang, base, url, data, q = '', area = '' }) {
+export function lessonsPage({ lang, base, url, data, q = '', area = '', pub = false }) {
+  const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), topics = shownLessons(data)
   const title = `CKB Pulse · ${t('ls.title')}`, desc = t('ls.lead')
   const searching = !!(q.trim() || area)
   const found = searching ? searchLessons(v.lessons, { q, area, limit: 200 }) : []
   const areaOpts = topics.map((x) => `<option value="${esc(x.slug)}"${x.slug === area ? ' selected' : ''}>${esc(x.area)}</option>`).join('')
-  return `${head(t, { lang, base, title, desc })}
-${pageBar(t, { base, lang, current: '', here: '/lessons' })}
+  return `${head(t, { lang, base, title, desc, pub })}
+${pageBar(t, { base, lang, current: '', here: pre })}
 ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
-<p>${esc(t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>
-${v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
-<form class="lq" method="get" action="${esc(base)}/lessons" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
+<p>${esc(pub ? t('ls.pub.count', { n: v.lessons.length }) : t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>
+${pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!pub && v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
+<form class="lq" method="get" action="${esc(base)}${pre}" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
 ${searching
-    ? `<p>${esc(found.length ? t('ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}/lessons?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.map((l) => card(t, base, lang, l)).join('\n')}`
+    ? `<p>${esc(found.length ? t('ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.map((l) => card(t, base, lang, l, pre)).join('\n')}`
     : `<nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="#${x.slug}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>
 ${topics.map((x) => `<section class="lt" id="${x.slug}"><h2>${esc(x.area)}</h2><p>${esc(x.summary)}</p>
-${x.lessons.map((l) => card(t, base, lang, l)).join('\n')}</section>`).join('\n')}`}
-<p class="tg">${esc(t('ls.how'))}</p>
-<p class="tg">${esc(t('ls.api'))} <code>${esc(base)}/lessons/api?q=</code> · <code>${esc(base)}/lessons/mcp</code></p>
+${x.lessons.map((l) => card(t, base, lang, l, pre)).join('\n')}</section>`).join('\n')}`}
+${pub
+    ? `<p class="tg">${esc(t('ls.pub.license'))} <a href="${esc(base)}/learned.json">JSON</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('ls.pub.remove'))}</a></p>`
+    : `<p class="tg">${esc(t('ls.how'))}</p>
+<p class="tg">${esc(t('ls.api'))} <code>${esc(base)}/lessons/api?q=</code> · <code>${esc(base)}/lessons/mcp</code></p>`}
 ${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }
 
 /** One lesson: the rule, why, where it came from, what it is related to and how it changed. null when there is no such
  * lesson (or it is hidden). */
-export function lessonPage({ lang, base, url, data, id }) {
+export function lessonPage({ lang, base, url, data, id, pub = false }) {
+  const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), l = v.lessons.find((x) => x.id === id)
   if (!l) return null
   const byId = new Map(v.lessons.map((x) => [x.id, x]))
-  const link = (i) => { const x = byId.get(i); return x ? `<a href="${esc(href(base, i, lang))}">${esc(x.title)}</a>` : '' }
+  const link = (i) => { const x = byId.get(i); return x ? `<a href="${esc(href(base, i, lang, pre))}">${esc(x.title)}</a>` : '' }
   const date = (d) => (d ? esc(d) : esc(t('ls.never')))
-  return `${head(t, { lang, base, title: `${l.title} · CKB Pulse`, desc: l.lesson })}
-${pageBar(t, { base, lang, current: '', here: `/lessons/${l.id}` })}
+  return `${head(t, { lang, base, title: `${l.title} · CKB Pulse`, desc: l.lesson, pub })}
+${pageBar(t, { base, lang, current: '', here: `${pre}/${l.id}` })}
 <article class="lp">
-<p class="back"><a href="${esc(base)}/lessons?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}/lessons?area=${esc(l.area)}&amp;lang=${lang}">${esc(v.areas[l.area]?.name || l.area)}</a></p>
+<p class="back"><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}${pre}?area=${esc(l.area)}&amp;lang=${lang}">${esc(v.areas[l.area]?.name || l.area)}</a></p>
 <h1>${esc(l.title)}${badges(t, l)}</h1>
 <p class="big">${esc(l.lesson)}</p>
 ${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
 ${l.superseded_by ? `<p class="nt">${esc(t('ls.replaced'))} ${link(l.superseded_by)}</p>` : ''}
 ${(l.patterns || []).length ? `<h2>${esc(t('ls.pattern'))}</h2><ul>${l.patterns.map((p) => `<li><code>${esc(p)}</code></li>`).join('')}</ul>` : ''}
-<dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}/lessons?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
+<dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(l.evidence || 'L0')}: ${esc(t('ls.evidence.' + (l.evidence || 'L0')))}</dd>
 <dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.last_checked)}</dd></dl>
@@ -179,6 +185,7 @@ ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies
 ${l.related.length ? `<h2>${esc(t('ls.related'))}</h2><ul>${l.related.map((i) => `<li>${link(i)}</li>`).join('')}</ul>` : ''}
 ${(l.history || []).length ? `<h2>${esc(t('ls.history'))}</h2><ul>${l.history.map((h) => `<li>${esc(h.date)} · ${esc(h.what)}</li>`).join('')}</ul>` : ''}
 </article>
+${pub ? `<p class="tg">${esc(t('ls.pub.notice'))} ${esc(t('ls.pub.license'))} <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('ls.pub.remove'))}</a></p>` : ''}
 ${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }
