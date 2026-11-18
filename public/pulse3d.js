@@ -4,6 +4,7 @@
 // three.js comes only when the scene is first shown (loadScene): the bars, what a phone shows, never need its 370 kB
 import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
 import { menuHtml, viewsHtml, shareTargets } from './menu.js'
+import { softwareRenderer } from './quality.js'
 
 const DAY = 864e5
 const IDLE_MS = 15000
@@ -82,6 +83,27 @@ let THREE, CSS2DObject, RoundedBoxGeometry
 let renderer, labelRenderer, scene, camera, controls, composer, bloom, glowTex, peopleGroup, ringGeo, ray, ptr, home
 let tmpM, tmpQ, tmpS, tmpP, tmpC, DORMANT, BOTCELL
 let has3d = false, sceneLoading = null, useBloom = true
+// How hard the scene works. It used to redraw every frame, always, and with nothing moving that was the whole cost of
+// leaving the page open (2026-11-18). Now it draws flat out while something moves (a comet, the camera, a block
+// settling, the pointer, a change of what is shown) and at a slow beat otherwise. A weak device (no GPU, or frames
+// over budget) also loses the bloom, draws at pixel ratio 1 and holds still between events: the same picture, calmer.
+// ?quality=low or ?quality=high decides by hand.
+let weak = false, lastDraw = 0, activeUntil = 0, settling = true, wasBusy = false
+const wake = (ms = 700) => { activeUntil = Math.max(activeUntil, performance.now() + ms) }
+const calm = () => REDUCED || weak
+const BEAT = 1000 / 12, BEAT_CALM = 500, BEAT_COVERED = 1000 / 6 // ms between draws when nothing moves
+function probeWeak() {
+  const forced = new URLSearchParams(location.search).get('quality')
+  if (forced === 'low') return true
+  if (forced === 'high') return false
+  try {
+    const gl = document.createElement('canvas').getContext('webgl')
+    const info = gl?.getExtension('WEBGL_debug_renderer_info')
+    const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : ''
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    return softwareRenderer(name)
+  } catch { return false }
+}
 function loadScene() {
   sceneLoading ||= Promise.all([
     import('three'), import('three/addons/controls/OrbitControls.js'), import('three/addons/postprocessing/EffectComposer.js'),
@@ -96,8 +118,10 @@ function loadScene() {
   return sceneLoading
 }
 function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, CSS2DRenderer }) {
-  renderer = new THREE.WebGLRenderer({ antialias: !MOBILE, powerPreference: 'high-performance' })
-  renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2))
+  weak = probeWeak()
+  if (weak) useBloom = false
+  renderer = new THREE.WebGLRenderer({ antialias: !MOBILE && !weak, powerPreference: weak ? 'default' : 'high-performance' })
+  renderer.setPixelRatio(weak ? 1 : Math.min(devicePixelRatio, MOBILE ? 1.5 : 2))
   renderer.setSize(innerWidth, innerHeight)
   renderer.toneMapping = THREE.NeutralToneMapping // keeps hues saturated; ACES washed the cells into pastel
   $('stage').appendChild(renderer.domElement)
@@ -113,24 +137,28 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   // the view only moves when the viewer moves it (or opens something to look at)
   controls = new OrbitControls(camera, renderer.domElement)
   Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: false, maxPolarAngle: 1.33, minDistance: 5, enablePan: true, screenSpacePanning: false })
-  controls.addEventListener('start', () => { T.lastUser = Date.now(); flight = null })
+  controls.addEventListener('start', () => { T.lastUser = Date.now(); flight = null; wake(1600) })
+  controls.addEventListener('end', () => wake(1600)) // the damping carries on after the hand lets go
+  controls.addEventListener('change', () => wake(300))
 
   scene.add(new THREE.HemisphereLight('#cfdcb6', '#0a0c08', 0.45))
   const sun = new THREE.DirectionalLight('#ffffff', 0.85)
   sun.position.set(30, 60, 20)
   scene.add(sun)
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshStandardMaterial({ color: '#080b06', roughness: 1 }))
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshBasicMaterial({ color: '#080b06' })) // flat: lit, it was the same colour to within one level, and the costliest thing on a software renderer
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02
   scene.add(ground)
   const grid = new THREE.GridHelper(400, 308, '#1f2b12', '#11180a')
   grid.material.transparent = true; grid.material.opacity = 0.55
   scene.add(grid)
 
-  composer = new EffectComposer(renderer)
-  composer.addPass(new RenderPass(scene, camera))
-  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), MOBILE ? 0.85 : 1.05, 0.6, 0.42)
-  composer.addPass(bloom)
-  composer.addPass(new OutputPass())
+  if (!weak) { // a weak device never draws the bloom, so it does not pay for its buffers either
+    composer = new EffectComposer(renderer)
+    composer.addPass(new RenderPass(scene, camera))
+    bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), MOBILE ? 0.85 : 1.05, 0.6, 0.42)
+    composer.addPass(bloom)
+    composer.addPass(new OutputPass())
+  }
 
   // glow sprite texture for comets and sparks
   const c = document.createElement('canvas'); c.width = c.height = 64
@@ -148,9 +176,9 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
 
   // a click on a block or a face opens it; a drag only moves the view
   ray = new THREE.Raycaster(); ptr = new THREE.Vector2()
-  renderer.domElement.addEventListener('pointermove', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrPx.x = e.clientX; ptrPx.y = e.clientY; ptrPx.in = true })
+  renderer.domElement.addEventListener('pointermove', (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrPx.x = e.clientX; ptrPx.y = e.clientY; ptrPx.in = true; wake(400) })
   renderer.domElement.addEventListener('pointerleave', () => { ptrPx.in = false; $('tip').hidden = true })
-  renderer.domElement.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); openFilters(false); closeSearch() })
+  renderer.domElement.addEventListener('pointerdown', (e) => { wake(800); down = { x: e.clientX, y: e.clientY, t: performance.now() }; ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); openFilters(false); closeSearch() })
   renderer.domElement.addEventListener('pointerup', (e) => {
     if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 450) return
     ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
@@ -226,6 +254,7 @@ function labelText(div) { div.innerHTML = `${esc(gname(div.dataset.g))}<span cla
 const QUIET_MIN = 3 // groups with fewer projects, and the languages, are named only when the viewer has zoomed in
 function buildCells() {
   if (!sceneShown) return
+  wake(2000)
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose() }
   for (const l of [...groupLabels, ...subLabels]) l.parent?.remove(l)
   groupLabels.length = 0; subLabels.length = 0; groupCenter.clear(); cell.length = 0
@@ -318,13 +347,17 @@ function computeWindow() {
     if (followsPerson(actors[w.a]?.[0])) W.mine[w.r] = 1
     W.fams[f] = (W.fams[f] || 0) + 1
   }
+  let changed = false // the window slides every second or so: it wakes the scene only when a block's target moved
   repos.forEach((r, i) => {
     const c = cell[i]
     if (!c) return
+    const was = c.hT, wasHex = c.base.getHex()
     if (W.n[i]) { const n = W.n[i] * scale; c.base.set(kcol(W.last[i])).multiplyScalar(0.55 + Math.min(0.9, 0.12 * n)); c.hT = 0.45 + 0.85 * Math.log2(1 + n) }
     else if (W.b[i]) { c.base.copy(BOTCELL); c.hT = 0.32 }
     else { c.base.copy(DORMANT); c.hT = 0.22 }
+    if (Math.abs(c.hT - was) > 1e-4 || c.base.getHex() !== wasHex) changed = true
   })
+  if (changed) wake(1200)
   applyFilter()
   filterCounts(); if (VIEW === '3d') people()
   if (listShown && T.period !== listPeriod && !$('drawer').hidden) renderList()
@@ -338,7 +371,7 @@ function matches(ri, k, a) {
   return true
 }
 const filtering = () => !!(filt.tag || filt.fam || filt.mine)
-function applyFilter() { repos.forEach((r, i) => { if (cell[i]) cell[i].dimT = !filtering() ? 1 : matches(i) ? 1 : 0.12 }); renderBars(); kpis() }
+function applyFilter() { repos.forEach((r, i) => { const c = cell[i]; if (!c) return; const d = !filtering() ? 1 : matches(i) ? 1 : 0.12; if (d !== c.dimT) { c.dimT = d; wake(900) } }); renderBars(); kpis() }
 
 // ================= numbers =================
 const tween = new Map()
@@ -837,9 +870,12 @@ function avatarTexture(login, avatar) {
 }
 // each person keeps one place on the ring (the golden angle from a hash of the login), so nobody swaps seats as counts change
 function seat(login) { let h = 0; for (const ch of login) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h }
+let peopleSig = ''
 function people() {
   if (!sceneShown) return
   const top =[...W.people.entries()].sort((x, y) => y[1] - x[1]).slice(0, MOBILE ? 16 : 32)
+  const sig = `${layoutR}|${top.map(([a, n]) => `${actors[a][0]}:${n}`).join(',')}`
+  if (sig !== peopleSig) { peopleSig = sig; wake(1500) } // called as often as the window slides: only a change of faces or sizes needs a draw
   const keep = new Set(top.map(([a]) => actors[a][0]))
   for (const [login, s] of sprites) if (!keep.has(login)) s.userData.leaving = true
   const R = layoutR + 4, max = top[0]?.[1] || 1
@@ -876,7 +912,7 @@ function stepPeople(dt) {
       if (u.badge) { s.remove(u.badge); personBadges.delete(u.badge) }
       peopleGroup.remove(s); s.material.dispose(); sprites.delete(login); continue
     }
-    s.position.y = u.y + (REDUCED ? 0 : Math.sin(now / 1400 + u.ang * 3) * 0.25)
+    s.position.y = u.y + (calm() ? 0 : Math.sin(now / 1400 + u.ang * 3) * 0.25)
     const sz = u.size * (1 + (u.flare || 0) * 0.5)
     s.scale.set(sz, sz, 1)
     u.flare = Math.max(0, (u.flare || 0) - dt * 2)
@@ -888,6 +924,7 @@ const sceneBadges = [] // CSS2D objects that follow a cell
 const chainSet = new Set() // projects with a contract in use on mainnet
 function placeBadges() {
   if (!sceneShown) return
+  wake(600)
   for (const o of sceneBadges) o.parent?.remove(o)
   sceneBadges.length = 0
   const L = S?.leaders
@@ -943,6 +980,7 @@ const TRAIL = 26
 function comet(w) {
   const c = cell[w.r]
   if (!c) return
+  wake(1500)
   const color = new THREE.Color(kcol(w.k))
   const s = sprites.get(actors[w.a]?.[0])
   const start = s ? s.position.clone() : new THREE.Vector3(Math.cos(Math.random() * 6.28) * (layoutR + 4), 9, Math.sin(Math.random() * 6.28) * (layoutR + 4))
@@ -981,6 +1019,7 @@ function stepComets(dt) {
 function hit(w, color) {
   const c = cell[w.r]
   if (!c) return
+  wake(1200)
   c.glow = 2.6; c.flash.copy(color); c.pop = 1
   if (REDUCED) return
   const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))
@@ -993,7 +1032,7 @@ function hit(w, color) {
     if (d < 9) waves.push({ i, at: performance.now() + d * 70, amt: (1 - d / 9) * 1.1, color })
   }
 }
-function spark(w) { const c = cell[w.r]; if (!c || !filt.bots) return; c.glow = Math.max(c.glow, 0.9); c.flash.set('#b9c2aa') }
+function spark(w) { const c = cell[w.r]; if (!c || !filt.bots) return; wake(900); c.glow = Math.max(c.glow, 0.9); c.flash.set('#b9c2aa') }
 function stepFx(dt, now) {
   for (let i = rings.length - 1; i >= 0; i--) {
     const r = rings[i]; r.t += dt / 1.3
@@ -1063,6 +1102,7 @@ function hud() {
   return { top, bottom, right }
 }
 function updateLayout() {
+  wake(800)
   const root = document.documentElement.style
   root.setProperty('--top', `${Math.round(box('.top').bottom + 6)}px`)
   // notices sit under whatever is there: the filter bar on wide screens (one or two rows), the switch between bars and
@@ -1676,17 +1716,28 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now
   // with the bars up (or the scene still on its way) the clock and the numbers run, and the scene waits undrawn
   if (VIEW === 'bars' || !sceneShown) { stepTime(now, dt); stepTweens(now); return }
-  stepTime(now, dt); stepFlight(dt); stepPeople(dt); stepComets(dt); stepFx(dt, now); stepTweens(now); stepHover()
+  stepTime(now, dt); stepTweens(now) // the clock and the numbers run at every frame, and cost almost nothing
+  // the scene: flat out while something moves, at a beat while nothing does. A comet, a flight, a ring, a block still
+  // settling, the camera or the pointer count as moving; the beat catches whatever no one announced
+  const busy = !!flight || comets.length > 0 || rings.length > 0 || waves.length > 0 || settling || now < activeUntil
+  const gap = busy ? (introOpen ? 1000 / (weak ? 8 : 15) : weak ? 1000 / 20 : 0) : calm() ? BEAT_CALM : introOpen ? BEAT_COVERED : BEAT
+  const since = now - lastDraw
+  if (since < gap - 2) return
+  lastDraw = now
+  const sdt = Math.min(0.1, since / 1000)
+  stepFlight(sdt); stepPeople(sdt); stepComets(sdt); stepFx(sdt, now); stepHover()
   controls.update()
+  settling = false
   if (mesh) {
     for (let i = 0; i < mesh.count; i++) {
       const c = cell[i]; if (!c) continue
       const grow = Math.min(1, Math.max(0, (now - c.born) / 900))
-      c.h += (c.hT * grow - c.h) * Math.min(1, dt * 5)
-      c.glow *= Math.exp(-dt * 2.2)
-      c.pop = Math.max(0, (c.pop || 0) - dt * 2.5)
-      c.dim += (c.dimT - c.dim) * Math.min(1, dt * 6)
-      const breathe = W.n[i] && !REDUCED ? 1 + 0.18 * Math.sin(now / 700 + i * 1.7) : 1
+      c.h += (c.hT * grow - c.h) * Math.min(1, sdt * 5)
+      c.glow *= Math.exp(-sdt * 2.2)
+      c.pop = Math.max(0, (c.pop || 0) - sdt * 2.5)
+      c.dim += (c.dimT - c.dim) * Math.min(1, sdt * 6)
+      if (Math.abs(c.hT * grow - c.h) > 0.004 || c.glow > 0.02 || c.pop > 0.02 || Math.abs(c.dimT - c.dim) > 0.004) settling = true
+      const breathe = W.n[i] && !calm() ? 1 + 0.18 * Math.sin(now / 700 + i * 1.7) : 1
       const sxz = 0.82 * (1 + c.hover * 0.12 + c.pop * 0.25)
       tmpS.set(sxz, Math.max(0.02, c.h * (1 + c.pop * 0.35)), sxz)
       tmpP.set(c.x, 0, c.z)
@@ -1699,19 +1750,26 @@ function frame(now) {
     mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true
   }
   for (const o of sceneBadges) { const c = cell[o.userData.cell]; if (c) o.position.set(c.x, c.h + 0.55, c.z) }
-  if (useBloom) composer.render(); else renderer.render(scene, camera)
+  if (useBloom && composer) composer.render(); else renderer.render(scene, camera)
   labelRenderer.render(scene, camera)
-  // every frame: medals ride on blocks that grow during a replay, so a label can reach another one between two checks
+  // every drawn frame: medals ride on blocks that grow during a replay, so a label can reach another one between two checks
   cull(now)
-  // slow device: drop the bloom
-  acc += dt; frames++
-  if (acc > 2) { if (frames / acc < 28) slow++; else slow = 0; if (slow >= 2 && useBloom) { useBloom = false; renderer.setPixelRatio(1) } acc = 0; frames = 0 }
+  // slow device: first drop the bloom, then hold still (calm). Only a stretch of busy frames is timed: a beat is slow on purpose
+  if (busy && wasBusy && since < 200) { acc += since / 1000; frames++ } else { acc = 0; frames = 0 }
+  wasBusy = busy
+  if (acc > 2) {
+    if (frames / acc < 28) slow++; else slow = 0
+    if (slow >= 2) { slow = 0; if (useBloom) { useBloom = false; renderer.setPixelRatio(1) } else weak = true }
+    acc = 0; frames = 0
+  }
 }
+document.addEventListener('visibilitychange', () => wake(800))
 addEventListener('resize', () => {
   if (has3d) {
     camera.aspect = innerWidth / innerHeight
-    renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight)
-    bloom.resolution.set(innerWidth / 2, innerHeight / 2)
+    renderer.setSize(innerWidth, innerHeight); composer?.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight)
+    bloom?.resolution.set(innerWidth / 2, innerHeight / 2)
+    wake(800)
   }
   updateLayout(); setHome()
   drawBars(); drawHead()

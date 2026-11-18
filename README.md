@@ -97,6 +97,8 @@ In the scene, a phone frames it into whatever the panels leave free, and the pan
 
 24 hours and 7 days show the whole period at once, and the play button replays it. With a filter on, the counts are what it keeps ("filtered, of 247 updates"). A tidier layout is on trial at `?ui=next` (and `?ui=old` turns it off; the choice is kept in the browser): bars on every screen, filters behind a button, the strip above the timeline only while it says something the panel does not, and the README badge folded under "For developers".
 
+The scene draws flat out while something moves (a comet, the camera, a block settling, the pointer) and at a slow beat while nothing does. On a device that draws in software it also skips the bloom and the antialiasing, holds still between events and draws at most 20 frames a second; the same happens when frames stay slow. `?quality=low` or `?quality=high` decides by hand. Measured on software rendering with the day replaying: about 13 cores across the browser's processes before, about 4 now.
+
 ## Look
 
 Every page shares `public/theme.css`, the look of the Cellula pages: Space Grotesk for words and JetBrains Mono for numbers and small labels, lime on a warm black. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/digest`, `/use`) open with a small label, a large title with its key words lit, and one line under it.
