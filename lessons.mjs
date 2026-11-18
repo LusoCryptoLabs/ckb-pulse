@@ -6,7 +6,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
-import { CSS, maker, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { isOptedOut } from './config.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -45,11 +45,11 @@ export function loadLessons(dir) {
   } catch { return null }
 }
 
-const PAGE_CSS = `nav.ls{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 18px}nav.ls a{padding:5px 11px;border-radius:999px;border:1px solid #36322a;color:#d8d2c4;text-decoration:none;font-size:13px}nav.ls a span{color:#8f887a;margin-left:6px}
-section.lt{margin:22px 0 8px;overflow-wrap:anywhere}section.lt h2{margin:0 0 4px;font:600 21px var(--font-ui,sans-serif);color:#f0ece2;text-transform:none;letter-spacing:-.01em}section.lt>p{margin:4px 0 10px;color:#b9b2a4}
-article.ln{background:#14120e;border:1px solid #36322a;border-radius:16px;padding:12px 16px;margin:8px 0;overflow-wrap:anywhere;min-width:0}article.ln h3{margin:0 0 4px;font:600 16px var(--font-ui,sans-serif);color:#f0ece2}article.ln p{margin:4px 0}
+const PAGE_CSS = `nav.ls{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 18px}nav.ls a{padding:5px 11px;border-radius:999px;border:1px solid var(--edge);color:#d8d2c4;text-decoration:none;font-size:13px}nav.ls a span{color:#8f887a;margin-left:6px}
+section.lt{margin:22px 0 8px;overflow-wrap:anywhere}section.lt h2{margin:0 0 4px;font:600 21px var(--font-ui,sans-serif);color:var(--fg);text-transform:none;letter-spacing:-.01em}section.lt>p{margin:4px 0 10px;color:#b9b2a4}
+article.ln{background:var(--surface);border:1px solid var(--edge);border-radius:16px;padding:12px 16px;margin:8px 0;overflow-wrap:anywhere;min-width:0}article.ln h3{margin:0 0 4px;font:600 16px var(--font-ui,sans-serif);color:var(--fg)}article.ln p{margin:4px 0}
 article.ln.old{opacity:.7}.ln .tg{font-size:12px;color:#8f887a}.ln .nt{font-size:13px;color:#e0a73a}.ln .bd{font-size:11px;padding:2px 7px;border-radius:999px;background:#2a2619;color:#e0a73a;margin-left:6px;vertical-align:middle}
-.ln details{margin-top:4px}.ln summary{cursor:pointer;font-size:13px;color:#8f887a}.ln li{font-size:13px;overflow-wrap:anywhere}.ln li a{color:#cbf34d}`
+.ln details{margin-top:4px}.ln summary{cursor:pointer;font-size:13px;color:#8f887a}.ln li{font-size:13px;overflow-wrap:anywhere}.ln li a{color:var(--lime)}`
 
 /** The lessons with sources from people who asked to leave taken out; a lesson left with no source goes too. */
 export function shownLessons(data) {
@@ -81,7 +81,6 @@ ${x.lessons.map((l) => `<article class="ln${l.status === 'superseded' ? ' old' :
 <p class="tg">${l.concepts.map((c) => `#${esc(c)}`).join(' ')}</p>
 <details><summary>${esc(t('ls.sources', { n: l.sources.length }))}</summary><ul>${l.sources.map((s) => `<li><a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>: ${esc(s.subject)}</li>`).join('')}</ul></details></article>`).join('\n')}</section>`).join('\n')}
 <p class="tg">${esc(t('ls.how'))}</p>
-<footer>${maker(t)}
-<p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(url)}?lang=${l}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
+${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }

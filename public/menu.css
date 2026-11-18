@@ -1,7 +1,7 @@
 /* The menu, the views and the bar (menu.js), shared by every page. Self-contained: the server pages have none of the
    live page's styles. A menu opens under its button on wide screens and from the bottom on phones; the dimmed layer
    behind it belongs to the button, so a tap on it closes the menu even where no script runs. */
-.pmenu, .pm-bar, .pm-views { --pm-bg: #121009; --pm-glass: rgba(20, 18, 14, 0.78); --pm-line: rgba(203, 243, 77, 0.16); --pm-soft: rgba(203, 243, 77, 0.08); --pm-fg: #f0ece2; --pm-mut: #9a9486; --pm-lime: #cbf34d; --pm-ink: #1a2208; }
+.pmenu, .pm-bar, .pm-views { --pm-bg: var(--panel, #121009); --pm-glass: rgba(20, 18, 14, 0.78); --pm-line: rgba(203, 243, 77, 0.16); --pm-soft: rgba(203, 243, 77, 0.08); --pm-fg: var(--fg, #f0ece2); --pm-mut: var(--mut, #9a9486); --pm-lime: var(--lime, #cbf34d); --pm-ink: var(--ink, #1a2208); }
 .pmenu { position: relative; display: inline-block; }
 .pm-btn { list-style: none; display: grid; place-items: center; width: 38px; height: 38px; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--pm-line); background: var(--pm-glass); color: var(--pm-fg); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .pm-btn::-webkit-details-marker { display: none; }
@@ -65,13 +65,13 @@
 
 /* sharing (shareHtml in menu.js): a pill that opens a small list of where to share */
 .pshare { position: relative; display: inline-block; }
-.ps-btn { list-style: none; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: 500 13px var(--font-ui, system-ui, sans-serif); color: #f0ece2; border: 1px solid #36322a; border-radius: 999px; padding: 6px 13px; background: rgba(20, 18, 14, 0.8); -webkit-tap-highlight-color: transparent; }
+.ps-btn { list-style: none; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: 500 13px var(--font-ui, system-ui, sans-serif); color: var(--fg, #f0ece2); border: 1px solid var(--edge, #36322a); border-radius: 999px; padding: 6px 13px; background: rgba(20, 18, 14, 0.8); -webkit-tap-highlight-color: transparent; }
 .ps-btn::-webkit-details-marker { display: none; } .ps-btn::marker { content: ""; }
 .ps-btn svg { width: 15px; height: 15px; }
-.ps-btn:hover, .pshare[open] > .ps-btn { border-color: #cbf34d; color: #cbf34d; }
-.ps-btn:focus-visible, .ps-panel a:focus-visible, .ps-panel button:focus-visible { outline: 2px solid #cbf34d; outline-offset: 2px; }
-.ps-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 31; min-width: 190px; display: grid; gap: 2px; padding: 6px; background: #121009; border: 1px solid #36322a; border-radius: 14px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7); }
-.ps-panel a, .ps-panel button { display: block; text-align: left; padding: 8px 10px; border-radius: 9px; font: 14px var(--font-ui, system-ui, sans-serif); color: #f0ece2; text-decoration: none; background: none; border: 0; cursor: pointer; white-space: nowrap; }
+.ps-btn:hover, .pshare[open] > .ps-btn { border-color: var(--lime, #cbf34d); color: var(--lime, #cbf34d); }
+.ps-btn:focus-visible, .ps-panel a:focus-visible, .ps-panel button:focus-visible { outline: 2px solid var(--lime, #cbf34d); outline-offset: 2px; }
+.ps-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 31; min-width: 190px; display: grid; gap: 2px; padding: 6px; background: var(--panel, #121009); border: 1px solid var(--edge, #36322a); border-radius: 14px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7); }
+.ps-panel a, .ps-panel button { display: block; text-align: left; padding: 8px 10px; border-radius: 9px; font: 14px var(--font-ui, system-ui, sans-serif); color: var(--fg, #f0ece2); text-decoration: none; background: none; border: 0; cursor: pointer; white-space: nowrap; }
 .ps-panel a:hover, .ps-panel button:hover { background: rgba(203, 243, 77, 0.08); }
 .pshare.up .ps-panel { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
 @media print { .pshare { display: none; } }

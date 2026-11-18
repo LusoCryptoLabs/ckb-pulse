@@ -8,4 +8,8 @@
 :root {
   --font-ui: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
   --font-num: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+  /* the colours every page shares, in one place: lime on a warm black. A page that needs a shade of its own keeps it,
+     the ones below are the ones that were repeated */
+  --bg: #0a0907; --surface: #14120e; --panel: #121009; --edge: #36322a; --edge-soft: #2a2720;
+  --fg: #f0ece2; --mut: #9a9486; --lime: #cbf34d; --ink: #1a2208;
 }
