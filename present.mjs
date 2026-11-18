@@ -46,7 +46,8 @@ const CSS = `html,body{height:100%}body{margin:0;overflow:hidden;background:var(
 .pr-hint{position:fixed;z-index:9;left:50%;top:clamp(14px,2.4vw,36px);transform:translateX(-50%);margin:0;background:var(--fg);color:var(--bg);padding:10px 18px;font:400 clamp(12px,1.3vw,18px)/1.3 var(--font-num);transition:opacity .5s}
 html.still,html.still *{cursor:none!important}html.still .pr-bar{opacity:0;pointer-events:none}
 .pr-hint[hidden]{display:none}
-@media(max-width:700px){.pr-bar .lang,.dots{display:none}.over{bottom:92px}}`
+@media(max-width:700px){.pr-bar .lang,.dots{display:none}.over{bottom:92px}}
+.pr-hint{max-width:min(92vw,64ch);text-align:center}@media(pointer:coarse){.pr-hint{display:none}} /* keys are for a keyboard: a touch screen has the buttons */`
 
 export function presentPage({ lang, base, url }) {
   const t = words(lang), q = `lang=${lang}`

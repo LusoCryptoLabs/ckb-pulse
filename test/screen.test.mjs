@@ -53,6 +53,8 @@ test('the script turns by itself, by key and by button, rests after three second
   const js = read('present.js')
   for (const need of ["fetch('api/state')", "fetch('api/impact?lib=ccc')", "fetch('api/last?lang='", "'ArrowRight'", "'ArrowLeft'", "e.key === ' '", "e.key === 'f'", "e.key === 'Escape'", '3000', 'setInterval(load, 60000)', "toggleAttribute('inert'"]) assert.ok(js.includes(need), need)
   for (const [id] of SLIDES) assert.ok(id === 'live' || js.includes(`ready.${id}`), `${id} is passed over until it has its numbers`)
+  const pcss = presentPage({ lang: 'en', base, url: base }).match(/<style>([\s\S]*?)<\/style>/)[1]
+  assert.ok(pcss.includes('@media(pointer:coarse){.pr-hint{display:none}}'), 'the hint about keys is not shown on a touch screen, where it covered the title')
   assert.ok(!/https?:\/\//.test(js.replace(/https?:\/\/www\.w3\.org[^'"]*/g, '')), 'no outside address')
 })
 
