@@ -49,7 +49,7 @@ test('funded projects are followed, private ones and old or archived repositorie
 })
 
 // ---------- the page: reports sorted by their first words, code since the vote, the status ----------
-const { classify, grantView, fundedPage } = await import('../funded.mjs')
+const { classify, grantView, fundedPage, refreshUnlinked, loadFunded } = await import('../funded.mjs')
 
 test('reports are sorted by their first words, as the teams wrote them', () => {
   const seen = {
@@ -108,4 +108,27 @@ test('the page names every grant in every language', () => {
     assert.doesNotMatch(html, /\{\w+\}|f\.\w+|>by</)
     assert.match(html, /lusocryptolabs\.com">[^<]*LusoCryptoLabs[^<]*<\/a> · <a href="https:\/\/x\.com\/lusocryptolabs">X<\/a> · <a href="https:\/\/github\.com\/LusoCryptoLabs\/ckb-pulse">GitHub/)
   }
+})
+
+test('commits whose author has no GitHub account are counted apart and shown', async () => {
+  // Invisibook on 2026-11-18: the statistics held 6 commits, the commit list 63 with 57 of them unlinked
+  const g = grantView(grant, { repos: ['a/b'], rows: () => [[wk('2026-08-03'), 'y', 6]], events: [], now: NOW, thread: { posts: [] }, unlinkedOf: () => ({ since: '2026-06-11', unlinked: 57 }) })
+  assert.equal(g.unlinked, 57)
+  // a count made for another vote date is not used
+  assert.equal(grantView(grant, { repos: ['a/b'], rows: () => [], events: [], now: NOW, thread: { posts: [] }, unlinkedOf: () => ({ since: '2026-01-01', unlinked: 9 }) }).unlinked, 0)
+  const html = fundedPage({ lang: 'en', grants: [{ ...g, repos: ['a/b'], milestones: [], bars: [], first: 0 }], base: 'https://pulse.example', url: 'https://pulse.example/funded', readAt: null })
+  assert.match(html, /57 commits since the vote have an author with no GitHub account linked/)
+  assert.doesNotMatch(fundedPage({ lang: 'en', grants: [{ ...g, unlinked: 0, repos: ['a/b'], milestones: [], bars: [], first: 0 }], base: 'https://pulse.example', url: 'https://pulse.example/funded', readAt: null }), /no GitHub account linked/)
+  // the count itself: two linked commits and three without an author in the list GitHub answers
+  const seen = []
+  globalThis.fetch = async (url) => {
+    seen.push(String(url))
+    const list = [{ author: { login: 'a' } }, { author: { login: 'b' } }, { author: null }, { author: null }, { author: null }]
+    return new Response(JSON.stringify(list), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  loadFunded(process.env.DATA_DIR)
+  await refreshUnlinked((f) => (f.follow.includes('chukwuma619/fiber-studio') ? ['chukwuma619/fiber-studio'] : []))
+  assert.ok(seen.every((u) => u.includes('/repos/chukwuma619/fiber-studio/commits?since=2026-06-11')), seen.join(' '))
+  const done = grantView(FUNDED.find((f) => f.name === 'Fiber Studio'), { repos: ['chukwuma619/fiber-studio'], rows: () => [], events: [], now: NOW, thread: { posts: [] } })
+  assert.deepEqual([done.unlinked, seen.length], [3, 1])
 })

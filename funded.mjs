@@ -70,15 +70,41 @@ export async function refreshFunded(list = FUNDED) {
   save()
   console.log(`funded: ${list.length} threads read`)
 }
-export function startFunded() {
-  const tick = () => { if (Date.now() - (F.at || 0) > DAY) refreshFunded().catch((err) => console.warn('funded', err.message)) }
+// Commits whose author GitHub cannot tie to an account (a git email that is on no profile) are missing from the
+// contributor statistics the numbers come from: Invisibook showed 6 commits while its main had 63 (2026-11-18). Counted
+// here from the commit list of each followed repository of a code grant, since the vote, a page of 100 at a time.
+const MAX_PAGES = 5, MAX_REPOS = 10
+export async function refreshUnlinked(reposOf) {
+  const { gh } = await import('./github.mjs') // loaded here: it refuses to load without a token
+  for (const f of FUNDED) {
+    if (f.nonCode) continue
+    for (const full of [...reposOf(f)].slice(0, MAX_REPOS)) {
+      let total = 0, unlinked = 0, truncated = false
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const r = await gh(`/repos/${full}/commits?since=${new Date(f.since).toISOString()}&per_page=100&page=${page}`)
+        if (!Array.isArray(r.body)) break
+        for (const c of r.body) { total++; if (!c.author) unlinked++ }
+        if (r.body.length < 100) break
+        if (page === MAX_PAGES) truncated = true
+      }
+      ;(F.unlinked ||= {})[full] = { since: f.since, total, unlinked, truncated, at: Date.now() }
+    }
+  }
+  F.ulAt = Date.now()
+  save()
+}
+export function startFunded({ reposOf } = {}) {
+  const tick = () => {
+    if (Date.now() - (F.at || 0) > DAY) refreshFunded().catch((err) => console.warn('funded', err.message))
+    if (reposOf && Date.now() - (F.ulAt || 0) > DAY) refreshUnlinked(reposOf).catch((err) => console.warn('funded unlinked', err.message))
+  }
   setTimeout(tick, 20e3).unref()
   setInterval(tick, 3600e3).unref()
 }
 
 // one grant as the page shows it. repos: its public repositories; rows(full): GitHub's weekly commits per person (null
 // while GitHub counts); events: the people's events of the last 30 days, any branch
-export function grantView(f, { repos, rows, events, now = Date.now(), thread = F.topics[f.topic] }) {
+export function grantView(f, { repos, rows, events, now = Date.now(), thread = F.topics[f.topic], unlinkedOf = (full) => F.unlinked?.[full] }) {
   const since = Date.parse(f.since)
   const weeks = new Map(), people = new Set()
   let counted = 0, lastCommit = 0
@@ -94,6 +120,7 @@ export function grantView(f, { repos, rows, events, now = Date.now(), thread = F
       lastCommit = Math.max(lastCommit, at)
     }
   }
+  const unlinked = repos.reduce((n, full) => { const u = unlinkedOf(full); return n + (u && u.since === f.since ? u.unlinked : 0) }, 0)
   const mine = events.filter((e) => repos.includes(e.repo))
   for (const e of mine) people.add(e.actor)
   const lastEvent = Math.max(0, ...mine.map((e) => Date.parse(e.at)))
@@ -112,7 +139,7 @@ export function grantView(f, { repos, rows, events, now = Date.now(), thread = F
   }
   return {
     topic: f.topic, name: f.name, grant: f.grant, since: f.since, nonCode: !!f.nonCode, repos, counting: counted < repos.length,
-    commits: [...weeks.values()].reduce((a, b) => a + b, 0), people: people.size, bars, first,
+    commits: [...weeks.values()].reduce((a, b) => a + b, 0), unlinked, people: people.size, bars, first,
     lastWork: lastWork ? new Date(lastWork).toISOString() : null, lastReport: lastReport ? new Date(lastReport).toISOString() : null,
     milestones: posts.filter((p) => p.kind === 'milestone').map((p) => ({ m: p.m, at: p.at, n: p.n })),
     updates: reports.length, delivered: delivered ? { at: delivered.at, n: delivered.n } : null,
@@ -157,7 +184,7 @@ export function fundedPage({ lang, grants, base, url, readAt, g: chosen = null }
 ${chart(g, t)}<p class="legend">${[['#cbf34d', 'f.lCommits'], ['#62c9f5', 'f.lMilestone'], ['#ffd166', 'f.lDelivered']].map(([c, k]) => `<span><i style="background:${c}"></i>${esc(t(k))}</span>`).join('')}</p>
 <div class="nums"><span><b>${g.counting && !g.commits ? '…' : g.commits}</b>${esc(t.cnt('f.commits', g.commits))}</span><span><b>${g.people}</b>${esc(t.cnt('f.people', g.people))}</span><span><b>${g.updates}</b>${esc(t.cnt('f.reports', g.updates))}</span></div>
 <div class="nums"><span>${esc(t('f.lastWork'))}: ${esc(fmt(g.lastWork, t) || t('f.none'))}</span><span>${esc(t('f.lastReport'))}: ${esc(fmt(g.lastReport, t) || t('f.none'))}</span></div>
-${g.nonCode ? `<p class="note">${esc(t('f.nonCode'))}</p>` : ''}${g.counting ? `<p class="note">${esc(t('f.counting'))}</p>` : ''}
+${g.unlinked > 0 ? `<p class="note">${esc(t('f.unlinked', { n: g.unlinked }))}</p>` : ''}${g.nonCode ? `<p class="note">${esc(t('f.nonCode'))}</p>` : ''}${g.counting ? `<p class="note">${esc(t('f.counting'))}</p>` : ''}
 <div class="links">${shareOf(g)}<a href="${TALK}/t/${g.topic}">${esc(t('f.thread'))}</a>${g.repos.map((r) => `<a href="${esc(base)}/?repo=${encodeURIComponent(r)}&lang=${lang}">${esc(r)}</a>`).join('')}</div></article>`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
