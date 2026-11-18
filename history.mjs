@@ -78,6 +78,18 @@ export function trends(list, months = 24) {
   memo = { key, v }
   return v
 }
+// People whose first commit in any project Pulse has read fell in the last N days, alphabetical (not a ranking). The
+// weekly statistics reach back to each repository's first commit, so someone long at work in a project that joined
+// Pulse only now does not show up as new
+export function arrivals(days = 30, now = Date.now()) {
+  const first = new Map()
+  for (const [full, r] of Object.entries(H.repos)) {
+    if (blocked.has(full.split('/')[0].toLowerCase())) continue
+    for (const [w, login] of r.rows) { if (isAutomaticAuthor(login)) continue; if (!first.has(login) || first.get(login) > w) first.set(login, w) }
+  }
+  const cut = Math.floor((now - days * DAY) / 1000) - 7 * 86400 // a week's start is the Monday before its commits
+  return [...first].filter(([, w]) => w >= cut).map(([login]) => login).sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
+}
 // one repository: commits and developers per month
 export function repoMonths(full, months = 24) {
   const r = H.repos[full]
