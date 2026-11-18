@@ -5,6 +5,7 @@
 import { words } from './cards.mjs'
 import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { today } from './public/menu.js'
+import { MIGRATE_SCRIPT } from './migrate.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const cap = (s) => (s ? s.charAt(0).toLocaleUpperCase() + s.slice(1) : s)
@@ -32,7 +33,7 @@ export function landingPage({ lang, base, url, stats = null, img = '' }) {
   const plain = stats?.updates ? `<p class="plain">${esc(cap(t('ld.plain', { people: t.cnt('ppl', stats.people), projects: t.cnt('prj', stats.projects), updates: t.cnt('upd', stats.updates) })))}</p>` : ''
   const kpis = stats?.updates ? `<div class="kpis"><div><b>${stats.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${stats.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${stats.projects}</b><span>${esc(t('k.projects'))}</span></div></div>` : ''
   const group = (g) => `<h2>${esc(t('use.group.' + g))}</h2><div class="cards">${DOORS[g].map(([id, path, k, line]) => `<a class="card" id="d-${id}" href="${esc(withLang(base, path, lang))}"><b>${esc(t(k))}</b><span>${esc(t(line))}</span></a>`).join('')}</div>`
-  return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8">${SKIP_SCRIPT}<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+  return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8">${MIGRATE_SCRIPT}${SKIP_SCRIPT}<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 ${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/?landing=1', share: { url: `${base}/?lang=${lang}&d=${today()}`, title, image: img || undefined } })}

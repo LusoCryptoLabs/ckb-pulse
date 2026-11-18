@@ -1,7 +1,7 @@
 // CKB Pulse for AI agents: a Model Context Protocol server on POST /mcp (Streamable HTTP, one JSON answer per request,
 // no session). Every tool reads what Pulse already stores: no GitHub call, nothing written. Asked for on 2026-11-02
 // ("exposing the current data interfaces through MCP").
-//   claude mcp add --transport http ckb-pulse https://pulse-lab.lusocryptolabs.com/mcp
+//   claude mcp add --transport http ckb-pulse https://pulse.lusocryptolabs.com/mcp
 import { TAGS } from './config.mjs'
 
 const VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
