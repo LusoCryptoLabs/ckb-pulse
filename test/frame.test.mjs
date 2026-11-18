@@ -145,3 +145,6 @@ test('the title of the live page gives way to the buttons on a narrow phone, in 
     assert.ok(at > base, `${px}px: ${size}px, after the base rule`)
   }
 })
+test("a long address in a sentence breaks instead of widening the page, and a code block still scrolls", () => {
+  assert.ok(CSS.includes("body{overflow-wrap:break-word}pre,pre code{overflow-wrap:normal}"))
+})
