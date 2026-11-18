@@ -72,7 +72,7 @@ export function shareHtml(t, { url, title, image }) {
 
 // the bar the server pages share: the name back to the live page, the views, the menu. Under the name goes "by" and the
 // studio's own wordmark (two files, for a dark ground and a light one; theme.css shows one and, in the current look, none)
-const BY = (t, base) => `<a class="pm-by-lcl" href="https://lusocryptolabs.com" target="_blank" rel="noopener" aria-label="${esc(t('by'))}"><span aria-hidden="true">by</span><img class="on-dark" src="${esc(base)}/lcl-wordmark-paper.svg" alt="" width="176" height="14"><img class="on-light" src="${esc(base)}/lcl-wordmark.svg" alt="" width="176" height="14"></a>`
+const BY = (t, base) => `<a class="pm-by-lcl" href="https://lusocryptolabs.com" target="_blank" rel="noopener" aria-label="${esc(t('by'))}"><span aria-hidden="true">by</span><img class="on-dark" src="${esc(base)}/lcl-wordmark-paper.svg" alt="" width="92" height="7"><img class="on-light" src="${esc(base)}/lcl-wordmark.svg" alt="" width="92" height="7"></a>`
 // `share` ({ url, title, image }) puts the share button next to the menu, the same place on every public page; a private
 // page passes none
 export function barHtml(t, { base = '', lang = 'en', current = '', here = '', share = null } = {}) {
