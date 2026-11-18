@@ -12,10 +12,10 @@ const RSS = '<svg viewBox="0 0 16 16"><circle cx="4" cy="12" r="1.6" fill="curre
 // tests are all still here.
 export const FIBER_PAUSED = true
 const unpaused = ([id]) => !(FIBER_PAUSED && id === 'fiber')
-export const VIEWS = [['live', '/', 'v.live'], ['fiber', '/fiber', 'v.fiber']].filter(unpaused)
+export const VIEWS = [['live', '/live', 'v.live'], ['fiber', '/fiber', 'v.fiber']].filter(unpaused)
 // [id, path, words, hint words, tile] by what a person came for; act names what the live page does in place
 export const GROUPS = [
-  ['m.see', [['live', '/', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['digest', '/digest?p=week', 'm.digest', '', '7'], ['screen', '/?screen=1', 'm.screen', 'm.screen.s', 'TV'], ['impact', '/impact', 'm.impact', '', 'U']].filter(unpaused)],
+  ['m.see', [['live', '/live', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['digest', '/digest?p=week', 'm.digest', '', '7'], ['screen', '/?screen=1', 'm.screen', 'm.screen.s', 'TV'], ['impact', '/impact', 'm.impact', '', 'U']].filter(unpaused)],
   ['m.keep', [['notices', '/?tab=notices', 'm.notices', 'm.notices.s', '!'], ['feed', '/feed.xml', 'm.feed', '', 'rss']]],
   ['m.build', [['add', '/?tab=suggest', 'm.add', '', '+'], ['badge', '/use#badge', 'm.badge', '', 'B'], ['ai', '/use#ai', 'm.ai', 'm.ai.s', 'AI']]],
 ]
@@ -76,7 +76,7 @@ const BY = (t, base) => `<a class="pm-by-lcl" href="https://lusocryptolabs.com" 
 // `share` ({ url, title, image }) puts the share button next to the menu, the same place on every public page; a private
 // page passes none
 export function barHtml(t, { base = '', lang = 'en', current = '', here = '', share = null } = {}) {
-  return `<div class="pm-bar"><span class="pm-lock"><a class="pm-brand" href="${esc(href(base, '/', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${BY(t, base)}</span>${viewsHtml(t, { base, lang, current })}${share ? shareHtml(t, share) : ''}${menuHtml(t, { base, lang, current, here })}</div>`
+  return `<div class="pm-bar"><span class="pm-lock"><a class="pm-brand" href="${esc(href(base, '/?landing=1', lang))}"><i aria-hidden="true"></i>CKB Pulse</a>${BY(t, base)}</span>${viewsHtml(t, { base, lang, current })}${share ? shareHtml(t, share) : ''}${menuHtml(t, { base, lang, current, here })}</div>`
 }
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links

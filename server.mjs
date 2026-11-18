@@ -19,6 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { landingPage } from './landing.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
 import { lessonsPage, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
@@ -38,6 +39,8 @@ const fromHeader = (h) => { for (const part of String(h || '').split(',')) { con
 const langOf = (q, req) => pick(q.get('lang')) || (req ? fromHeader(req.headers['accept-language']) : null) || 'en'
 // a page that depends on the browser's language must say so to caches
 const LANG_VARY = 'accept-language'
+// the parameters that mean a link to something on the live view
+const DEEP = ['repo', 'person', 'h', 'tab', 'about', 'screen', 'ui']
 const ipOf = (req) => req.headers['x-real-ip'] || req.socket.remoteAddress || ''
 
 // one id per set of page files: the page carries it in a meta tag and /version.json answers with the current one,
@@ -187,11 +190,19 @@ function handle(req, res) {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
     return res.end(JSON.stringify({ ok: true, collector: { ok: !stale, lastPollAt: health.lastPollOk ? new Date(health.lastPollOk).toISOString() : null, lastEventAt: health.lastEventAt ? new Date(health.lastEventAt).toISOString() : null }, rate: { core: limits.core, search: limits.search }, fiber: fiberHealth(), visits: visits(1).days[0], build: BUILD }))
   }
-  if (url.pathname === '/' || url.pathname === '/index.html') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
+  // / without a link to something is the landing, once for a browser (landing.mjs sends the ones that have been here on);
+  // a link to a project, a person, a period, a tab, the welcome card, the screen for calls or a layout trial goes to the
+  // live view, which is also at /live
+  if (url.pathname === '/' && !DEEP.some((k) => url.searchParams.has(k))) {
+    hit('landing', ipOf(req), req.headers['user-agent'])
+    const lang = langOf(url.searchParams, req), b = baseOf(req), day = highlightsNow().day
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, landingPage({ lang, base: b, url: `${b}/`, stats: day.stats, img: `${b}${withStamp(`/og/highlights.png?p=day`, day)}&lang=${lang}` }))
+  }
+  if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/live') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
   // the Fiber map is paused: its address goes to the live page for now, its API and stream answer 503 (menu.js, FIBER_PAUSED)
   if (FIBER_PAUSED && (url.pathname === '/fiber' || url.pathname === '/fiber.html')) {
     const l = pick(url.searchParams.get('lang'))
-    res.writeHead(302, { location: l ? `/?lang=${l}` : '/', 'cache-control': 'no-store' })
+    res.writeHead(302, { location: l ? `/live?lang=${l}` : '/live', 'cache-control': 'no-store' })
     return res.end()
   }
   if (FIBER_PAUSED && url.pathname.startsWith('/api/fiber')) { res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end('{"status":"paused"}') }

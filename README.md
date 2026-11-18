@@ -17,7 +17,7 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 
 ## Pages
 
-`/` the live page, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
+`/` the landing page, for a first visit that comes without a link (a browser that has seen the welcome card goes straight on, and so does any link to a project, a person, a period or a tab, which open the live view), `/live` the live page, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
 
 ## Test
 
