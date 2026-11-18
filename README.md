@@ -15,13 +15,17 @@ GITHUB_TOKEN=<read-only token> node server.mjs
 
 Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sends browser notices (its keys are made on first start in `DATA_DIR/vapid.json`). `PORT` defaults to 8080, `DATA_DIR` to `./data`. `PUBLIC_URL` is the address the digest, the feed and Telegram name (without it, the one each request came to).
 
+## Pages
+
+`/` the live page, `/fiber`, `/funded`, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp` and `/llms.txt`. Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
+
 ## Test
 
 ```sh
 npm test
 ```
 
-The rules (what counts as CKB work, manifests, the burst cap, agents and schedules), the words in every language, the share cards, the badges, the digest page and the feed, the visit counts, the long history, and no long dashes. CI runs them on every push.
+The rules (what counts as CKB work, manifests, the burst cap, agents and schedules), the words in every language, the share cards, the badges, the digest page and the feed, the visit counts, the long history, and no long dashes. CI runs them on every push. `PULSE_OFFLINE=1` starts the server with nothing polled, which the HTTP tests use.
 
 `GET /health` answers 200 while the server lives; `collector.ok` turns false when no organisation feed has answered for 10 minutes. It also carries today's visits.
 
