@@ -9,7 +9,7 @@ import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, high
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits, count } from './visits.mjs'
-import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders } from './digest.mjs'
+import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
@@ -60,12 +60,10 @@ function buildId(dir = ROOT) {
   return h.digest('hex').slice(0, 12)
 }
 const BUILD = buildId()
-// the live page is always in the dark look of the LusoCryptoLabs kit (its scene is a dark stage), whatever the plain pages are in
-const LIVE_THEME = `<script>document.documentElement.dataset.theme='dark'</script>`
 // three.js and d3 are served under the hash of their folder (/vendor/<VENDOR>/...): a browser keeps them a year, and a
 // new copy of the folder has a new address
 const VENDOR = buildId(path.join(ROOT, 'vendor'))
-const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR).replace('<!--migrate-->', MIGRATE_SCRIPT).replace('<!--theme-->', LIVE_THEME)
+const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR).replace('<!--migrate-->', MIGRATE_SCRIPT).replace('<!--look-->', LOOK_META).replace('<!--theme-->', THEME_SCRIPT)
 const FIBER = fs.readFileSync(path.join(ROOT, 'fiber.html'), 'utf8').replace('__BUILD__', BUILD).replaceAll('__VENDOR__', VENDOR)
 
 // share cards: pictures drawn on demand, kept ten minutes per address

@@ -11,7 +11,7 @@
 /* the names: --bg the ground, --surface a block, --panel a menu, --edge and --edge-soft the rules, --fg the words, --mut
    the quiet words, --lime the accent of links, numbers and the main chip (Paper on Ink, Ink on Paper; the name is from
    the first look), --ink the words on the accent, --signal and --signal-text the red; --f-* the five kinds of work; the
-   scene's own: --sky, --dormant, --botcell; --logo-dark and --logo-light which wordmark shows; --panel-shadow */
+   scene's own: --sky, --dormant, --botcell; --logo-dark and --logo-light which wordmark shows; --panel-shadow; --shade the shadow under a floating thing */
 :root {
   --font-ui: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif;
   --font-num: "Space Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
@@ -20,7 +20,7 @@
   --fg: #F4F1EB; --mut: #8A857B; --lime: #F4F1EB; --ink: #121212; --signal: #E10600; --signal-text: #FF4438;
   --f-code: #F4F1EB; --f-change: #FF4438; --f-talk: #D9B26F; --f-version: #8E9AA6; --f-interest: #6F6A60;
   --sky: #e8e6df; --dormant: #2b2b2b; --botcell: #4a4a47;
-  --logo-dark: block; --logo-light: none; --panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.75);
+  --logo-dark: block; --logo-light: none; --panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.75); --shade: rgba(0, 0, 0, 0.5);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -29,7 +29,7 @@
     --fg: #121212; --mut: #5C5A54; --lime: #121212; --ink: #F4F1EB; --signal: #E10600; --signal-text: #C90000;
     --f-code: #121212; --f-change: #C90000; --f-talk: #A8741A; --f-version: #5A6672; --f-interest: #8F8A80;
     --sky: #ffffff; --dormant: #D8D2C7; --botcell: #B9B2A4;
-    --logo-dark: none; --logo-light: block; --panel-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+    --logo-dark: none; --logo-light: block; --panel-shadow: 0 12px 30px rgba(0, 0, 0, 0.18); --shade: rgba(0, 0, 0, 0.16);
   }
 }
 :root[data-theme="light"] {
@@ -38,7 +38,7 @@
   --fg: #121212; --mut: #5C5A54; --lime: #121212; --ink: #F4F1EB; --signal: #E10600; --signal-text: #C90000;
   --f-code: #121212; --f-change: #C90000; --f-talk: #A8741A; --f-version: #5A6672; --f-interest: #8F8A80;
   --sky: #ffffff; --dormant: #D8D2C7; --botcell: #B9B2A4;
-  --logo-dark: none; --logo-light: block; --panel-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  --logo-dark: none; --logo-light: block; --panel-shadow: 0 12px 30px rgba(0, 0, 0, 0.18); --shade: rgba(0, 0, 0, 0.16);
 }
 
 /* what is shaped by the look and not by the page: the words, the corners, the bar and the menu. html[lang] is as strong

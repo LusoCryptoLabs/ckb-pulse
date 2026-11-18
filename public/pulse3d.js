@@ -16,6 +16,10 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const SCREEN = document.documentElement.classList.contains('screen')
 const $ = (id) => document.getElementById(id)
 // a colour of the page's look (theme.css): the scene, the faces and the timeline are drawn in them
+// the stage follows the page's look: the person's choice (data-theme) or else the device's
+const lightQuery = matchMedia('(prefers-color-scheme: light)')
+const isLight = () => { const a = document.documentElement.dataset.theme; return a ? a === 'light' : lightQuery.matches }
+let LIGHT = false
 const tok = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const store = { get: (k) => { try { return localStorage.getItem('ckbpulse.' + k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem('ckbpulse.' + k, v) } catch {} } }
@@ -41,6 +45,7 @@ const FAMS = Object.keys(FAMILY)
 let famCache = null
 const famColors = () => famCache || (famCache = Object.fromEntries(FAMS.map((f) => [f, tok(`--f-${f}`, FAMILY[f])])))
 const kcol = (k) => famColors()[fam(k)]
+const kvar = (k) => `var(--f-${fam(k)})` // in a page of HTML the colour is the token itself, so it follows the look without a redraw
 const short = (name) => String(name || '').split('/').pop()
 const gname = (g) => groupName(g, { ...WORDS.en, ...WORDS[LANG] })
 const fmtClock = (x) => new Date(x).toLocaleTimeString(t('locale'), { hour: '2-digit', minute: '2-digit' })
@@ -88,7 +93,7 @@ const stateRepo = (name) => S?.repos?.find((r) => r.name === name)
 // that keeps to the bars, always) has3d is false and every step of the scene is skipped
 let THREE, CSS2DObject, RoundedBoxGeometry
 let renderer, labelRenderer, scene, camera, controls, composer, bloom, glowTex, peopleGroup, ringGeo, ray, ptr, home
-let tmpM, tmpQ, tmpS, tmpP, tmpC, DORMANT, BOTCELL
+let tmpM, tmpQ, tmpS, tmpP, tmpC, tmpL, DORMANT, BOTCELL, PAPER, ground, grid, hemi, sun
 let has3d = false, sceneLoading = null, useBloom = true
 // How hard the scene works. It used to redraw every frame, always, and with nothing moving that was the whole cost of
 // leaving the page open (2026-11-18). Now it draws flat out while something moves (a comet, the camera, a block
@@ -130,7 +135,7 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   renderer = new THREE.WebGLRenderer({ antialias: !MOBILE && !weak, powerPreference: weak ? 'default' : 'high-performance' })
   renderer.setPixelRatio(weak ? 1 : Math.min(devicePixelRatio, MOBILE ? 1.5 : 2))
   renderer.setSize(innerWidth, innerHeight)
-  renderer.toneMapping = THREE.NeutralToneMapping // keeps hues saturated; ACES washed the cells into pastel
+  renderer.toneMapping = isLight() ? THREE.NoToneMapping : THREE.NeutralToneMapping // keeps hues saturated; ACES washed the cells into pastel. On paper the colours are the ink's own
   $('stage').appendChild(renderer.domElement)
   labelRenderer = new CSS2DRenderer()
   labelRenderer.setSize(innerWidth, innerHeight)
@@ -138,6 +143,7 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   $('stage').appendChild(labelRenderer.domElement)
 
   scene = new THREE.Scene()
+  LIGHT = isLight()
   scene.background = new THREE.Color(tok('--bg', '#0a0907'))
   scene.fog = new THREE.FogExp2(tok('--bg', '#07090a'), 0.011)
   camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 600)
@@ -148,16 +154,16 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   controls.addEventListener('end', () => wake(1600)) // the damping carries on after the hand lets go
   controls.addEventListener('change', () => wake(300))
 
-  scene.add(new THREE.HemisphereLight(tok('--sky', '#cfdcb6'), tok('--bg', '#0a0c08'), 0.45))
-  const sun = new THREE.DirectionalLight('#ffffff', 0.85)
+  hemi = new THREE.HemisphereLight(tok('--sky', '#cfdcb6'), tok('--bg', '#0a0c08'), 0.45)
+  scene.add(hemi)
+  sun = new THREE.DirectionalLight('#ffffff', 0.85)
   sun.position.set(30, 60, 20)
   scene.add(sun)
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshBasicMaterial({ color: tok('--bg', '#080b06') })) // flat: lit, it was the same colour to within one level, and the costliest thing on a software renderer
+  rig()
+  ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshBasicMaterial({ color: tok('--bg', '#080b06') })) // flat: lit, it was the same colour to within one level, and the costliest thing on a software renderer
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02
   scene.add(ground)
-  const grid = new THREE.GridHelper(400, 308, tok('--edge', '#1f2b12'), tok('--edge-soft', '#11180a'))
-  grid.material.transparent = true; grid.material.opacity = 0.55
-  scene.add(grid)
+  makeGrid()
 
   if (!weak) { // a weak device never draws the bloom, so it does not pay for its buffers either
     composer = new EffectComposer(renderer)
@@ -174,8 +180,8 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64)
   glowTex = new THREE.CanvasTexture(c)
 
-  tmpM = new THREE.Matrix4(); tmpQ = new THREE.Quaternion(); tmpS = new THREE.Vector3(); tmpP = new THREE.Vector3(); tmpC = new THREE.Color()
-  DORMANT = new THREE.Color(tok('--dormant', '#1c2412')); BOTCELL = new THREE.Color(tok('--botcell', '#3b4330'))
+  tmpM = new THREE.Matrix4(); tmpQ = new THREE.Quaternion(); tmpS = new THREE.Vector3(); tmpP = new THREE.Vector3(); tmpC = new THREE.Color(); tmpL = new THREE.Color()
+  DORMANT = new THREE.Color(tok('--dormant', '#1c2412')); BOTCELL = new THREE.Color(tok('--botcell', '#3b4330')); PAPER = new THREE.Color(tok('--bg', '#0a0907'))
   peopleGroup = new THREE.Group()
   scene.add(peopleGroup)
   ringGeo = new THREE.RingGeometry(0.8, 1, 64)
@@ -194,6 +200,33 @@ function makeScene({ OrbitControls, EffectComposer, RenderPass, UnrealBloomPass,
     else if (pick.cell >= 0) openRepo(pick.cell)
   })
 }
+// the light on a dark stage is bright; on paper the blocks keep their own colours, lit just enough to show their sides
+const rig = () => { scene.fog.density = LIGHT ? 0.0035 : 0.011; hemi.intensity = LIGHT ? 0.9 : 0.45; sun.intensity = LIGHT ? 0.55 : 0.85; renderer.toneMapping = LIGHT ? THREE.NoToneMapping : THREE.NeutralToneMapping }
+const blend = () => (LIGHT ? THREE.NormalBlending : THREE.AdditiveBlending) // light on dark adds up; ink on paper covers
+function makeGrid() {
+  grid = new THREE.GridHelper(400, 308, tok('--edge', '#1f2b12'), tok('--edge-soft', '#11180a'))
+  grid.material.transparent = true; grid.material.opacity = 0.55
+  scene.add(grid)
+}
+// the look changed (the person chose one, or the device switched): the stage takes the new tokens, and what was drawn from
+// the old ones is drawn again
+function restage() {
+  famCache = null
+  if (!has3d || isLight() === LIGHT) return
+  LIGHT = isLight()
+  const bg = tok('--bg', '#0a0907')
+  scene.background.set(bg); scene.fog.color.set(bg); ground.material.color.set(bg); PAPER.set(bg)
+  hemi.color.set(tok('--sky', '#cfdcb6')); hemi.groundColor.set(bg); rig()
+  scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); makeGrid()
+  DORMANT.set(tok('--dormant', '#1c2412')); BOTCELL.set(tok('--botcell', '#3b4330'))
+  for (const tex of texCache.values()) tex.dispose()
+  texCache.clear()
+  for (const [login, sp] of sprites) { const a = actorIdx.get(login); if (a !== undefined) { sp.material.map = avatarTexture(login, actors[a][1]); sp.material.needsUpdate = true } }
+  if (repos.length) { computeWindow(); feed(); drawBars(); drawHead(); renderHighlights(); placeBadges(); if (listShown && !$('drawer').hidden) renderList() }
+  wake(1500)
+}
+new MutationObserver(restage).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+lightQuery.addEventListener?.('change', restage)
 // the scene's first picture, once both the state and three.js are in: the blocks, the camera coming down, faces, medals
 let sceneShown = false
 function sceneStart() {
@@ -359,7 +392,7 @@ function computeWindow() {
     const c = cell[i]
     if (!c) return
     const was = c.hT, wasHex = c.base.getHex()
-    if (W.n[i]) { const n = W.n[i] * scale; c.base.set(kcol(W.last[i])).multiplyScalar(0.55 + Math.min(0.9, 0.12 * n)); c.hT = 0.45 + 0.85 * Math.log2(1 + n) }
+    if (W.n[i]) { const n = W.n[i] * scale; (LIGHT ? c.base.copy(DORMANT).lerp(tmpL.set(kcol(W.last[i])), 0.62 + Math.min(0.38, 0.08 * n)) : c.base.set(kcol(W.last[i])).multiplyScalar(0.55 + Math.min(0.9, 0.12 * n))); c.hT = 0.45 + 0.85 * Math.log2(1 + n) }
     else if (W.b[i]) { c.base.copy(BOTCELL); c.hT = 0.32 }
     else { c.base.copy(DORMANT); c.hT = 0.22 }
     if (Math.abs(c.hT - was) > 1e-4 || c.base.getHex() !== wasHex) changed = true
@@ -473,7 +506,7 @@ function feedItem(w, isNew) {
   const r = repos[w.r]
   const title = w.title ? `<div class="title">${w.url ? `<a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a>` : esc(w.title)}</div>` : ''
   const did = t('v.' + w.k, { repo: `<button type="button" class="repo" data-repo="${w.r}">${esc(short(r.name))}</button>` })
-  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" style="background:${kcol(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
+  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" style="background:${kvar(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
 }
 $('feed').addEventListener('click', (e) => { const r = e.target.closest('[data-repo]'); if (r) openRepo(+r.dataset.repo) })
 function showTab(name) {
@@ -550,7 +583,7 @@ function renderHighlights() {
     const items = (L[k]?.[cat] || []).filter((x) => x[1] > 0).map(([name, n, av], i) => {
       const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
       const said = (label) => `aria-label="${esc(`${i + 1}. ${label}: ${n}`)}"`
-      if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" style="background:${kcol(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
+      if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" style="background:${kvar(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
       if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}${tagOf(cat === 'ai' ? 'ai' : cat === 'operators' ? 'op' : flagOfLogin(name))}</span><b>${n}</b></button></li>`
       return `<li><button type="button" class="row" data-group="${esc(name)}" ${said(gname(name))}>${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></button></li>`
     }).join('')
@@ -995,12 +1028,12 @@ function comet(w) {
   const end = new THREE.Vector3(c.x, Math.max(c.h, 0.4) + 0.2, c.z)
   const mid = start.clone().lerp(end, 0.5); mid.y += 4 + start.distanceTo(end) * 0.18
   if (REDUCED || comets.length > (MOBILE ? 14 : 30)) { hit(w, color); return }
-  const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
+  const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: blend(), depthWrite: false, transparent: true }))
   head.scale.set(1.8, 1.8, 1)
   const pos = new Float32Array(TRAIL * 3), col = new Float32Array(TRAIL * 3)
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  const trail = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.95, map: glowTex, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
+  const trail = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.95, map: glowTex, vertexColors: true, blending: blend(), depthWrite: false, transparent: true }))
   for (let i = 0; i < TRAIL; i++) { pos.set([start.x, start.y, start.z], i * 3) }
   scene.add(head); scene.add(trail)
   comets.push({ w, head, trail, start, mid, end, color, t: 0, dur: 1.1 + Math.random() * 0.4 })
@@ -1015,7 +1048,10 @@ function stepComets(dt) {
     const pos = c.trail.geometry.attributes.position.array, col = c.trail.geometry.attributes.color.array
     for (let j = TRAIL - 1; j > 0; j--) { pos[j * 3] = pos[(j - 1) * 3]; pos[j * 3 + 1] = pos[(j - 1) * 3 + 1]; pos[j * 3 + 2] = pos[(j - 1) * 3 + 2] }
     pos[0] = c.head.position.x; pos[1] = c.head.position.y; pos[2] = c.head.position.z
-    for (let j = 0; j < TRAIL; j++) { const f = (1 - j / TRAIL) ** 1.6; col[j * 3] = c.color.r * f; col[j * 3 + 1] = c.color.g * f; col[j * 3 + 2] = c.color.b * f }
+    for (let j = 0; j < TRAIL; j++) {
+      const f = (1 - j / TRAIL) ** 1.6 // light on dark fades to black, ink on paper fades to paper
+      if (LIGHT) { col[j * 3] = PAPER.r + (c.color.r - PAPER.r) * f; col[j * 3 + 1] = PAPER.g + (c.color.g - PAPER.g) * f; col[j * 3 + 2] = PAPER.b + (c.color.b - PAPER.b) * f } else { col[j * 3] = c.color.r * f; col[j * 3 + 1] = c.color.g * f; col[j * 3 + 2] = c.color.b * f }
+    }
     c.trail.geometry.attributes.position.needsUpdate = true; c.trail.geometry.attributes.color.needsUpdate = true
     if (c.t >= 1) {
       if (!c.hit) { c.hit = true; hit(c.w, c.color); c.head.visible = false }
@@ -1029,7 +1065,7 @@ function hit(w, color) {
   wake(1200)
   c.glow = 2.6; c.flash.copy(color); c.pop = 1
   if (REDUCED) return
-  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))
+  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: blend(), depthWrite: false, side: THREE.DoubleSide }))
   m.rotation.x = -Math.PI / 2; m.position.set(c.x, 0.06, c.z)
   scene.add(m); rings.push({ m, t: 0 })
   // the wave through the neighbours
@@ -1228,7 +1264,7 @@ ${d.daily.people.some(Boolean) || d.daily.bots.some(Boolean) ? `<h3>${esc(t('d.m
 ${onchainBlock(d.onchain)}
 ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => actorIdx.has(p.login) ? `<button type="button" data-person="${actorIdx.get(p.login)}"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></button>` : `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
-<h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kcol(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
+<h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kvar(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
 ${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`
     focusDrawer(true)
   } catch { $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(r.name))}</h2><p class="owner">${esc(r.name)}</p>${badgesFor(r.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${esc(t('d.error'))}</p>${gh(`https://github.com/${r.name}`)}`; focusDrawer(true) }
@@ -1275,7 +1311,7 @@ function openList(kind) {
 const repoRow = (i) => {
   const r = repos[i], n = W.n[i], b = W.b[i]
   const label = `${short(r.name)}, ${gname(r.group)}: ${[n ? cnt('upd', n) : t('l.noUpd'), b ? cnt('auto', b) : ''].filter(Boolean).join(', ')}`
-  return `<li><button type="button" class="row" data-repo="${i}" data-key="${esc(r.name)}" aria-label="${esc(label)}"><i class="sw" style="background:${n ? kcol(W.last[i]) : b ? 'var(--bot)' : '#2b3420'}"></i><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${n || ''}${b ? `<i>${b}</i>` : ''}</b></button></li>`
+  return `<li><button type="button" class="row" data-repo="${i}" data-key="${esc(r.name)}" aria-label="${esc(label)}"><i class="sw" style="background:${n ? kvar(W.last[i]) : b ? 'var(--bot)' : 'var(--dormant)'}"></i><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${n || ''}${b ? `<i>${b}</i>` : ''}</b></button></li>`
 }
 const personRow = ([a, n]) => `<li><button type="button" class="row" data-person="${a}" data-key="${esc(actors[a][0])}" aria-label="${esc(`${actors[a][0]}: ${cnt('upd', n)}`)}"><img src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(actors[a][0])}</span><b>${n}</b></button></li>`
 function renderList() {
@@ -1384,7 +1420,7 @@ function renderBars(force) {
 // work landing on a project: its row lights up in the colour of that work
 function bvHit(w) {
   const li = bv.rows.get(repos[w.r]?.name); if (!li?.isConnected) return
-  li.style.setProperty('--hit', w.b ? 'var(--bot)' : kcol(w.k))
+  li.style.setProperty('--hit', w.b ? 'var(--bot)' : kvar(w.k))
   li.classList.remove('hit'); void li.offsetWidth; li.classList.add('hit')
 }
 // a finger on the list, or a scroll still running, keeps the rows where they are
@@ -1438,7 +1474,7 @@ $('q').addEventListener('input', () => {
   if (q.length < 2) { $('results').hidden = true; return }
   const rs = repos.map((r, i) => [i, r]).filter(([, r]) => r.name.toLowerCase().includes(q)).slice(0, 8)
   const ps = actors.map((p, i) => [i, p]).filter(([, p]) => p[0].toLowerCase().includes(q)).slice(0, 6)
-  $('results').innerHTML = rs.map(([i, r]) => `<li><button type="button" class="row" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kcol(W.last[i]) : '#2b3420'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></button></li>`).join('') +
+  $('results').innerHTML = rs.map(([i, r]) => `<li><button type="button" class="row" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kvar(W.last[i]) : 'var(--dormant)'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></button></li>`).join('') +
     ps.map(([i, p]) => `<li><button type="button" class="row" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt=""><span>${esc(p[0])}</span><b>${W.people.get(i) || ''}</b></button></li>`).join('') || `<li class="none">${esc(t('nothing'))}</li>`
   $('results').hidden = false
 })
@@ -1487,7 +1523,7 @@ function drawBars() {
   const max = Math.max(1, ...hp.map((v, i) => v + hb[i])), bw = cw / N
   for (let i = 0; i < N; i++) {
     const b = (hb[i] / max) * (ch - 2), p = (hp[i] / max) * (ch - 2)
-    g.fillStyle = 'rgba(139,148,128,0.55)'; g.fillRect(i * bw + 0.5, ch - b, Math.max(1, bw - 1), b)
+    g.globalAlpha = 0.55; g.fillStyle = tok('--mut', '#8e9aa6'); g.fillRect(i * bw + 0.5, ch - b, Math.max(1, bw - 1), b); g.globalAlpha = 1
     g.fillStyle = tok('--lime', '#cbf34d'); g.fillRect(i * bw + 0.5, ch - b - p, Math.max(1, bw - 1), p)
   }
   // seven names in a phone's width: three letters each
@@ -1635,10 +1671,10 @@ function applyLang() {
   for (const el of document.querySelectorAll('a[data-href]')) el.href = `${el.dataset.href}${el.dataset.href.includes('?') ? '&' : '?'}lang=${LANG}`
   for (const el of document.querySelectorAll('[data-t-label]')) { el.setAttribute('aria-label', t(el.dataset.tLabel)); el.title = t(el.dataset.tLabel) }
   $('q').placeholder = innerWidth <= 860 ? t('search') : innerWidth < 1200 ? t('searchShort') : t('search')
-  $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'live' })
+  $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'live', looks: true }); document.dispatchEvent(new Event('pm:drawn'))
   $('views-slot').innerHTML = viewsHtml(t, { lang: LANG, current: 'live' })
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
-  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:var(--f-${f})"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:#8b9480"></i>${esc(t('automaticLong'))}</span>`
+  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:var(--f-${f})"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:var(--mut)"></i>${esc(t('automaticLong'))}</span>`
   for (const b of document.querySelectorAll('.kpi')) b.title = t('l.see.' + b.dataset.list)
   for (const o of groupLabels) labelText(o.element)
   for (const o of subLabels) subText(o.element)
@@ -1759,14 +1795,19 @@ function frame(now) {
       tmpP.set(c.x, 0, c.z)
       tmpM.compose(tmpP, tmpQ, tmpS)
       mesh.setMatrixAt(i, tmpM)
-      tmpC.copy(c.base).multiplyScalar(breathe * c.dim + c.hover * 0.6)
-      tmpC.r += c.flash.r * c.glow * c.dim; tmpC.g += c.flash.g * c.glow * c.dim; tmpC.b += c.flash.b * c.glow * c.dim
+      if (LIGHT) { // on paper a block fades toward the paper, darkens under the pointer and takes the colour of a comet as it lands
+        tmpC.copy(c.base).lerp(PAPER, 1 - c.dim).multiplyScalar(1 - c.hover * 0.22)
+        tmpC.lerp(c.flash, Math.min(0.85, c.glow * 0.3) * c.dim)
+      } else {
+        tmpC.copy(c.base).multiplyScalar(breathe * c.dim + c.hover * 0.6)
+        tmpC.r += c.flash.r * c.glow * c.dim; tmpC.g += c.flash.g * c.glow * c.dim; tmpC.b += c.flash.b * c.glow * c.dim
+      }
       mesh.setColorAt(i, tmpC)
     }
     mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true
   }
   for (const o of sceneBadges) { const c = cell[o.userData.cell]; if (c) o.position.set(c.x, c.h + 0.55, c.z) }
-  if (useBloom && composer) composer.render(); else renderer.render(scene, camera)
+  if (useBloom && !LIGHT && composer) composer.render(); else renderer.render(scene, camera)
   labelRenderer.render(scene, camera)
   // every drawn frame: medals ride on blocks that grow during a replay, so a label can reach another one between two checks
   cull(now)

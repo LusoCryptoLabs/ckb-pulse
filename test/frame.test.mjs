@@ -61,15 +61,22 @@ test('no green is left in the look: the lime of the first look is not in the sty
   }
 })
 
-test('the live page is set to the dark look by the server until its light scene exists, and its scene reads its colours from the tokens', () => {
+test('the live page follows the look like every other page, and its scene reads its colours from the tokens and redraws when they change', () => {
   const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8')
-  assert.ok(html.includes('<!--theme-->'), 'the place the server fills')
+  assert.ok(html.includes('<!--theme-->') && html.includes('<!--look-->') && !html.includes('name="theme-color"'), 'the places the server fills: the look script and the meta tags')
   const server = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8')
-  assert.match(server, /LIVE_THEME = `<script>document\.documentElement\.dataset\.theme='dark'<\/script>`/)
-  assert.ok(server.includes(".replace('<!--theme-->', LIVE_THEME)"))
+  assert.ok(server.includes(".replace('<!--look-->', LOOK_META).replace('<!--theme-->', THEME_SCRIPT)") && !server.includes('LIVE_THEME'), 'no look is forced on it')
   const js = fs.readFileSync(new URL('../public/pulse3d.js', import.meta.url), 'utf8')
   for (const name of ['--bg', '--edge', '--dormant', '--botcell', '--sky']) assert.ok(js.includes(`tok('${name}'`), name)
   assert.equal((js.match(/FAMILY\[f\]/g) || []).length, 1, 'the kinds of work are read from the tokens; the constant is only the fallback, once')
+  assert.ok(js.includes('function restage()') && js.includes("attributeFilter: ['data-theme']") && js.includes('lightQuery.addEventListener'), 'a change of look, chosen or the device\'s, redraws the stage')
+  assert.equal((js.match(/THREE\.AdditiveBlending/g) || []).length, 1, 'light on dark adds up, ink on paper covers: one place decides')
+  assert.ok(!/#2b3420|#8b9480|rgba\(139/.test(js), 'no olive left in the page script')
+  const css = fs.readFileSync(new URL('../public/pulse3d.css', import.meta.url), 'utf8')
+  assert.ok(!/rgba\(255, ?255, ?255|rgba\(4, ?6, ?3/.test(css), 'no white tint or dark scrim that only works on one look')
+  const w = (k) => k
+  assert.match(menuHtml(w, { lang: 'en', current: 'live', looks: true }), /data-theme-set="light"/, 'the live menu carries the switch')
+  assert.ok(!/data-theme-set/.test(menuHtml(w, { lang: 'en', current: 'live' })), 'and a menu that is not asked for it has none')
 })
 
 const runTheme = ({ search = '', stored, light = false, throws = false } = {}) => {
@@ -104,12 +111,12 @@ test('a link sets the look and it is kept, auto and old clear it, and nonsense o
   assert.equal(runTheme({ search: '?theme=dark', throws: true, light: true }).theme, 'dark', 'a link still works for this page')
 })
 
-test('the menu of a plain page has Auto, Dark and Light in every language, and the live page menu has none yet', () => {
+test('the menu of a plain page has Auto, Dark and Light in every language, and so does the live page menu when it asks for them', () => {
   for (const lang of ['en', 'pt', 'zh']) {
-    const t = words(lang), plain = menuHtml(t, { base: 'https://x', lang, here: '/use' }), live = menuHtml(t, { base: 'https://x', lang })
+    const t = words(lang), plain = menuHtml(t, { base: 'https://x', lang, here: '/use' }), live = menuHtml(t, { base: 'https://x', lang }), liveLooks = menuHtml(t, { base: 'https://x', lang, current: 'live', looks: true })
     for (const v of ['auto', 'dark', 'light']) assert.ok(plain.includes(`data-theme-set="${v}"`), `${lang} ${v}`)
     assert.ok(plain.includes(t('m.auto')) && plain.includes(t('m.dark')) && plain.includes(t('m.light')) && plain.includes(t('m.theme')), lang)
     assert.doesNotMatch(plain, /m\.(theme|auto|dark|light)\b/, `${lang}: a word shows its key`)
-    assert.ok(!live.includes('data-theme-set'), `${lang}: the live page is dark only until its light scene exists`)
+    assert.ok(!live.includes('data-theme-set'), lang + ': a menu that is not asked for the looks has none'); for (const v of ['auto', 'dark', 'light']) assert.ok(liveLooks.includes('data-theme-set="' + v + '"'), lang + ' live ' + v)
   }
 })

@@ -32,13 +32,13 @@ export function viewsHtml(t, { base = '', lang = 'en', current = '' } = {}) {
 }
 
 // here is the page's own address, for the language links (the live page switches language in place instead)
-export function menuHtml(t, { base = '', lang = 'en', current = '', here = '' } = {}) {
+export function menuHtml(t, { base = '', lang = 'en', current = '', here = '', looks: withLooks = !!here } = {}) {
   const row = ([id, path, k, hint, tile]) => `<a class="pm-row" role="menuitem" data-act="${id}" href="${esc(href(base, path, lang))}"${id === current ? ' aria-current="page"' : ''}><i class="pm-tile pm-${id}" aria-hidden="true">${tile === 'live' ? '<b></b>' : tile === 'rss' ? RSS : esc(tile)}</i><span>${esc(t(k))}</span>${hint ? `<small>${esc(t(hint))}</small>` : ''}</a>`
   const langs = LANGS.map(([l, name]) => here
     ? `<a href="${esc(href('', here, l))}" lang="${l === 'zh' ? 'zh-CN' : l}"${l === lang ? ' aria-current="true"' : ''}>${name}</a>`
     : `<button type="button" data-lang="${l}" lang="${l === 'zh' ? 'zh-CN' : l}" aria-pressed="${l === lang}">${name}</button>`).join('')
   // the plain pages (which know their own address) offer the choice of look; the live page does not wear it yet
-  const looks = here ? `<span class="pm-theme" role="group" aria-label="${esc(t('m.theme'))}"><span>${esc(t('m.theme'))}</span><button type="button" data-theme-set="auto">${esc(t('m.auto'))}</button><button type="button" data-theme-set="dark">${esc(t('m.dark'))}</button><button type="button" data-theme-set="light">${esc(t('m.light'))}</button></span>` : ''
+  const looks = withLooks ? `<span class="pm-theme" role="group" aria-label="${esc(t('m.theme'))}"><span>${esc(t('m.theme'))}</span><button type="button" data-theme-set="auto">${esc(t('m.auto'))}</button><button type="button" data-theme-set="dark">${esc(t('m.dark'))}</button><button type="button" data-theme-set="light">${esc(t('m.light'))}</button></span>` : ''
   return `<details class="pmenu"><summary class="pm-btn" aria-label="${esc(t('m.menu'))}" title="${esc(t('m.menu'))}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
 <div class="pm-panel" role="menu">${GROUPS.map(([g, rows]) => `<div class="pm-group pm-${g.slice(2)}"><p>${esc(t(g))}</p>${rows.map(row).join('')}</div>`).join('')}
 <div class="pm-foot"><a data-act="about" href="${esc(href(base, '/?about=1', lang))}">${esc(t('m.about'))}</a><a href="${esc(href(base, '/use', lang))}">${esc(t('m.all'))}</a><a href="${esc(href(base, '/method', lang))}">${esc(t('me.nav'))}</a><a href="${esc(href(base, '/privacy', lang))}">${esc(t('pv.nav'))}</a><span class="pm-langs">${langs}</span>${looks}
@@ -93,6 +93,7 @@ if (typeof document !== 'undefined') {
     showLook()
   })
   showLook()
+  document.addEventListener('pm:drawn', showLook) // the live page draws its menu after this ran, and draws it again with a language
   const OPEN = 'details.pmenu[open], details.pshare[open]'
   const shut = (except) => { for (const d of document.querySelectorAll(OPEN)) if (d !== except) d.open = false }
   document.addEventListener('click', async (e) => {
