@@ -618,15 +618,22 @@ $('drawer-body').addEventListener('click', (e) => {
   if (b.dataset.sharePerson) openShare(b, { params: { person: b.dataset.sharePerson }, image: `og/person.png?login=${encodeURIComponent(b.dataset.sharePerson)}`, title: t('og.person', { login: b.dataset.sharePerson }) })
 })
 function shareRepo(b) { openShare(b, { params: { repo: b.dataset.shareRepo }, image: `og/repo.png?name=${encodeURIComponent(b.dataset.shareRepo)}`, title: t('og.repo', { name: short(b.dataset.shareRepo) }) }) }
+// a link to a project or a person Pulse does not follow (or that was quiet for 30 days) used to open on nothing: say so
+// and offer the form, with the owner filled in
+function notFollowed(login, name) {
+  goTo('suggest')
+  $('add-login').value = login.slice(0, 80)
+  $('add-result').textContent = t('a.notFollowed', { name })
+}
 // a shared link opens on what was shared
 function openFromLink() {
   const q = new URLSearchParams(location.search)
   const repo = q.get('repo'), person = q.get('person'), h = q.get('h'), tab = q.get('tab')
-  if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; openRepo(i) } }
+  if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; openRepo(i) } else notFollowed(repo.split('/')[0], repo) }
   else if (person) {
     // GitHub logins ignore case, and so does the link preview: ?person=raheemjnr is RaheemJnr
     const key = [...actorIdx.keys()].find((k) => k.toLowerCase() === person.toLowerCase())
-    if (key) { T.chosen = true; openPerson(actorIdx.get(key)) }
+    if (key) { T.chosen = true; openPerson(actorIdx.get(key)) } else notFollowed(person, person)
   }
   else if (['day', 'week', 'month'].includes(h)) {
     hlPeriod = h
@@ -1115,6 +1122,14 @@ function focusDrawer(loaded) {
   $('drawer-body').querySelector('h2')?.focus({ preventScroll: true })
 }
 const backBtn = (back) => back ? `<button type="button" class="back" data-back>\u2039 ${esc(t('l.back'))}</button>` : ''
+// where a project stands, in one pill: work by people this week, none for N days, or only automatic updates
+function statusPill(daily) {
+  const n = daily.days, last = daily.people.map((v, k) => (v ? k : -1)).reduce((a, b) => Math.max(a, b), -1)
+  const since = n - 1 - last
+  if (last >= 0 && since < 7) return `<p class="stat st-active">${esc(t('d.st.active'))}</p>`
+  if (last >= 0) return `<p class="stat st-quiet">${esc(t('d.st.quiet', { n: since }))}</p>`
+  return `<p class="stat st-auto">${esc(t(daily.bots.some(Boolean) ? 'd.st.auto' : 'd.st.none'))}</p>`
+}
 async function openRepo(i) {
   const r = repos[i]; if (!r) return
   const back = backTo; backTo = null; listShown = false
@@ -1133,7 +1148,7 @@ async function openRepo(i) {
     const bars = d.daily.people.map((v, k) => { const hb = (d.daily.bots[k] / max) * 56, hp = (v / max) * 56; return `<rect x="${k * bw + 1}" y="${60 - hp - hb}" width="${bw - 2}" height="${hb}" fill="#8b9480" opacity=".6"/><rect x="${k * bw + 1}" y="${60 - hp}" width="${bw - 2}" height="${hp}" fill="#cbf34d" rx="1"/>` }).join('')
     const sub = [gname(d.group), d.lang, cnt('star', d.stars), d.pushedAt ? t('d.lastCode', { ago: ago(Date.parse(d.pushedAt)) }) : ''].filter(Boolean).map(esc).join(' · ')
     $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
-${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${sub}</p>
+${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}${statusPill(d.daily)}<p class="sub">${sub}</p>
 <p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}${badgeRow('repo', d.name)}
 ${d.daily.people.some(Boolean) || d.daily.bots.some(Boolean) ? `<h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
 <p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>` : `<p class="sub quiet">${esc(t('d.monthNone'))}</p>`}
@@ -1552,9 +1567,13 @@ $('menu-slot').addEventListener('click', (e) => {
   else if (act === 'about') openIntro()
 })
 let introFrom = null
+// with the welcome card up, the page behind it is out of reach of the keyboard and of screen readers (aria-modal alone
+// does not stop Tab)
+function backdropInert(on) { for (const el of document.body.children) if (el.id !== 'intro' && el.tagName !== 'SCRIPT') el.inert = on }
 function openIntro() {
   introFrom = document.activeElement
   introOpen = true; $('intro').hidden = false
+  backdropInert(true)
   $('intro-go').focus()
 }
 // the first visit: after the intro, a short flight to the project and the person of the week, then back home. Any
@@ -1587,7 +1606,7 @@ for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, stopT
 function closeIntro() {
   if (!introOpen) return
   const first = !store.get('seen')
-  introOpen = false; $('intro').hidden = true; store.set('seen', '1')
+  introOpen = false; $('intro').hidden = true; backdropInert(false); store.set('seen', '1')
   introFrom?.focus?.()
   const touring = first && startTour()
   if (newsWaiting) { showNewsToast(newsWaiting); newsWaiting = null }
