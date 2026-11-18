@@ -48,3 +48,15 @@ test('an MCP client asking for an event stream still gets 405', () => {
   assert.equal(call('GET', 'application/json, text/event-stream').status, 405)
   assert.equal(call('GET').status, 405)
 })
+
+for (const lang of ['en', 'pt', 'zh']) {
+  test(`the ${lang} page puts what is for everyone before what is for developers`, () => {
+    const html = usePage({ lang, base, url: `${base}/use` })
+    const at = (s) => html.indexOf(s)
+    assert.ok(at('id="for-all"') > 0 && at('id="for-all"') < at('id="for-dev"'), 'the two headings, in order')
+    for (const id of ['watch', 'follow', 'add']) assert.ok(at(`id="${id}"`) > at('id="for-all"') && at(`id="${id}"`) < at('id="for-dev"'), `${id} is for everyone`)
+    for (const id of ['badge', 'data', 'ai']) assert.ok(at(`<section class="use" id="${id}"`) > at('id="for-dev"'), `${id} is for developers`)
+    assert.equal((html.match(/<div class="jg">/g) || []).length, 2, 'the shortcuts are in two rows')
+    assert.doesNotMatch(html, /\buse\.group\.[a-z]+/, 'a group name shows its key')
+  })
+}

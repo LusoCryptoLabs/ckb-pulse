@@ -13,7 +13,7 @@ const API = [
   ...(FIBER_PAUSED ? [] : [['/api/fiber?net=mainnet|testnet', 'use.api.fiber']]), ['/api/stream', 'use.api.stream'],
 ]
 
-const PAGE_CSS = `nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}nav.jump a{padding:5px 11px;border:1px solid var(--edge);border-radius:999px;text-decoration:none;font-size:14px}
+const PAGE_CSS = `nav.jump{display:grid;gap:10px;margin:0 0 8px}nav.jump .jg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.jump .jl{flex-basis:100%;font:500 11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}nav.jump a{padding:5px 11px;border:1px solid var(--edge);border-radius:999px;text-decoration:none;font-size:14px}h2.grp{margin:34px 0 0}
 section.use{background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:16px 18px;margin:16px 0;scroll-margin-top:12px}section.use h2{margin:0 0 6px;font:600 21px var(--font-ui,sans-serif);letter-spacing:-.01em;color:var(--fg);text-transform:none}
 section.use p{margin:8px 0}.go{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}.go a{display:inline-block;padding:7px 14px;border-radius:999px;background:var(--lime);color:var(--ink);font-weight:700;text-decoration:none;font-size:14px}
 .go a.alt{background:none;color:var(--lime);border:1px solid #4a4536}pre{background:var(--bg);border:1px solid var(--edge);border-radius:10px;padding:10px 12px;margin:8px 0;overflow-x:auto;user-select:all;-webkit-user-select:all}
@@ -37,13 +37,18 @@ export function usePage({ lang, base, url, img = '' }) {
 <ul class="tools">${TOOL_INFO.map(({ name }) => `<li><code>${esc(name)}</code> <span>${esc(t('use.tool.' + name))}</span></li>`).join('')}</ul>
 <p>${esc(t('use.ai.llms', { url: `${base}/llms.txt` }))}</p>`],
   ]
+  // what is for anyone first, what is for people who write code after: the page used to run them together
+  const have = new Set(parts.map(([id]) => id))
+  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'data', 'ai']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
+  const byId = new Map(parts)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 <link rel="icon" href="${esc(base)}/icon-192.png"><link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/use', share: { url: `${url}?lang=${lang}&d=${today()}`, title, image: img || undefined } })}
 ${pageHead({ eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}
-<nav class="jump">${parts.map(([id]) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</nav>
-${parts.map(([id, body]) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${body}</section>`).join('\n')}
+<nav class="jump">${groups.map(([g, ids]) => `<div class="jg"><span class="jl">${esc(t('use.group.' + g))}</span>${ids.map((id) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</div>`).join('')}</nav>
+${groups.map(([g, ids]) => `<h2 class="grp" id="for-${g}">${esc(t('use.group.' + g))}</h2>
+${ids.map((id) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${byId.get(id)}</section>`).join('\n')}`).join('\n')}
 ${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }
