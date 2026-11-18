@@ -1164,24 +1164,6 @@ export const LESSONS = {
      ]
     },
     {
-     "title": "Don't trust RPC-reported input capacities when completing fees",
-     "lesson": "completeInputsByCapacity and completeFeeBy trust the cell capacities the RPC node reports, so a lying node can understate inputs and the difference silently becomes fee. Before and after signing, resolve each input by fetching and hashing its creating transaction. Then recompute the fee yourself, enforce a ceiling, and check that every output and its lock is the one you intended.",
-     "concepts": [
-      "Transaction building and fees",
-      "Security hardening",
-      "Indexer queries and cell collection"
-     ],
-     "status": "current",
-     "note": "Medium confidence.",
-     "sources": [
-      {
-       "repo": "toastmanAu/daowow",
-       "hash": "189a62abb2",
-       "subject": "fix: entries and refunds are signed only after their own rules pass on proven cells"
-      }
-     ]
-    },
-    {
      "title": "Wallet discovery with SignersController",
      "lesson": "To support every CCC wallet without the @ckb-ccc/connector UI, call `new ccc.SignersController().refresh(client, callback, {name, icon})`. Keep the callback registered and update the picker, because it fires again as EIP-6963 wallets announce themselves. Treat signers that are `instanceof ccc.SignerDummy` as download links, not connectable wallets.",
      "concepts": [
@@ -1228,23 +1210,6 @@ export const LESSONS = {
        "repo": "ckb-devrel/ccc",
        "hash": "0fb264a7c8",
        "subject": "fix(connector): tolerate malformed saved connection data"
-      }
-     ]
-    },
-    {
-     "title": "Store builder idempotency marks on the transaction",
-     "lesson": "Don't track per-transaction builder state in module-level WeakMaps keyed by Transaction or CellInput objects. Those marks are lost on tx.clone() or a JSON round-trip, and they leak to other transactions sharing the same CellInput. Store the mark on the transaction itself, e.g. CellOutput.lockProxyRestoredFrom, and dedupe by scanning tx.outputs.",
-     "concepts": [
-      "Transaction building and fees",
-      "Other"
-     ],
-     "status": "current",
-     "note": "Medium confidence.",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "7a850cb1a4",
-       "subject": "fix(spore): tag lock-proxy restores on the output"
       }
      ]
     }
@@ -1542,23 +1507,6 @@ export const LESSONS = {
        "repo": "toastmanAu/openswap",
        "hash": "93996184a6",
        "subject": "Test-token faucet: claimant-funded claims co-signed by a separate faucet wallet via a Pages Function"
-      }
-     ]
-    },
-    {
-     "title": "JoyID PSBT signing with autoFinalized false",
-     "lesson": "JoyID's sign-psbt popup returns a raw extracted transaction when autoFinalized is true, and it rejects PSBTs with inputs it cannot sign. Always request autoFinalized: false and parse the returned PSBT. Check that its unsigned transaction matches the one you sent, then finalize with bitcoinjs-lib only the inputs that gained a new signature (Taproot needs initEccLib).",
-     "concepts": [
-      "Witnesses and signatures",
-      "Transaction building and fees"
-     ],
-     "status": "current",
-     "note": "",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "426b538b0f",
-       "subject": "fix(joy-id): always return a PSBT from signPsbt"
       }
      ]
     },
@@ -1925,72 +1873,6 @@ export const LESSONS = {
    "summary": "This week's Spore lessons are mostly about the cluster lock-proxy mint path in CCC. They cover how to restore the owner/proxy cell correctly when minting spores into a cluster, and how to compare scripts and filters without subtle JS equality bugs.",
    "lessons": [
     {
-     "title": "Compare CCC scripts with Script.eq, not ===",
-     "lesson": "In CCC, compare ccc.Script values with script.eq(other), never ===. Reference comparison misses identical scripts held in different objects. For example, minting several spores of one cluster in lockProxy mode then adds duplicate cluster-owner outputs.",
-     "concepts": [
-      "Transaction building and fees",
-      "Other"
-     ],
-     "status": "current",
-     "note": "",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "9a2d530e48",
-       "subject": "fix(spore): accept any owner-lock output for lock-proxy"
-      },
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "283ca25962",
-       "subject": "fix(spore): restore lock-proxy owner by lock, type, and data"
-      },
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "4982f6c805",
-       "subject": "fix(spore): dedupe lock-proxy outputs and honor empty clusterId"
-      }
-     ]
-    },
-    {
-     "title": "Track restored lock-proxy inputs by outPoint",
-     "lesson": "When you spend a lock-proxy or owner cell only to prove ownership (e.g. a Spore cluster lock-proxy), always restore that exact input as an output. Track restored inputs by their outPoint per transaction, so later actions in the same tx reuse the restore and don't add another one. Don't skip the restore because some output already has the same lock, type and data: that output may be an independent payment, and the owner cell would silently become fee change.",
-     "concepts": [
-      "Transaction building and fees",
-      "Capacity and cell size"
-     ],
-     "status": "current",
-     "note": "",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "85a6920ef2",
-       "subject": "fix(spore): restore lock-proxy by selected input outPoint"
-      }
-     ]
-    },
-    {
-     "title": "Matching existing outputs to detect a proxy restore",
-     "lesson": "An earlier fix detected an already-restored proxy cell by looking for an output that matched it. It first matched on lock alone, comparing with Script.eq. It then matched on lock, type and outputsData, because a newly minted Spore sent to the owner shares the owner's lock and was mistaken for the restore.",
-     "concepts": [
-      "Transaction building and fees",
-      "Other"
-     ],
-     "status": "superseded",
-     "note": "Superseded by outPoint-based tracking (c0123). Even a full lock+type+data match can be an unrelated payment output, which causes the owner cell to be spent as change. Card ids don't confirm chronological order, but c0123 explicitly rejects this matching approach.",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "9a2d530e48",
-       "subject": "fix(spore): accept any owner-lock output for lock-proxy"
-      },
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "283ca25962",
-       "subject": "fix(spore): restore lock-proxy owner by lock, type, and data"
-      }
-     ]
-    },
-    {
      "title": "Clone cached cell outputs before re-adding them",
      "lesson": "When you add a fetched input cell back as an output, pass cell.cellOutput.clone() rather than the original object. Otherwise later tx edits mutate the cached input cell.",
      "concepts": [
@@ -2020,29 +1902,6 @@ export const LESSONS = {
        "repo": "ckb-devrel/ccc",
        "hash": "4982f6c805",
        "subject": "fix(spore): dedupe lock-proxy outputs and honor empty clusterId"
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "area": "RGB++ and Bitcoin",
-   "summary": "This week's single lesson covers handling multi-party Bitcoin PSBTs with @scure/btc-signer in CCC's RGB++/Bitcoin signing flow. It is about parsing PSBTs without losing fields and finalizing only your own input when other signers' inputs lack UTXO data.",
-   "lessons": [
-    {
-     "title": "Parsing and partially finalizing multi-party PSBTs with @scure/btc-signer",
-     "lesson": "Call `Transaction.fromPSBT(bytes, { unknown: \"ignore\", proprietary: \"ignore\" })`, because the default call loses unknown and proprietary PSBT fields. `finalizeIdx` needs every input's UTXO to check the fee, so it fails when other signers' inputs have no witnessUtxo. To finalize only your own input, copy it into a scratch Transaction and finalize it there. Then clear partialSig, tapKeySig and tapScriptSig, and write finalScriptSig/finalScriptWitness back with updateInput.",
-     "concepts": [
-      "Witnesses and signatures",
-      "Data encoding (molecule, hex, bigints)"
-     ],
-     "status": "current",
-     "note": "The source card has medium confidence. Check the exact behaviour of the unknown/proprietary parse options against the @scure/btc-signer version you use.",
-     "sources": [
-      {
-       "repo": "ckb-devrel/ccc",
-       "hash": "ff98c8633d",
-       "subject": "refactor(btc): replace bitcoinjs-lib with @scure/btc-signer"
       }
      ]
     }
