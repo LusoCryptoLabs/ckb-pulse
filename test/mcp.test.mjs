@@ -164,3 +164,10 @@ test('overview carries reviewers, accepted pull requests and the AI accounts apa
   assert.ok(Array.isArray(o.reviewers) && Array.isArray(o.pullRequestsAccepted) && Array.isArray(o.aiAccounts))
   assert.ok(o.reviewers.some((r) => r.login === 'alice' && r.reviews === 1))
 })
+
+test('the version the server reports is the version in server.json, which the MCP Registry lists', async () => {
+  const j = JSON.parse(fs.readFileSync(new URL('../server.json', import.meta.url), 'utf8'))
+  const r = await rpc('initialize', { protocolVersion: '2025-06-18' })
+  assert.equal(r.json.result.serverInfo.version, j.version)
+  assert.equal(j.version, '1.1.0')
+})

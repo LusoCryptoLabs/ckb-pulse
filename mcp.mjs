@@ -152,7 +152,7 @@ export function makeMcp(api) {
     const p = m.params || {}
     switch (m.method) {
       case 'initialize':
-        return { protocolVersion: VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'ckb-pulse', title: 'CKB Pulse', version: '1.0.0' }, instructions: INSTRUCTIONS }
+        return { protocolVersion: VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'ckb-pulse', title: 'CKB Pulse', version: '1.1.0' }, instructions: INSTRUCTIONS }
       case 'ping': return {}
       case 'tools/list': return { tools: LIST }
       case 'tools/call': {
