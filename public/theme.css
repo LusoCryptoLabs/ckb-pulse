@@ -46,9 +46,9 @@ html[data-theme^="lcl"] .pmenu, html[data-theme^="lcl"] .pm-bar, html[data-theme
 /* the name, and under it "by" and the studio's wordmark, whose red centre dot is the one red mark of the bar */
 html[data-theme^="lcl"] .pm-brand i { display: none; }
 html[data-theme^="lcl"] .pm-lock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-right: auto; min-width: 0; }
-html[data-theme^="lcl"] .pm-brand { margin-right: 0; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
-html[data-theme^="lcl"] .pm-by-lcl { display: flex; align-items: center; gap: 8px; color: var(--mut); font: 400 11px/1 var(--font-num); letter-spacing: 0.14em; text-decoration: none; }
-html[data-theme^="lcl"] .pm-by-lcl img { display: block; width: clamp(120px, calc(100vw - 190px), 176px); height: auto; } /* never under the kit's 120 px, and clear of the two buttons on a 320 px phone */
+html[data-theme^="lcl"] .pm-brand { margin-right: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+html[data-theme^="lcl"] .pm-by-lcl { display: flex; align-items: center; gap: 7px; color: var(--mut); font: 400 10px/1 var(--font-num); letter-spacing: 0.14em; text-decoration: none; }
+html[data-theme^="lcl"] .pm-by-lcl img { display: block; width: 120px; height: auto; } /* the kit's minimum: the name Pulse leads, the studio signs under it */
 html[data-theme="lcl"] .pm-by-lcl .on-light, html[data-theme="lcl-light"] .pm-by-lcl .on-dark { display: none; }
 html[data-theme^="lcl"] .pm-by-lcl:hover span { color: var(--fg); }
 html[data-theme^="lcl"] .pm-row:hover, html[data-theme^="lcl"] .ps-panel a:hover, html[data-theme^="lcl"] .ps-panel button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }

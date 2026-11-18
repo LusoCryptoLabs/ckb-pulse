@@ -101,7 +101,7 @@ The scene draws flat out while something moves (a comet, the camera, a block set
 
 For a community call, `/?screen=1` (also in the menu as "Screen for calls") shows only the scene, the name, the three numbers and the latest update, large, with no panels and no welcome card. F is full screen; the pointer and the small bar with the way out hide after three seconds. Measured on software rendering with the day replaying: about 13 cores across the browser's processes before, about 4 now.
 
-A trial look, the LusoCryptoLabs one (Ink and Paper, the red only as the signal, Archivo and Space Mono, straight blocks, pills for chips and buttons), is on the plain pages for whoever asks: `?theme=lcl` (dark) or `?theme=lcl-light` turns it on in this browser, `?theme=old` turns it off. The live page and its scene are not touched.
+The plain pages (digest, use, method, privacy, impact) wear the LusoCryptoLabs look: Ink and Paper, the red only as the signal, Archivo and Space Mono, every corner straight, and the name CKB Pulse with a smaller "by" and the studio wordmark under it. There is a dark and a light version. A first visit follows the system; the menu has a switch (Look: Dark, Light) and the choice is kept in this browser; `?theme=dark`, `?theme=light` or `?theme=old` (the Cellula look the pages had before) sets it from a link. The live page and its scene do not wear it yet.
 
 ## Look
 

@@ -17,8 +17,10 @@ let D = { weeks: [] } // [{ at, stats, repos, commits, people, orgs, news }], ne
 // who made the page, where it is posted about and its source, at the foot of every plain page
 // the bar every server page opens with (the name, the three views, the menu), and its style and script
 export const pageBar = barHtml
-// the trial look (theme.css): ?theme=lcl or ?theme=lcl-light turns it on in this browser, ?theme=old off; set before the first paint
-export const THEME_SCRIPT = `<script>try{var q=new URLSearchParams(location.search).get('theme');if(q)localStorage.setItem('ckbpulse.theme',q);var th=q||localStorage.getItem('ckbpulse.theme');if(th==='lcl'||th==='lcl-light')document.documentElement.dataset.theme=th}catch(e){}</script>`
+// the look of the plain pages, set before the first paint: the one this browser chose (the menu has a switch, and
+// ?theme=dark, ?theme=light or ?theme=old set it), else the system's own, dark or light. "old" is the Cellula look the
+// pages had before 2026-11-18, kept for now. The live page does not take part yet.
+export const THEME_SCRIPT = `<script>(function(){var d=document.documentElement,K='ckbpulse.theme',m={dark:'lcl',light:'lcl-light',lcl:'lcl','lcl-light':'lcl-light',old:'old'},has=function(o,k){return Object.prototype.hasOwnProperty.call(o,k)},th=null;try{var q=new URLSearchParams(location.search).get('theme');if(q&&has(m,q)){th=m[q];localStorage.setItem(K,th)}else{var s=localStorage.getItem(K);if(s&&has(m,s))th=m[s]}}catch(e){}if(!th)th=matchMedia('(prefers-color-scheme: light)').matches?'lcl-light':'lcl';if(th!=='old')d.dataset.theme=th})()</script>`
 export const menuHead = (base) => `<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
