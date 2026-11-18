@@ -63,6 +63,8 @@ test('reports are sorted by their first words, as the teams wrote them', () => {
     'Fiber Studio, DAO Grant Completion Report 1. Executive Summary': { kind: 'delivered' },
     'Pocket Node Completion Report General Pocket Node: DAO Grant Completion Report (Milestones 1 to 4)': { kind: 'delivered' },
     'Fiber Link Product Delivery Report 1. Project Overview': { kind: 'delivered' },
+    'Hey all, time to close the books on this grant, with iCKB delivered!! Nothing else changes: iCKB keeps running, I keep working on it and this topic stays open for updates': { kind: 'delivered' },
+    'Hey all, I need to share a setback on the new iCKB CCC-native libraries. I was close to calling this work done, but we just got some bad news: The CCC UDT support': { kind: 'post' },
     'CKBoost Milestone 1 Testing Guideline Preface As we are still': { kind: 'post' },
     'Milestone 1 Follow Ups UX Improvements': { kind: 'post' },
     'Thank you all for your continued support!!': { kind: 'post' },
