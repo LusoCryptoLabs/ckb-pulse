@@ -2,7 +2,7 @@
 // watched the scene and left; the digest, the feed, notices, badges, the Fiber map, the API and
 // the MCP server could only be found by knowing their address (2026-11-02).
 import { words } from './cards.mjs'
-import { CSS, maker, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
 import { FIBER_PAUSED } from './public/menu.js'
 
@@ -13,12 +13,12 @@ const API = [
   ...(FIBER_PAUSED ? [] : [['/api/fiber?net=mainnet|testnet', 'use.api.fiber']]), ['/api/stream', 'use.api.stream'],
 ]
 
-const PAGE_CSS = `nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}nav.jump a{padding:5px 11px;border:1px solid #36322a;border-radius:999px;text-decoration:none;font-size:14px}
-section.use{background:#14120e;border:1px solid #36322a;border-radius:20px;padding:16px 18px;margin:16px 0;scroll-margin-top:12px}section.use h2{margin:0 0 6px;font:600 21px var(--font-ui,sans-serif);letter-spacing:-.01em;color:#f0ece2;text-transform:none}
-section.use p{margin:8px 0}.go{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}.go a{display:inline-block;padding:7px 14px;border-radius:999px;background:#cbf34d;color:#1a2208;font-weight:700;text-decoration:none;font-size:14px}
-.go a.alt{background:none;color:#cbf34d;border:1px solid #4a4536}pre{background:#0a0907;border:1px solid #36322a;border-radius:10px;padding:10px 12px;margin:8px 0;overflow-x:auto;user-select:all;-webkit-user-select:all}
-pre code{background:none;border:0;padding:0;font-size:13px;font-family:var(--font-num,monospace);overflow-wrap:normal;white-space:pre}ul.api,ul.tools{list-style:none;padding:0;margin:8px 0}ul.api li,ul.tools li{padding:6px 0;border-bottom:1px solid #2a2720;overflow-wrap:anywhere}
-ul.api li:last-child,ul.tools li:last-child{border:0}ul.api span,ul.tools span{color:#9a9486}h3{font-size:15px;margin:14px 0 4px;color:#9a9486}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid #62c9f5;color:#f0ece2;background:#0a0907;border-radius:0 8px 8px 0}
+const PAGE_CSS = `nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}nav.jump a{padding:5px 11px;border:1px solid var(--edge);border-radius:999px;text-decoration:none;font-size:14px}
+section.use{background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:16px 18px;margin:16px 0;scroll-margin-top:12px}section.use h2{margin:0 0 6px;font:600 21px var(--font-ui,sans-serif);letter-spacing:-.01em;color:var(--fg);text-transform:none}
+section.use p{margin:8px 0}.go{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}.go a{display:inline-block;padding:7px 14px;border-radius:999px;background:var(--lime);color:var(--ink);font-weight:700;text-decoration:none;font-size:14px}
+.go a.alt{background:none;color:var(--lime);border:1px solid #4a4536}pre{background:var(--bg);border:1px solid var(--edge);border-radius:10px;padding:10px 12px;margin:8px 0;overflow-x:auto;user-select:all;-webkit-user-select:all}
+pre code{background:none;border:0;padding:0;font-size:13px;font-family:var(--font-num,monospace);overflow-wrap:normal;white-space:pre}ul.api,ul.tools{list-style:none;padding:0;margin:8px 0}ul.api li,ul.tools li{padding:6px 0;border-bottom:1px solid var(--edge-soft);overflow-wrap:anywhere}
+ul.api li:last-child,ul.tools li:last-child{border:0}ul.api span,ul.tools span{color:var(--mut)}h3{font-size:15px;margin:14px 0 4px;color:var(--mut)}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid #62c9f5;color:var(--fg);background:var(--bg);border-radius:0 8px 8px 0}
 .badge img{display:block;margin:10px 0 4px;max-width:100%;height:auto}`
 
 export function usePage({ lang, base, url, img = '' }) {
@@ -44,8 +44,7 @@ ${pageBar(t, { base, lang, current: '', here: '/use' })}
 ${pageHead({ eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}
 <nav class="jump">${parts.map(([id]) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</nav>
 ${parts.map(([id, body]) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${body}</section>`).join('\n')}
-<footer>${maker(t)}
-<p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(url)}?lang=${l}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
+${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }
 

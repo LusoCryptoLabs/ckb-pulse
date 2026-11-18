@@ -1,5 +1,6 @@
 :root {
-  --bg: #0a0907; --glass: rgba(20, 18, 14, 0.78); --glass2: rgba(24, 22, 17, 0.95); --line: rgba(203, 243, 77, 0.14); --fg: #f0ece2; --mut: #9a9486; --lime: #cbf34d; --amber: #f5b14c; --bot: #8b9480;
+  /* --bg, --fg, --mut and --lime come from theme.css, shared with every page */
+  --glass: rgba(20, 18, 14, 0.78); --glass2: rgba(24, 22, 17, 0.95); --line: rgba(203, 243, 77, 0.14); --amber: #f5b14c; --bot: #8b9480;
   --top: 80px; --side: 360px;
 }
 * { box-sizing: border-box; }

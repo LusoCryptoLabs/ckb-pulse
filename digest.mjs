@@ -23,6 +23,14 @@ export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><spa
 // the page that lists everything Pulse does, linked from the other pages' footers
 export const useLink = (t, base, lang) => `<p><a href="${esc(base)}/use?lang=${lang}">${esc(t('use.nav'))}</a> · <a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p>`
 export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
+// the same page in each language, at the foot of every page; the page says how to address itself
+export const langLinks = (hrefOf) => `<p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(hrefOf(l))}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p>`
+// the foot the plain pages share: who made it, and the language links
+export const pageFoot = (t, url) => `<footer>${maker(t)}
+${langLinks((l) => `${url}?lang=${l}`)}</footer>`
+// the cards of the two reading pages, method and privacy
+export const READING_CSS = `section.me{background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:14px 18px;margin:14px 0}section.me h2{margin:0 0 4px;font:600 19px var(--font-ui,sans-serif);letter-spacing:-.01em;color:var(--fg);text-transform:none}section.me p{margin:6px 0}
+.go{display:flex;gap:8px;margin:12px 0 2px}.go a{display:inline-block;padding:7px 14px;border-radius:999px;background:var(--lime);color:var(--ink);font-weight:700;text-decoration:none;font-size:14px}`
 
 export function loadDigests(dir) {
   file = path.join(dir, 'digests.json')
@@ -89,17 +97,17 @@ async function telegram(w, groupOf, publicUrl) {
 }
 
 // ---------- the page ----------
-export const CSS = `:root{color-scheme:dark}body{margin:0;background:#0a0907;color:#f0ece2;font:16px/1.55 var(--font-ui,system-ui,sans-serif);background-image:radial-gradient(circle,rgba(203,243,77,.07) 1px,transparent 1.4px);background-size:22px 22px}
-a{color:#cbf34d}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
-.hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:#9a9486;border:1px solid #36322a;border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:#cbf34d}
-h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:#cbf34d}em.tag{margin-left:6px;padding:1px 7px;border-radius:6px;font:700 11px var(--font-num,monospace);letter-spacing:.04em;background:#2b2a4a;color:#c9c6ff;border:1px solid #5b57b0}.lede{color:#9a9486;font-size:17px;margin:0;max-width:62ch}
-h2{font:500 11px var(--font-num,monospace);color:#9a9486;margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em}p.sub{color:#9a9486;margin:0 0 20px}
-nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{display:inline-block;padding:6px 13px;border:1px solid #36322a;border-radius:999px;margin:0;text-decoration:none;font-size:14px}nav.p>b{background:#cbf34d;color:#1a2208;font-weight:600}
-.kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:#14120e;border:1px solid #36322a;border-radius:20px;padding:14px 16px}.kpis b{display:block;font:600 34px/1.15 var(--font-num,monospace);letter-spacing:-.02em;color:#cbf34d}.kpis span{color:#9a9486;font-size:14px}
-.bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:#14120e;border:1px solid #36322a;border-radius:18px;padding:10px}.bars i{flex:1;background:linear-gradient(#e2ff7a,#8fb81f);border-radius:3px 3px 0 0;min-height:2px}
-ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #2a2720}ol li span{min-width:0;overflow-wrap:anywhere}ol li b{color:#cbf34d;white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:#9a9486;margin-left:8px}
-.medals li{border:1px solid #36322a;background:#14120e;border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:#9a9486;margin:0}.medals strong{font-size:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:44px;color:#9a9486;font-size:14px;border-top:1px solid #2a2720;padding-top:16px}footer img{max-width:100%;height:auto}code{font-family:var(--font-num,monospace);background:#14120e;border:1px solid #36322a;border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
+export const CSS = `:root{color-scheme:dark}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif);background-image:radial-gradient(circle,rgba(203,243,77,.07) 1px,transparent 1.4px);background-size:22px 22px}
+a{color:var(--lime)}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
+.hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);border:1px solid var(--edge);border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:var(--lime)}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:var(--lime)}em.tag{margin-left:6px;padding:1px 7px;border-radius:6px;font:700 11px var(--font-num,monospace);letter-spacing:.04em;background:#2b2a4a;color:#c9c6ff;border:1px solid #5b57b0}.lede{color:var(--mut);font-size:17px;margin:0;max-width:62ch}
+h2{font:500 11px var(--font-num,monospace);color:var(--mut);margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em}p.sub{color:var(--mut);margin:0 0 20px}
+nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{display:inline-block;padding:6px 13px;border:1px solid var(--edge);border-radius:999px;margin:0;text-decoration:none;font-size:14px}nav.p>b{background:var(--lime);color:var(--ink);font-weight:600}
+.kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:14px 16px}.kpis b{display:block;font:600 34px/1.15 var(--font-num,monospace);letter-spacing:-.02em;color:var(--lime)}.kpis span{color:var(--mut);font-size:14px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:var(--surface);border:1px solid var(--edge);border-radius:18px;padding:10px}.bars i{flex:1;background:linear-gradient(#e2ff7a,#8fb81f);border-radius:3px 3px 0 0;min-height:2px}
+ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--edge-soft)}ol li span{min-width:0;overflow-wrap:anywhere}ol li b{color:var(--lime);white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:var(--mut);margin-left:8px}
+.medals li{border:1px solid var(--edge);background:var(--surface);border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:var(--mut);margin:0}.medals strong{font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:44px;color:var(--mut);font-size:14px;border-top:1px solid var(--edge-soft);padding-top:16px}footer img{max-width:100%;height:auto}code{font-family:var(--font-num,monospace);background:var(--surface);border:1px solid var(--edge);border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
 .langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}.lede{font-size:16px}}
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
 
@@ -140,7 +148,7 @@ ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs
 <footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed.xml">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
 ${useLink(t, base, lang)}${maker(t)}
-<p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(q(period, l))}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p></footer>
+${langLinks((l) => q(period, l))}</footer>
 </main>${menuScript(base)}</body></html>`
 }
 
