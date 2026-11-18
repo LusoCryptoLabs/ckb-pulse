@@ -35,6 +35,10 @@ const ids = new Set()
 // did send say: their heads, and each repository's latest. Kept as pushes arrive: read once per round of the commit
 // lists, a push the daily fill brought in during the round went unseen and its head was counted again (2026-11-01, two)
 const commitShas = new Set(), pushHeads = new Set(), lastPushAt = new Map()
+// every commit that a push from GitHub's events already counted (the event keeps them in cs): a commit is counted once,
+// whether it came in on a branch or in the merge of that branch. Measured 2026-11-18 against GitHub's own unique SHAs
+// over 30 days: ckb-keyway 1061 against 443, fiber 183 against 72, wyltek-wallet 110 against 24
+const countedShas = new Set()
 const headOf = (e) => /\/commit\/([0-9a-f]{40})$/.exec(e.url || '')?.[1]
 function notePush(e) {
   if (e.kind !== 'push' || e.shas) return
@@ -42,7 +46,8 @@ function notePush(e) {
   const h = headOf(e); if (h) pushHeads.add(h)
 }
 function readShas() {
-  commitShas.clear(); pushHeads.clear(); lastPushAt.clear()
+  commitShas.clear(); pushHeads.clear(); lastPushAt.clear(); countedShas.clear()
+  for (const e of state.events) for (const s of e.cs || []) countedShas.add(s)
   for (const e of state.events) notePush(e)
   // a counted commit that a push GitHub sent also brought in leaves the counted push
   state.events = state.events.filter((e) => {
@@ -153,6 +158,26 @@ async function ensureMeta(full, force) {
   return repoEntry(full, res.body || { description: '', private: true })
 }
 // the events API stopped sending commit counts with a push (it keeps before and head): compare the two once
+// the commits a push brought: the list of the compare between the two heads (up to 300), and how many more there were.
+// A new branch has no before: its head alone
+async function pushShas(repo, p) {
+  if (!p.head) return { shas: [], extra: 1 }
+  if (!p.before || /^0+$/.test(p.before)) return { shas: [p.head], extra: 0 }
+  return once(`ps:${repo}@${p.before}..${p.head}`, async () => {
+    const shas = []
+    let total = 0
+    for (let page = 1; page <= 3; page++) {
+      const r = await gh(`/repos/${repo}/compare/${p.before}...${p.head}?per_page=100&page=${page}`)
+      if (!r.body || !Array.isArray(r.body.commits)) break
+      total = r.body.total_commits ?? total
+      for (const c of r.body.commits) shas.push(c.sha)
+      if (shas.length >= total || r.body.commits.length < 100) break
+    }
+    // the compare did not answer: the push is at least its head, and as many more as an old-style event said it had
+    if (!shas.length) return { shas: [p.head], extra: Math.max(0, (typeof p.distinct_size === 'number' ? p.distinct_size : typeof p.size === 'number' ? p.size : 1) - 1) }
+    return { shas, extra: Math.max(0, total - shas.length) }
+  })
+}
 async function commitCount(repo, p) {
   if (typeof p.distinct_size === 'number') return p.distinct_size
   if (typeof p.size === 'number') return p.size
@@ -178,7 +203,7 @@ async function normalise(e) {
   const p = e.payload || {}
   // automation stays as quiet sparks on the grid; it costs no extra lookups and never enters the feed
   let bot = isNoiseActor(actor)
-  let kind = null, title = '', url = `https://github.com/${repo}`, ref = '', commits = 0, agent = false
+  let kind = null, title = '', url = `https://github.com/${repo}`, ref = '', commits = 0, agent = false, cs = null
   switch (e.type) {
     case 'PushEvent': {
       ref = (p.ref || '').replace('refs/heads/', '')
@@ -191,7 +216,15 @@ async function normalise(e) {
         url = `https://github.com/${repo}/commit/${p.head}`
         title = bot || agent ? ref : await once(`c:${repo}@${p.head}`, async () => { const r = await gh(`/repos/${repo}/commits/${p.head}`); return r.body ? r.body.commit.message.split('\n')[0] : '' })
       }
-      if (!bot && !agent) commits = await commitCount(repo, p)
+      if (!bot && !agent) {
+        // only the commits no earlier push or commit list counted: a branch pushed, then merged, counts once
+        const { shas, extra } = await pushShas(repo, p)
+        const fresh = shas.filter((s) => !commitShas.has(s) && !countedShas.has(s))
+        commits = fresh.length + extra
+        if (!commits) return null // everything in this push was counted already
+        for (const s of fresh) countedShas.add(s)
+        cs = fresh
+      }
       break
     }
     case 'PullRequestEvent': {
@@ -244,7 +277,7 @@ async function normalise(e) {
   const r = await ensureMeta(repo, e.type === 'PublicEvent')
   if (r.private !== false) return null
   const ai = isAI(actor)
-  return { id: e.id, kind, repo, group: r.group, actor, avatar, title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: (bot || agent || ai) && kind !== 'release', ...(agent ? { agent: true } : {}), ...(ai ? { ai: true } : {}), ...(commits ? { commits } : {}) }
+  return { id: e.id, kind, repo, group: r.group, actor, avatar, title, url, ref, at: e.created_at, tags: tagsFor(r, title), bot: (bot || agent || ai) && kind !== 'release', ...(agent ? { agent: true } : {}), ...(ai ? { ai: true } : {}), ...(commits ? { commits } : {}), ...(cs?.length ? { cs } : {}) }
 }
 
 // ---------- intake ----------
@@ -356,14 +389,24 @@ export async function readCommits(full, now = Date.now()) {
   // a 304 answers with the list read before, so commits still waiting for their push are looked at again
   const res = await gh(`/repos/${full}/commits?per_page=100`, { conditional: true })
   if (!r || !Array.isArray(res.body)) return []
+  // more than 100 commits since the last look (janx/ckbadger: 1768 commits in 30 days on GitHub, 996 here): read on,
+  // up to five pages, while the last commit of a page is still new to us
+  const list = [...res.body], cut = Math.max(Date.parse(lastPushAt.get(full) || 0), now - 7 * DAY)
+  for (let page = 2; page <= 5; page++) {
+    const last = list.at(-1)
+    if (list.length < (page - 1) * 100 || !last || !(Date.parse(last.commit?.committer?.date || last.commit?.author?.date || 0) > cut) || commitShas.has(last.sha) || countedShas.has(last.sha) || pushHeads.has(last.sha)) break
+    const more = await gh(`/repos/${full}/commits?per_page=100&page=${page}`)
+    if (!Array.isArray(more.body) || !more.body.length) break
+    list.push(...more.body)
+  }
   const after = Math.max(Date.parse(lastPushAt.get(full) || 0), now - 7 * DAY)
   const ripe = now - POLL.commitsGraceMin * 60e3
   const by = new Map()
-  for (const c of res.body) {
+  for (const c of list) {
     const date = c.commit?.committer?.date || c.commit?.author?.date
     const at = Date.parse(date || 0)
     // a push's own head is never counted again, whatever the clock of the machine that made it said
-    if (!(at > after) || commitShas.has(c.sha) || pushHeads.has(c.sha)) continue
+    if (!(at > after) || commitShas.has(c.sha) || countedShas.has(c.sha) || pushHeads.has(c.sha)) continue
     if (at > ripe) return []
     // merges made on github.com are committed by web-flow: the author is the person
     const actor = c.author?.login || (c.committer?.login !== 'web-flow' ? c.committer?.login : '')
@@ -755,7 +798,7 @@ function announceNews() {
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
 
 // the pure rules, for the tests
-export { ckbContext, vetRepo, leaders, manifestOk, normalise, intake, newsWorthy, markAI, aiScan }
+export { ckbContext, vetRepo, leaders, manifestOk, normalise, intake, newsWorthy, markAI, aiScan, readShas }
 export const invalidate = () => { hlCache = null }
 
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
