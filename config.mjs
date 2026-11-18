@@ -49,7 +49,7 @@ export const TOPIC_SEARCHES = ['topic:ckb', 'topic:nervos', 'topic:nervos-networ
 export const BLOCKED = []
 
 // Projects the CKB Community Fund DAO pays for, by proposal (talk.nervos.org/t/<topic>), followed whatever discovery
-// finds and shown side by side with their reports at /funded. Checked 2026-11-01: discovery missed three of the six at
+// finds. (Their grants and reports were shown at /funded until 2026-11-18; that page is gone, the following stays.) Checked 2026-11-01: discovery missed three of the six at
 // work, since none carries a CKB topic and GitHub's code search finds no CKB dependency in them (a pnpm catalog, a
 // manifest four folders deep, none yet). An owner alone means all its public repositories. `since` is the day the vote
 // was declared passed in the thread, or the first payment where no one declared it; `team` adds the people who post the

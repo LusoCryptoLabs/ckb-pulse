@@ -118,19 +118,6 @@ const TOOLS = [
     },
   },
   {
-    name: 'dao_funded',
-    title: 'Grants of the Community Fund DAO',
-    description: 'The projects the Nervos Community Fund DAO pays for: their code activity next to their reports on Nervos Talk, and whether each is in progress, quiet or delivered.',
-    inputSchema: { type: 'object', properties: {} },
-    run: (a, { api }) => {
-      const f = api.funded()
-      return {
-        about: 'Code activity from GitHub; reports and milestones from the grant threads on Nervos Talk.', readAt: f.readAt,
-        grants: f.grants.map((g) => ({ name: g.name, grant: g.grant, since: g.since, status: g.status, repos: g.repos, commits: g.commits, people: g.people, lastWork: g.lastWork, lastReport: g.lastReport, reports: g.updates, milestones: g.milestones, delivered: g.delivered, thread: `https://talk.nervos.org/t/${g.topic}` })),
-      }
-    },
-  },
-  {
     name: 'new_builders',
     title: 'Who joined recently',
     description: 'People whose first commit in a project Pulse follows is from the last days (30 by default), in alphabetical order. This is a list of arrivals, not a ranking. From GitHub statistics, so someone new to GitHub and someone new to these projects look the same.',
@@ -152,7 +139,7 @@ const LIST = TOOLS.map(({ run, ...t }) => ({ ...t, annotations: { readOnlyHint: 
 // the tools by name, for the pages that tell people and agents what Pulse can answer (/use, /llms.txt)
 export const TOOL_INFO = TOOLS.map(({ name, description }) => ({ name, description }))
 
-// api: highlights, news, projects, project, person, peopleIn, updates, funded, trends (the server's own readers)
+// api: highlights, news, projects, project, person, peopleIn, updates, trends (the server's own readers)
 export function makeMcp(api) {
   async function call(m, ctx) {
     const p = m.params || {}

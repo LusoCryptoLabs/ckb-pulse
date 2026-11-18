@@ -1,16 +1,16 @@
-// The menu and the three views, the same on every page: the live page, /fiber, /funded, /digest and /use. The server
+// The menu and the three views, the same on every page: the live page, /fiber, /digest and /use. The server
 // writes it into its pages and the live and Fiber pages draw it with their words. Until 2026-11-02 the Fiber map, the
-// funded projects, the feed, the API and the MCP server could only be found by their address, behind the "?" or not at
+// the feed, the API and the MCP server could only be found by their address, behind the "?" or not at
 // all. Loaded in a browser, this file also closes an open menu on a tap outside it or on Escape.
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const LANGS = [['en', 'EN'], ['zh', '中文'], ['pt', 'PT']]
 const RSS = '<svg viewBox="0 0 16 16"><circle cx="4" cy="12" r="1.6" fill="currentColor"/><path d="M3 7.5a5.5 5.5 0 0 1 5.5 5.5M3 3a10 10 0 0 1 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
 
 // the destinations of the same weight: shown side by side on wide screens, first in the menu everywhere
-export const VIEWS = [['live', '/', 'v.live'], ['fiber', '/fiber', 'v.fiber'], ['funded', '/funded', 'v.funded']]
+export const VIEWS = [['live', '/', 'v.live'], ['fiber', '/fiber', 'v.fiber']]
 // [id, path, words, hint words, tile] by what a person came for; act names what the live page does in place
 export const GROUPS = [
-  ['m.see', [['live', '/', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['funded', '/funded', 'm.funded', 'm.funded.s', 'D'], ['digest', '/digest?p=week', 'm.digest', '', '7']]],
+  ['m.see', [['live', '/', 'm.live', '', 'live'], ['fiber', '/fiber', 'm.fiber', 'm.fiber.s', 'F'], ['digest', '/digest?p=week', 'm.digest', '', '7']]],
   ['m.keep', [['notices', '/?tab=notices', 'm.notices', 'm.notices.s', '!'], ['feed', '/feed.xml', 'm.feed', '', 'rss']]],
   ['m.build', [['add', '/?tab=suggest', 'm.add', '', '+'], ['badge', '/use#badge', 'm.badge', '', 'B'], ['ai', '/use#ai', 'm.ai', 'm.ai.s', 'AI']]],
 ]

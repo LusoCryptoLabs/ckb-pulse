@@ -1,5 +1,5 @@
 // What Pulse does besides the live page, in one place: for people at /use, for AI agents at /llms.txt. Visitors came,
-// watched the scene and left; the digest, the feed, notices, badges, the Fiber map, the funded projects, the API and
+// watched the scene and left; the digest, the feed, notices, badges, the Fiber map, the API and
 // the MCP server could only be found by knowing their address (2026-11-02).
 import { words } from './cards.mjs'
 import { CSS, maker, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
@@ -8,7 +8,7 @@ import { TOOL_INFO } from './mcp.mjs'
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const install = (base) => `claude mcp add --transport http ckb-pulse ${base}/mcp`
 const API = [
-  ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'], ['/api/funded', 'use.api.funded'],
+  ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'],
   ['/api/fiber?net=mainnet|testnet', 'use.api.fiber'], ['/api/stream', 'use.api.stream'],
 ]
 
@@ -30,7 +30,6 @@ export function usePage({ lang, base, url, img = '' }) {
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
     ['fiber', `<p>${esc(t('use.fiber.p'))}</p>${go([[`${base}/fiber`, 'use.fiber.a']])}`],
-    ['funded', `<p>${esc(t('use.funded.p'))}</p>${go([[`${base}/funded?${L}`, 'use.funded.a']])}`],
     ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul>`],
     ['ai', `<p>${esc(t('use.ai.p'))}</p><h3>${esc(t('use.ai.claude'))}</h3><pre><code>${esc(install(base))}</code></pre><h3>${esc(t('use.ai.other'))}</h3><pre><code>${esc(base)}/mcp</code></pre>
 <h3>${esc(t('use.ai.try'))}</h3><blockquote>${esc(t('use.ai.q'))}</blockquote><h3>${esc(t('use.ai.tools'))}</h3>
@@ -66,7 +65,6 @@ ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n
 - [Live page](${base}/): projects, people and updates as they happen; ?repo=owner/repo and ?person=login open one
 - [Digest](${base}/digest?p=week): the highlights of a day, week or month (p=day|week|month)
 - [Fiber map](${base}/fiber): Fiber nodes and public channels on mainnet and testnet
-- [Funded by the community](${base}/funded): the CKB Community Fund DAO grants, code next to reports
 - [What you can do](${base}/use): every feature, for people
 - [How Pulse counts](${base}/method): what an update is, the caps, what is left out
 
@@ -74,7 +72,6 @@ ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n
 
 - [State](${base}/api/state): repositories, highlights and 7 days of history (send If-None-Match)
 - ${base}/api/repo?name=owner/repo: one repository over 30 days
-- [Funded](${base}/api/funded): the grants as JSON
 - ${base}/api/fiber?net=mainnet|testnet: the Fiber map
 - ${base}/api/stream and ${base}/api/fiber/stream: Server-Sent Events
 - [Feed](${base}/feed.xml): Atom

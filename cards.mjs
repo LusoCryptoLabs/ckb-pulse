@@ -170,53 +170,6 @@ function litTitle(title, x, y, size, width, lines, gap) {
   return rows.slice(0, lines).map((row, i) => `<text x="${x}" y="${y + i * gap}" font-family="${FONT}" font-size="${size}" font-weight="700">${row.map(([w, lit], k) => `<tspan fill="${lit ? '#cbf34d' : '#f0ece2'}">${esc(w)}${k < row.length - 1 ? ' ' : ''}</tspan>`).join('')}</text>`).join('')
 }
 const tag = (x, y, label, bg, fg) => { const w = ems(label) * 19 + 34; return { w, svg: `<rect x="${x}" y="${y - 25}" width="${w}" height="36" rx="18" fill="${bg}"/>` + text(x + 17, y, 19, fg, label, 'font-weight="700"') } }
-// a status shown only when it is good news: a quiet project gets the date of its last work and no label
-export function grantTag(g, t, x, y) {
-  if (g.status === 'delivered') return tag(x, y, t('f.delivered', { date: day(g.delivered.at, t) }), '#cbf34d', '#1a2208').svg
-  if (g.status === 'progress') return tag(x, y, t('f.progress'), '#16301f', '#9be5b0').svg
-  return text(x, y, 20, '#9a9486', `${t('f.lastWork')}: ${day(g.lastWork, t) || t('f.none')}`)
-}
-
-// one project the Community Fund DAO pays for: the grant, its state, the code since the vote week by week, the reports
-export async function fundedCard({ g, lang, host }) {
-  const t = words(lang)
-  let inner = num(64, 146, 18, '#9a9486', 'COMMUNITY FUND DAO', 'letter-spacing="1.5"')
-  inner += text(64, 214, 58, '#f0ece2', clip(g.name, 58, 610), 'font-weight="700"')
-  inner += text(64, 256, 24, '#d9d4c4', clip(t('f.grant', { grant: g.grant, since: day(g.since, t) }), 24, 610))
-  inner += grantTag(g, t, 64, 316)
-  inner += kpis([[g.commits, t.cnt('f.commits', g.commits)], [g.people, t.cnt('f.people', g.people)]], 432)
-  inner += num(64, 518, 22, '#d9d4c4', g.updates) + text(64 + String(g.updates).length * 14 + 12, 518, 22, '#9a9486', clip(t.cnt('f.reports', g.updates), 22, 520))
-  inner += text(720, 128, 20, '#9a9486', t('f.lLabel'))
-  const bars = g.bars.length > 52 ? g.bars.slice(-52) : g.bars, skip = g.bars.length - bars.length
-  inner += chart(bars, null)
-  const n = bars.length, gap = n > 20 ? 3 : 8, bw = (420 - gap * (n - 1)) / n
-  const at = (iso) => Math.floor((Date.parse(iso) - g.first) / WEEK) - skip
-  for (const [i, label, color] of [...g.milestones.map((m) => [at(m.at), `M${m.m}`, '#62c9f5']), ...(g.delivered ? [[at(g.delivered.at), '✓', '#ffd166']] : [])]) {
-    if (i < 0 || i >= n) continue
-    const x = 720 + i * (bw + gap) + bw / 2
-    inner += `<line x1="${x}" x2="${x}" y1="150" y2="530" stroke="${color}" stroke-width="2.5" stroke-dasharray="6 6"/>` + num(x - 12, 146, 16, color, label, 'font-weight="600"')
-  }
-  return rasterise(frame(host, inner))
-}
-
-// the funded page: every grant, its code since the vote and its state
-export async function fundedPageCard({ grants, lang, host }) {
-  const t = words(lang)
-  let inner = num(64, 146, 18, '#9a9486', 'COMMUNITY FUND DAO', 'letter-spacing="1.5"')
-  inner += litTitle(t('f.h1'), 64, 206, 46, 560, 3, 54)
-  const total = grants.reduce((a, g) => a + g.commits, 0)
-  inner += kpis([[grants.length, t('f.projects')], [total, t.cnt('f.commits', total)]], 470)
-  inner += `<rect x="700" y="112" width="460" height="${Math.min(6, grants.length) * 68 + 28}" rx="22" fill="#14120e" stroke="#36322a"/>`
-  const max = Math.max(1, ...grants.map((g) => g.commits))
-  grants.slice(0, 6).forEach((g, i) => {
-    const y = 158 + i * 68
-    inner += text(728, y, 24, '#f0ece2', clip(g.name, 24, 230), 'font-weight="700"') + num(1132, y, 22, '#cbf34d', g.commits, 'text-anchor="end" font-weight="600"')
-    inner += `<rect x="728" y="${y + 14}" width="404" height="6" rx="3" fill="#2a2720"/><rect x="728" y="${y + 14}" width="${Math.max(4, (g.commits / max) * 404)}" height="6" rx="3" fill="url(#bar)"/>`
-    if (g.status === 'delivered') inner += `<circle cx="${728 + ems(clip(g.name, 24, 230)) * 24 + 16}" cy="${y - 8}" r="6" fill="#cbf34d"/>`
-  })
-  return rasterise(frame(host, inner))
-}
-
 // the Fiber network as it is: the counts, and the real graph, the busiest nodes in the middle
 export async function fiberCard({ d, lang, host }) {
   const t = words(lang)
