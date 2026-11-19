@@ -226,7 +226,7 @@ export function lessonsPage({ lang, base, url, data, q = '', area = '', concept 
   const pageHref = (n) => `${base}${pre}?${new URLSearchParams([...keep, ...(n > 1 ? [['page', String(n)]] : [])])}`.replace(/&/g, '&amp;')
   const pager = pages > 1 ? `<p class="pg">${pg > 1 ? `<a href="${pageHref(pg - 1)}" rel="prev">${esc(t('ls.prev'))}</a>` : ''}<span>${esc(t('ls.page', { p: pg, n: pages }))}</span>${pg < pages ? `<a href="${pageHref(pg + 1)}" rel="next">${esc(t('ls.next'))}</a>` : ''}</p>` : ''
   const areaOpts = topics.map((x) => `<option value="${esc(x.slug)}"${x.slug === area ? ' selected' : ''}>${esc(x.area)}</option>`).join('')
-  return `${head(t, { lang, base, title, desc, pub })}
+  return `${head(t, { lang, base, title, desc, pub, img: pub ? `${base}${withStamp('/og/learned.png', [v.lessons.length, v.lessons.filter((l) => l.confirmed).length])}&lang=${lang}` : '' })}
 ${pageBar(t, { base, lang, current: '', here: pre })}
 ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
 <p>${esc(pub ? t('ls.pub.count', { n: v.lessons.length, m: new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size }) : t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>

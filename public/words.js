@@ -19,7 +19,7 @@ export const WORDS = {
   en: {
     locale: 'en-GB',
     tagline: 'People building CKB, live from GitHub',
-    'k.updates': 'updates', 'k.people': 'people', 'k.projects': 'projects',
+    'k.updates': 'updates', 'k.people': 'people', 'k.projects': 'projects', 'og.lessons': 'lessons', 'og.confirmed': 'confirmed by maintainers', 'og.lessons.line': 'From real fixes in CKB projects, each linked to its commit.', 'og.active': 'active this month', 'og.owners': 'owners',
     'k.of': 'filtered, of {n} updates', 'dg.h1.day': 'The last *24 hours* on CKB', 'dg.h1.week': 'The last *7 days* on CKB', 'dg.h1.month': 'The last *30 days* on CKB', 'use.h1': 'What you can do *with CKB Pulse*', 'k.day': 'in the last 24 hours', 'k.dayAt': 'in the 24 hours up to {time}', 'k.week': 'in the last 7 days', 'k.weekAt': 'in the 7 days up to {time}',
     search: 'Search projects or people', searchShort: 'Search', nothing: 'Nothing found',
     help: 'What is this?', full: 'Full screen', close: 'Close', home: 'Back to the starting view',
@@ -168,7 +168,7 @@ export const WORDS = {
   pt: {
     locale: 'pt-PT',
     tagline: 'Quem constrói a CKB, ao vivo a partir do GitHub',
-    'k.updates': 'atualizações', 'k.people': 'pessoas', 'k.projects': 'projetos',
+    'k.updates': 'atualizações', 'k.people': 'pessoas', 'k.projects': 'projetos', 'og.lessons': 'lições', 'og.confirmed': 'confirmadas por maintainers', 'og.lessons.line': 'De correções reais em projetos CKB, cada uma ligada ao seu commit.', 'og.active': 'ativos este mês', 'og.owners': 'donos',
     'k.of': 'com o filtro, de {n} atualizações', 'dg.h1.day': 'As últimas *24 horas* na CKB', 'dg.h1.week': 'Os últimos *7 dias* na CKB', 'dg.h1.month': 'Os últimos *30 dias* na CKB', 'use.h1': 'O que pode fazer *com o CKB Pulse*', 'k.day': 'nas últimas 24 horas', 'k.dayAt': 'nas 24 horas até {time}', 'k.week': 'nos últimos 7 dias', 'k.weekAt': 'nos 7 dias até {time}',
     search: 'Procurar projetos ou pessoas', searchShort: 'Procurar', nothing: 'Nada encontrado',
     help: 'O que é isto?', full: 'Ecrã inteiro', close: 'Fechar', home: 'Voltar à vista inicial',
@@ -318,7 +318,7 @@ export const WORDS = {
   zh: {
     locale: 'zh-CN',
     tagline: '实时查看 CKB 的建设者，数据来自 GitHub',
-    'k.updates': '更新', 'k.people': '人', 'k.projects': '项目',
+    'k.updates': '更新', 'k.people': '人', 'k.projects': '项目', 'og.lessons': '条经验', 'og.confirmed': '已由维护者确认', 'og.lessons.line': '来自 CKB 项目的真实修复，每条都链接到对应的提交。', 'og.active': '本月活跃', 'og.owners': '所有者',
     'k.of': '已筛选，共 {n} 条更新', 'dg.h1.day': 'CKB 的*过去 24 小时*', 'dg.h1.week': 'CKB 的*过去 7 天*', 'dg.h1.month': 'CKB 的*过去 30 天*', 'use.h1': '用 *CKB Pulse* 可以做什么', 'k.day': '最近 24 小时', 'k.dayAt': '截至 {time} 的 24 小时', 'k.week': '最近 7 天', 'k.weekAt': '截至 {time} 的 7 天',
     search: '搜索项目或人', searchShort: '搜索', nothing: '没有找到',
     help: '这是什么？', full: '全屏', close: '关闭', home: '回到初始视角',
