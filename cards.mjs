@@ -211,3 +211,16 @@ export async function useCard({ tools, repos, month, lang, host }) {
   tools.slice(0, 8).forEach((name, i) => { const y = 160 + i * 48; inner += `<rect x="728" y="${y - 15}" width="12" height="12" fill="#cbf34d"/>` + num(756, y - 2, 24, '#f0ece2', name) })
   return rasterise(frame(host, inner))
 }
+
+/** The picture of one released lesson: its title, the lesson in a few lines, and where it comes from. */
+export async function lessonCard({ l, lang, host }) {
+  const t = words(lang)
+  let inner = num(64, 146, 18, '#9a9486', 'CKB LESSONS · CC BY 4.0', 'letter-spacing="1.5"')
+  const tl = wrap(l.title, 46, 1070, 2)
+  tl.forEach((ln, i) => { inner += text(64, 214 + i * 56, 46, '#f0ece2', ln, 'font-weight="600"') })
+  const y0 = 214 + tl.length * 56 + 24
+  wrap(l.lesson, 26, 1070, 5).forEach((ln, i) => { inner += text(64, y0 + i * 38, 26, '#cfcabd', ln) })
+  const n = (l.sources || []).length
+  inner += num(64, 540, 20, '#cbf34d', `${n} ${n === 1 ? 'commit' : 'commits'}${l.level ? ' · ' + t('ls.level.' + l.level) : ''}`)
+  return rasterise(frame(host, inner))
+}

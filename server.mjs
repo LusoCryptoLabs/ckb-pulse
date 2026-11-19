@@ -11,7 +11,7 @@ import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits, count } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
-import { highlightsCard, repoCard, personCard, fiberCard, useCard, words, rasterise } from './cards.mjs'
+import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { FIBER_PAUSED } from './public/menu.js'
@@ -109,13 +109,14 @@ function page(req, url) {
 async function shareCard(req, res, url) {
   const q = url.searchParams, lang = pick(q.get('lang')) || 'en', host = req.headers.host || 'localhost'
   let png = null
-  { const t = url.pathname.match(/^\/og\/(highlights|repo|person|fiber|use|digest)\.png$/); if (t) count('card_' + t[1], req.headers['user-agent']) }
+  { const t = url.pathname.match(/^\/og\/(highlights|repo|person|fiber|use|digest|lesson)\.png$/); if (t) count('card_' + t[1], req.headers['user-agent']) }
   if (url.pathname === '/og/highlights.png') { const p = PERIODS.includes(q.get('p')) ? q.get('p') : 'week'; png = await card(`h|${p}|${lang}|${host}|${q.get('v') || ''}`, () => highlightsCard({ leaders: highlightsNow(), period: p, lang, host, groupOf })) }
   if (url.pathname === '/og/digest.png') { const w = weekByLabel(q.get('w') || ''); if (w) png = await card(`dg|${q.get('w')}|${lang}|${host}`, () => highlightsCard({ leaders: weekLeaders(w), period: 'week', lang, host, groupOf })) }
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}|${q.get('v') || ''}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/fiber.png' && !FIBER_PAUSED) { const d = fiberState(q.get('net') === 'testnet' ? 'testnet' : 'mainnet'); if (d) png = await card(`fb|${d.net}|${lang}|${host}|${q.get('v') || ''}`, () => fiberCard({ d, lang, host })) }
   if (url.pathname === '/og/use.png') png = await card(`u|${lang}|${host}|${q.get('v') || ''}`, () => useCard({ ...useFacts(), lang, host }))
+  if (url.pathname === '/og/lesson.png') { const data = loadLessons(DATA_DIR, 'public-lessons.json'), l = data?.version === 1 && Array.isArray(data.lessons) ? data.lessons.find((x) => x.id === q.get('id')) : null; if (l) png = await card(`l|${l.id}|${lang}|${host}|${q.get('v') || ''}`, () => lessonCard({ l, lang, host })) }
   if (!png) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
   res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=600' })
   res.end(png)
@@ -253,7 +254,9 @@ function handle(req, res) {
       if (url.pathname === '/learned/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, startPage({ lang, base: b, url: `${b}/learned/start`, data, pub: true }))
       if (url.pathname === '/learned.json') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(JSON.stringify(data)) }
       if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), pub: true }))
-      const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/learned/'.length), pub: true })
+      const lid = url.pathname.slice('/learned/'.length)
+      const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: lid, pub: true })
+      if (page) hit(`learned:${lid}`, ipOf(req), req.headers['user-agent']) // reads of this lesson: a count, no one in it
       if (page) return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, page)
       const gone = (data.withdrawn || []).find((w) => `/learned/${w.id}` === url.pathname) // it was public once: say so
       if (gone) return sendText(req, res, 410, { 'content-type': TYPES['.html'], ...pub }, withdrawnPage({ lang, base: b, url: `${b}${url.pathname}`, date: gone.date }))

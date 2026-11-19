@@ -368,3 +368,12 @@ test('the repository holds no lessons data', () => {
   const files = execSync('git ls-files', { cwd: path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..') }).toString().split('\n')
   assert.deepEqual(files.filter((f) => /lessons[-.]data|(^|\/)lessons\.json$/.test(f)), [])
 })
+
+test('a released lesson has a share card and says so in its page; a private one has neither', async () => {
+  const { lessonCard } = await import('../cards.mjs')
+  const png = await lessonCard({ l: { id: 'a/b', title: 'Example lesson one', lesson: 'Do the example thing. '.repeat(8), sources: [{}], level: 'basic' }, lang: 'en', host: 'pulse.example' })
+  assert.deepEqual([...png.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47])
+  const args = { lang: 'en', base: 'https://pulse.example', url: 'u', data: DATA, id: 'example-topic/example-lesson-one' }
+  assert.ok(lessonPage({ ...args, pub: true }).includes('og:image" content="https://pulse.example/og/lesson.png?id='))
+  assert.ok(!lessonPage(args).includes('og:image'))
+})
