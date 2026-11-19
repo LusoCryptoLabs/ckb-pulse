@@ -255,6 +255,16 @@ function patternBlock(t, patterns) {
   return `<div class="ba">${items.map((x) => `<div class="${x.kind || 'pl'}">${x.kind ? `<b>${esc(t(x.kind === 'avoid' ? 'ls.before' : 'ls.after'))}</b>` : ''}<pre><code>${esc(x.code)}</code></pre></div>`).join('')}</div>${items.some((x) => x.kind) ? `<p class="tg">${esc(t('ls.pat.hint'))}</p>` : ''}`
 }
 
+// The issue a maintainer opens to confirm or correct a lesson: the lessons pipeline reads the title and the verdict line
+// (ckb-lessons, pipeline/confirm.py) and counts it only from the owner of a source repository, the author of a source
+// commit or a public member of the owning organisation.
+const LOGIN_OK = /^[A-Za-z0-9-]{1,39}$/
+export const confirmUrl = (base, l) => `https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Lesson: ${l.id}`)}&body=${encodeURIComponent([`${base}/learned/${l.id}`, '', 'Verdict: right', '', 'If something is wrong, change the line above to "Verdict: needs a fix" and say what. It counts when you own a source repository of this lesson, wrote one of its source commits, or are a public member of the organisation that owns it.'].join(String.fromCharCode(10)))}`
+function confirmBlock(t, base, l) {
+  const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) ? l.confirmed : null
+  const by = c ? `<p class="nt">${esc(t('ls.conf.by'))} <a href="https://github.com/${esc(c.by)}" rel="noreferrer">@${esc(c.by)}</a> (${esc(t('ls.conf.role.' + c.role))})${c.date ? `, ${esc(c.date)}` : ''}.</p>` : ''
+  return `${by}<p class="tg"><a href="${esc(confirmUrl(base, l))}" rel="noreferrer">${esc(t('ls.conf.ask'))}</a></p>`
+}
 export function lessonPage({ lang, base, url, data, id, pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), l = v.lessons.find((x) => x.id === id)
@@ -280,6 +290,7 @@ ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies
 <h2>${esc(t('ls.sources', { n: l.sources.length }))}</h2><ul>${l.sources.map((s) => `<li>${s.date ? `${esc(s.date)} · ` : ''}<a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>${s.subject ? `: ${esc(s.subject)}` : ''} · <a href="${esc(base)}${pre}?repo=${encodeURIComponent(s.repo)}&amp;lang=${lang}">${esc(t('ls.repo.more'))}</a></li>`).join('')}</ul>
 ${l.related.length ? `<h2>${esc(t('ls.related'))}</h2><ul>${l.related.map((i) => `<li>${link(i)}</li>`).join('')}</ul>` : ''}
 ${(l.history || []).length ? `<h2>${esc(t('ls.history'))}</h2><ul>${l.history.map((h) => `<li>${esc(h.date)} · ${esc(h.what)}</li>`).join('')}</ul>` : ''}
+${pub ? confirmBlock(t, base, l) : ''}
 ${pub ? shareBlock(t, base, lang, l) : ''}
 </article>
 ${pub ? `<p class="tg">${esc(t('ls.pub.notice'))} ${esc(t('ls.pub.license'))} <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('ls.pub.remove'))}</a></p>` : ''}
