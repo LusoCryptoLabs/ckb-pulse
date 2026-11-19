@@ -8,7 +8,7 @@ import http from 'node:http'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import { lessonsPage, lessonPage, startPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
+import { lessonsPage, lessonPage, startPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
 import { OPT_OUT } from '../config.mjs'
 
 const lesson = (o = {}) => ({ title: 'Example lesson one', lesson: 'Do the example thing.', concepts: ['Example concept'], status: 'current', note: '', sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 'fix: an example' }], ...o })
@@ -268,12 +268,13 @@ test('the released lessons page is for everyone: indexable, licensed, linked to 
   const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/learned', data: PUB, pub: true })
   assert.ok(html.includes('href="https://pulse.example/learned/ccc/keep-the-change?lang=en"') && html.includes('action="https://pulse.example/learned"'))
   assert.ok(!html.includes('name="robots"') && !html.includes('/lessons'), 'indexable, and nothing points to the private paths')
-  assert.ok(html.includes('1 lessons from 1 projects so far, each one released by a person.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
+  assert.ok(html.includes('1 lessons from 1 projects so far, each one checked by a model against the commit it came from.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
   assert.ok(html.includes('Written by a model from public commits'), 'what it is, up front')
   assert.ok(!html.includes('/lessons/api') && !html.includes('/lessons/mcp'))
   const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: PUB, id: 'ccc/keep-the-change', pub: true })
   assert.ok(one.includes('https://github.com/owner/repo/commit/abc1234') && one.includes('CC BY 4.0') && !one.includes('name="robots"') && !one.includes('/lessons'))
-  assert.ok(lessonsPage({ lang: 'zh', base: 'x', url: 'x', data: PUB, pub: true }).includes('由人决定发布'))
+  assert.ok(lessonsPage({ lang: 'zh', base: 'x', url: 'x', data: PUB, pub: true }).includes('由模型对照其来源提交核对过'))
+  assert.ok(!html.includes('released by a person') && !html.includes('A person chose'), 'the gate releases, not a person')
 })
 
 test('a withdrawn lesson says so with a 410, in three languages, and names the date', async () => {
@@ -402,4 +403,27 @@ test('the index shows a few lessons per topic, a search pages at 12, and the cit
   assert.equal((p3.match(/class="ln/g) || []).length, 6)
   assert.ok(p1.includes('page=2') && p3.includes('rel="prev"') && !p3.includes('rel="next"'))
   assert.ok(lessonPage({ ...args, id: 'a/l0' }).includes('.lp pre{white-space:pre-wrap'))
+})
+
+test('the public MCP server answers the released lessons, with links to /learned, and never the private file', async () => {
+  const tools = publicLessonTools(() => ({ ...PUB, lessons: [{ ...PUB.lessons[0], checked: { by: 'model', date: '2026-11-19', verdict: 'right', against_commit: true } }] }))
+  const run = (name, a) => tools.find((t) => t.name === name).run(a, { base: 'https://pulse.example' })
+  const found = run('search_lessons', { query: 'change' })
+  assert.deepEqual(found.lessons.map((l) => [l.id, l.url, l.checked.verdict]), [['ccc/keep-the-change', 'https://pulse.example/learned/ccc/keep-the-change', 'right']])
+  assert.equal(run('get_lesson', { id: 'ccc/keep-the-change' }).url, 'https://pulse.example/learned/ccc/keep-the-change')
+  assert.equal(publicLessonTools(() => null).find((t) => t.name === 'search_lessons').run({ query: 'x' }, { base: 'b' }).count, 0, 'no file, no lessons')
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify(PUB) }, async (port) => {
+    const post = (body) => new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' } }, (res) => { let b = ''; res.on('data', (c) => { b += c }); res.on('end', () => resolve(JSON.parse(b.slice(b.indexOf('{'))))) })
+      req.on('error', reject); req.end(JSON.stringify(body))
+    })
+    const names = (await post({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).result.tools.map((t) => t.name)
+    assert.ok(names.includes('overview') && names.includes('search_lessons') && names.includes('get_lesson'), names.join())
+    const pub = JSON.parse((await post({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'search_lessons', arguments: { query: 'change' } } })).result.content[0].text)
+    assert.deepEqual(pub.lessons.map((l) => l.id), ['ccc/keep-the-change'])
+    const priv = JSON.parse((await post({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'search_lessons', arguments: { query: 'witness' } } })).result.content[0].text)
+    assert.equal(priv.count, 0, 'a lesson only in the private file is not on the public server')
+    const init = (await post({ jsonrpc: '2.0', id: 4, method: 'initialize', params: { protocolVersion: '2025-06-18' } })).result
+    assert.match(init.instructions, /CKB lessons/)
+  })
 })
