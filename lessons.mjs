@@ -5,6 +5,7 @@
 // data volume (DATA_DIR/lessons.json), never in git. Without the key, or without the file, every route answers like a route
 // that does not exist. Nothing here calls a model.
 import crypto from 'node:crypto'
+import { withStamp } from './og.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
@@ -133,8 +134,8 @@ article.ln{background:var(--surface);border:1px solid var(--edge);padding:12px 1
 article.ln.old{opacity:.7}.ln .tg,.lp .tg{font-size:12px;color:var(--mut)}.ln .nt,.lp .nt{font-size:14px;color:var(--f-talk)}.bd{font:400 11px/1 var(--font-num);padding:3px 7px;border:1px solid var(--edge);color:var(--mut);margin-left:6px;vertical-align:middle;white-space:nowrap}.bd.old{color:var(--f-talk);border-color:var(--f-talk)}
 .lp{overflow-wrap:anywhere}.lp .big{font-size:19px;line-height:1.5;margin:8px 0 14px}.lp h2{font:600 15px var(--font-ui,sans-serif);margin:22px 0 8px;text-transform:none;letter-spacing:0;color:var(--fg)}.lp ul{padding-left:18px}.lp li{margin:4px 0;font-size:14px}.lp li a{color:var(--lime)}.lp dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px;margin:10px 0}.lp dt{color:var(--mut)}.lp dd{margin:0}.lp code{font-size:13px;overflow-wrap:anywhere}.lp .back{font-size:14px}`
 
-const head = (t, { lang, base, title, desc, pub }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<meta name="description" content="${esc(desc)}">${pub ? '' : '<meta name="robots" content="noindex">'}
+const head = (t, { lang, base, title, desc, pub, img }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">${pub ? '' : '<meta name="robots" content="noindex">'}${img ? `<meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 ${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>`
 const href = (base, id, lang, pre = '/lessons') => `${base}${pre}/${id}?lang=${lang}`
 const badges = (t, l) => `${l.status === 'superseded' ? `<span class="bd old">${esc(t('ls.old'))}</span>` : ''}<span class="bd" title="${esc(t('ls.evidence.' + (l.evidence || 'L0')))}">${esc(l.evidence || 'L0')}</span>`
@@ -178,7 +179,7 @@ export function lessonPage({ lang, base, url, data, id, pub = false }) {
   const byId = new Map(v.lessons.map((x) => [x.id, x]))
   const link = (i) => { const x = byId.get(i); return x ? `<a href="${esc(href(base, i, lang, pre))}">${esc(x.title)}</a>` : '' }
   const date = (d) => (d ? esc(d) : esc(t('ls.never')))
-  return `${head(t, { lang, base, title: `${l.title} · CKB Pulse`, desc: l.lesson, pub })}
+  return `${head(t, { lang, base, title: `${l.title} · CKB Pulse`, desc: l.lesson, pub, img: pub ? `${base}${withStamp(`/og/lesson.png?id=${encodeURIComponent(l.id)}`, [l.title, l.lesson, l.level])}&lang=${lang}` : '' })}
 ${pageBar(t, { base, lang, current: '', here: `${pre}/${l.id}` })}
 <article class="lp">
 <p class="back"><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}${pre}?area=${esc(l.area)}&amp;lang=${lang}">${esc(v.areas[l.area]?.name || l.area)}</a></p>
