@@ -127,6 +127,7 @@ export function searchLessons(lessons, { q = '', area = '', repo = '', concept =
 }
 
 // ---------------------------------------------------------------- pages
+const MORE_CSS = `.ba{display:grid;gap:10px;margin:8px 0}.ba>div{border:1px solid var(--edge);background:var(--surface);padding:8px 12px;min-width:0}.ba .avoid{border-left:4px solid #e0533d}.ba .prefer{border-left:4px solid var(--lime)}.ba b{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}.ba pre{margin:6px 0 0;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}.gl h2{margin:22px 0 4px}.gl .tm{border-top:1px solid var(--edge);padding:10px 0}.gl .tm h3{margin:0 0 2px}.gl .tm p{margin:2px 0}#rv .cd{border:1px solid var(--edge);background:var(--surface);padding:16px;margin:12px 0;overflow-wrap:anywhere}#rv .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rv button{padding:10px 14px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}#rv button.go{background:var(--lime);color:var(--ink);font-weight:700}`
 const PAGE_CSS = `form.lq{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}form.lq input{flex:1 1 220px;min-width:0;padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq select,form.lq button{padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq button{background:var(--lime);color:var(--ink);font-weight:700;cursor:pointer}
 nav.ls{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 18px}nav.ls a{padding:5px 11px;border:1px solid var(--edge);color:var(--fg);text-decoration:none;font-size:13px}nav.ls a span{color:var(--mut);margin-left:6px}nav.ls a[aria-current=true]{border-color:var(--fg)}
 section.lt{margin:22px 0 8px;overflow-wrap:anywhere}section.lt h2{margin:0 0 4px;font:600 21px var(--font-ui,sans-serif);color:var(--fg);text-transform:none;letter-spacing:-.01em}section.lt>p{margin:4px 0 10px;color:var(--mut)}
@@ -136,7 +137,7 @@ article.ln.old{opacity:.7}.ln .tg,.lp .tg{font-size:12px;color:var(--mut)}.ln .n
 
 const head = (t, { lang, base, title, desc, pub, img }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">${pub ? '' : '<meta name="robots" content="noindex">'}${img ? `<meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
-${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>`
+${menuHead(base)}<style>${CSS}${PAGE_CSS}${MORE_CSS}</style></head><body><main>`
 const href = (base, id, lang, pre = '/lessons') => `${base}${pre}/${id}?lang=${lang}`
 const badges = (t, l) => `${l.status === 'superseded' ? `<span class="bd old">${esc(t('ls.old'))}</span>` : ''}<span class="bd" title="${esc(t('ls.evidence.' + (l.evidence || 'L0')))}">${esc(l.evidence || 'L0')}</span>`
 const lvl = (t, l) => (l.level ? `<span class="bd">${esc(t('ls.level.' + l.level))}</span>` : '')
@@ -172,6 +173,13 @@ ${pageFoot(t, url)}
 
 /** One lesson: the rule, why, where it came from, what it is related to and how it changed. null when there is no such
  * lesson (or it is hidden). */
+/** Patterns the model copied from the commit's diff, labelled avoid: or prefer:, shown as before and after; any other line stays as it was. */
+function patternBlock(t, patterns) {
+  const one = (p) => { const m = /^\s*(avoid|prefer)\s*:\s*(.*)$/is.exec(p); return m ? { kind: m[1].toLowerCase(), code: m[2] } : { kind: '', code: p } }
+  const items = patterns.map(one)
+  return `<div class="ba">${items.map((x) => `<div class="${x.kind || 'pl'}">${x.kind ? `<b>${esc(t(x.kind === 'avoid' ? 'ls.before' : 'ls.after'))}</b>` : ''}<pre><code>${esc(x.code)}</code></pre></div>`).join('')}</div>${items.some((x) => x.kind) ? `<p class="tg">${esc(t('ls.pat.hint'))}</p>` : ''}`
+}
+
 export function lessonPage({ lang, base, url, data, id, pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), l = v.lessons.find((x) => x.id === id)
@@ -188,7 +196,8 @@ ${pageBar(t, { base, lang, current: '', here: `${pre}/${l.id}` })}
 ${l.why ? `<p><b>${esc(t('ls.why'))}</b> ${esc(l.why)}</p>` : ''}
 ${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
 ${l.superseded_by ? `<p class="nt">${esc(t('ls.replaced'))} ${link(l.superseded_by)}</p>` : ''}
-${(l.patterns || []).length ? `<h2>${esc(t('ls.pattern'))}</h2><ul>${l.patterns.map((p) => `<li><code>${esc(p)}</code></li>`).join('')}</ul>` : ''}
+${(l.patterns || []).length ? `<h2>${esc(t('ls.pattern'))}</h2>${patternBlock(t, l.patterns)}` : ''}
+${(l.tests || []).length ? `<h2>${esc(t('ls.tests'))}</h2><p class="nt">${esc(t('ls.tests.note'))}</p><ul>${l.tests.map((x) => `<li><a href="https://github.com/${esc(x.repo)}/commit/${esc(x.hash)}" rel="noreferrer">${esc(x.repo)}</a>: ${x.files.map((f) => `<code>${esc(f)}</code>`).join(', ')}</li>`).join('')}</ul>` : ''}
 <dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(l.evidence || 'L0')}: ${esc(t('ls.evidence.' + (l.evidence || 'L0')))}</dd>
@@ -223,6 +232,59 @@ function shareBlock(t, base, lang, l) {
 <details><summary>${esc(t('ls.cite'))}</summary><pre><code>${esc(cite)}</code></pre></details>`
 }
 
+const LEVELS = { basic: 0, working: 1, advanced: 2 }
+const plainest = (a, b) => ((LEVELS[a.level] ?? 3) - (LEVELS[b.level] ?? 3)) || (b.sources.length - a.sources.length) || a.title.localeCompare(b.title)
+
+/** Every concept the lessons use, A to Z, each with the plainest lesson that teaches it and a link to all of them. */
+export function glossaryPage({ lang, base, url, data, pub = false }) {
+  const pre = pub ? '/learned' : '/lessons'
+  const t = words(lang), v = visible(data), by = new Map()
+  for (const l of v.lessons) for (const c of l.concepts || []) (by.get(c) || by.set(c, []).get(c)).push(l)
+  const terms = [...by].map(([c, ls]) => [c, ls.sort(plainest)]).sort((a, b) => a[0].localeCompare(b[0], lang === 'zh' ? 'zh' : lang))
+  const letters = [...new Set(terms.map(([c]) => c[0].toUpperCase()))]
+  return `${head(t, { lang, base, title: `${t('ls.gloss.h')} · CKB Pulse`, desc: t('ls.gloss.p'), pub })}
+${pageBar(t, { base, lang, current: '', here: `${pre}/glossary` })}
+${pageHead({ eyebrow: t('ls.nav'), title: t('ls.gloss.h'), lede: esc(t('ls.gloss.p')) })}
+<p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>
+<nav class="ls">${letters.map((x) => `<a href="#g-${esc(x)}">${esc(x)}</a>`).join('')}</nav>
+<div class="gl">${letters.map((x) => `<h2 id="g-${esc(x)}">${esc(x)}</h2>${terms.filter(([c]) => c[0].toUpperCase() === x).map(([c, ls]) => `<div class="tm"><h3><a href="${esc(base)}${pre}?concept=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a> <span class="tg">${esc(t('ls.gloss.n', { n: ls.length }))}</span></h3><p>${esc(ls[0].lesson)}</p><p class="nt"><a href="${esc(href(base, ls[0].id, lang, pre))}">${esc(ls[0].title)}</a></p></div>`).join('')}`).join('')}</div>
+${pageFoot(t, url)}
+</main>${menuScript(base)}</body></html>`
+}
+
+/** Spaced repetition that lives in the browser: boxes of 1, 2, 4, 8, 16, 32 days kept in localStorage. Nothing is sent anywhere. */
+export function reviewPage({ lang, base, url, data, pub = false }) {
+  const pre = pub ? '/learned' : '/lessons'
+  const t = words(lang), v = visible(data)
+  const cards = v.lessons.filter((l) => l.status !== 'superseded').sort(plainest).map((l) => ({ id: l.id, t: l.title, l: l.lesson, w: l.why || '' }))
+  const ui = { q: t('ls.rev.q'), show: t('ls.rev.show'), know: t('ls.rev.know'), again: t('ls.rev.again'), done: t('ls.rev.done'), left: t('ls.rev.left', { n: '{n}' }), reset: t('ls.rev.reset'), why: t('ls.why') }
+  const json = (o) => JSON.stringify(o).replace(/</g, '\\u003c')
+  return `${head(t, { lang, base, title: `${t('ls.rev.h')} · CKB Pulse`, desc: t('ls.rev.p'), pub })}
+${pageBar(t, { base, lang, current: '', here: `${pre}/review` })}
+${pageHead({ eyebrow: t('ls.nav'), title: t('ls.rev.h'), lede: esc(t('ls.rev.p')) })}
+<p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>
+<div id="rv" aria-live="polite"></div>
+<script>(function(){var C=${json(cards)},U=${json(ui)},K='lessons.review.${pub ? 'pub' : 'priv'}',DAY=864e5,NEW=5,box=document.getElementById('rv');
+function load(){try{return JSON.parse(localStorage.getItem(K))||{}}catch(e){return {}}}
+function save(s){try{localStorage.setItem(K,JSON.stringify(s))}catch(e){}}
+var S=load(),now=Date.now(),today=new Date(now).toISOString().slice(0,10);
+function queue(){var due=[],fresh=[];C.forEach(function(c){var r=S[c.id];if(!r)fresh.push(c);else if(r.due<=now)due.push(c)});
+var taken=S._day===today?(S._new||0):0;return due.concat(fresh.slice(0,Math.max(0,NEW-taken)))}
+function el(tag,txt,cls){var e=document.createElement(tag);if(txt!=null)e.textContent=txt;if(cls)e.className=cls;return e}
+function draw(){var q=queue();box.textContent='';
+if(!q.length){box.appendChild(el('p',U.done));var b=el('button',U.reset);b.onclick=function(){S={};save(S);draw()};box.appendChild(b);return}
+var c=q[0],card=el('div',null,'cd');card.appendChild(el('p',U.left.replace('{n}',q.length),'tg'));card.appendChild(el('h2',c.t));card.appendChild(el('p',U.q,'nt'));box.appendChild(card);
+var row=el('div',null,'row');card.appendChild(row);var show=el('button',U.show,'go');row.appendChild(show);
+show.onclick=function(){show.remove();card.appendChild(el('p',c.l));if(c.w){var w=el('p',null);w.appendChild(el('b',U.why+' '));w.appendChild(document.createTextNode(c.w));card.appendChild(w)}
+var r2=el('div',null,'row');var again=el('button',U.again),know=el('button',U.know,'go');r2.appendChild(again);r2.appendChild(know);card.appendChild(r2);
+var wasNew=!S[c.id];
+function grade(ok){var r=S[c.id]||{box:0};r.box=ok?Math.min(5,r.box+(wasNew?0:1)):0;r.due=now+Math.pow(2,r.box)*DAY;S[c.id]=r;if(wasNew){S._new=(S._day===today?(S._new||0):0)+1;S._day=today}save(S);draw()}
+again.onclick=function(){grade(false)};know.onclick=function(){grade(true)}}}
+draw()})()</script>
+${pageFoot(t, url)}
+</main>${menuScript(base)}</body></html>`
+}
+
 /** The way in for someone new: the lessons by level, the basic ones first, each with its why. */
 export function startPage({ lang, base, url, data, pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
@@ -233,7 +295,7 @@ export function startPage({ lang, base, url, data, pub = false }) {
   return `${head(t, { lang, base, title, desc: t('ls.start.p'), pub })}
 ${pageBar(t, { base, lang, current: '', here: `${pre}/start` })}
 ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.start.h'), lede: esc(t('ls.start.p')) })}
-<p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>
+<p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}${pre}/glossary?lang=${lang}">${esc(t('ls.gloss.link'))}</a> · <a href="${esc(base)}${pre}/review?lang=${lang}">${esc(t('ls.rev.link'))}</a></p>
 ${order.map((x) => by[x].length ? `<section class="lt" id="${x}"><h2>${esc(t('ls.level.' + x))} <span class="tg">${by[x].length}</span></h2><p>${esc(t('ls.start.' + x))}</p>
 ${by[x].slice(0, x === 'basic' ? 40 : 25).map((l) => `<article class="ln"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a></h3><p>${esc(l.lesson)}</p>${l.why ? `<p class="nt">${esc(t('ls.why'))} ${esc(l.why)}</p>` : ''}</article>`).join('\n')}
 <p><a href="${esc(base)}${pre}?level=${x}&amp;lang=${lang}">${esc(t('ls.start.all', { n: by[x].length }))}</a></p></section>` : '').join('\n')}

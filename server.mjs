@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, startPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -251,6 +251,8 @@ function handle(req, res) {
       const b = baseOf(req), lang = langOf(url.searchParams, req), pub = { 'cache-control': 'public, max-age=300', vary: LANG_VARY }
       hit('learned', ipOf(req), req.headers['user-agent']) // how many read it, no one in it
       if (url.pathname === '/learned.xml') { res.writeHead(200, { 'content-type': 'application/atom+xml; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(lessonsFeed({ base: b, data })) }
+      if (url.pathname === '/learned/glossary') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, glossaryPage({ lang, base: b, url: `${b}/learned/glossary`, data, pub: true }))
+      if (url.pathname === '/learned/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, reviewPage({ lang, base: b, url: `${b}/learned/review`, data, pub: true }))
       if (url.pathname === '/learned/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, startPage({ lang, base: b, url: `${b}/learned/start`, data, pub: true }))
       if (url.pathname === '/learned.json') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(JSON.stringify(data)) }
       if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), pub: true }))
@@ -276,6 +278,8 @@ function handle(req, res) {
       const priv = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex', vary: 'cookie, authorization, accept-language' }
       if (url.pathname === '/lessons/mcp') return mcpHttp(req, res, lessonsMcpHandle, b, '/lessons')
       if (url.pathname === '/lessons/api') { const r = lessonsApi(data, url, b); res.writeHead(r.status, { 'content-type': 'application/json', ...priv }); return res.end(JSON.stringify(r.json)) }
+      if (url.pathname === '/lessons/glossary') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, glossaryPage({ lang, base: b, url: `${b}/lessons/glossary`, data }))
+      if (url.pathname === '/lessons/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, reviewPage({ lang, base: b, url: `${b}/lessons/review`, data }))
       if (url.pathname === '/lessons/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, startPage({ lang, base: b, url: `${b}/lessons/start`, data }))
       if (url.pathname === '/lessons') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, lessonsPage({ lang, base: b, url: `${b}/lessons`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10) }))
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/lessons/'.length) })
