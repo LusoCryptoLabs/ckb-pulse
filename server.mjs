@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -175,6 +175,7 @@ if (!OFFLINE) startImpact({ repos: () => snapshot().repos, dir: DATA_DIR })
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#121212"/><rect x="1.5" y="1.5" width="6.2" height="6.2" fill="#F4F1EB"/><rect x="8.3" y="1.5" width="6.2" height="6.2" fill="#5a5a56"/><rect x="1.5" y="8.3" width="6.2" height="6.2" fill="#5a5a56"/><rect x="8.3" y="8.3" width="6.2" height="6.2" fill="#E10600"/></svg>'
 const icons = {}
 const icon = (size) => icons[size] || (icons[size] = rasterise(ICON_SVG.replace('viewBox', `width="${size}" height="${size}" viewBox`), size))
+const checkRate = new Map() // address -> {t: start of its minute, n: calls in it}
 function readJson(req, max, done) {
   let body = ''
   req.on('data', (c) => { body += c; if (body.length > max) req.destroy() })
@@ -308,6 +309,22 @@ function handle(req, res) {
   if (url.pathname === '/privacy') {
     hit('privacy', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, privacyPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/privacy` }))
+  }
+  // the lessons for the lines a pull request changed, for the GitHub Action (LusoCryptoLabs/ckb-pulse-action):
+  // POST {chunks: [{path, start, code}]}. The code is read and dropped, never stored or logged. 30 calls a minute an address.
+  if (url.pathname === '/api/check' && req.method === 'POST') {
+    const ip = ipOf(req), now = Date.now(), r = checkRate.get(ip)
+    if (r && now - r.t < 60e3 && r.n >= 30) { res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '60' }); return res.end('{"error":"too many checks, wait a minute"}') }
+    checkRate.set(ip, r && now - r.t < 60e3 ? { t: r.t, n: r.n + 1 } : { t: now, n: 1 })
+    if (checkRate.size > 5000) checkRate.clear()
+    return readJson(req, 262144, (j) => {
+      const chunks = Array.isArray(j?.chunks) ? j.chunks.slice(0, 200).filter((c) => c && typeof c.code === 'string' && typeof c.path === 'string').map((c) => ({ path: c.path.slice(0, 300), start: Number.isInteger(c.start) ? c.start : 1, code: c.code.slice(0, 30000) })) : null
+      if (!chunks) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end('{"error":"send {chunks: [{path, start, code}]}"}') }
+      const data = loadLessons(DATA_DIR, 'public-lessons.json'), b = baseOf(req)
+      const lessons = data?.version === 1 && Array.isArray(data.lessons) ? checkChunks(visible(data).lessons, chunks).map((x) => ({ ...x, url: `${b}/learned/${x.id}` })) : []
+      count('api_check', req.headers['user-agent'])
+      sendJson(req, res, { about: 'Lessons that apply to the changed lines. Hints to read, not proof: nothing is run, and the code is not stored.', count: lessons.length, lessons })
+    })
   }
   // a share channel used or a button pressed, as a count and nothing else (a beacon: no answer needed)
   if (url.pathname === '/api/count' && req.method === 'POST') {

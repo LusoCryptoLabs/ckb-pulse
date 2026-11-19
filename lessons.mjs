@@ -177,6 +177,23 @@ export function checkCode(lessons, code, limit = 8) {
     prefer: it.prefer.slice(0, 2), sources: it.l.sources }))
 }
 
+/** The lessons for the lines a pull request changed: chunks [{path, start, code}], each a run of new lines that starts
+ * at line `start` of `path`. Each lesson comes once, with where it applies first (path and line). For the GitHub Action. */
+export function checkChunks(lessons, chunks, limit = 10) {
+  const best = new Map()
+  for (const c of chunks) {
+    const lines = String(c.code).split('\n')
+    for (const x of checkCode(lessons, c.code, 20)) {
+      const at = lines.findIndex((ln) => { const have = codeNames(ln); return x.uses.some((w) => have.has(w)) })
+      const hit = { ...x, path: c.path, line: (c.start || 1) + Math.max(0, at) }
+      const old = best.get(x.id)
+      const rank = (h) => (h.match.includes('avoid') ? 1000 : 0) + h.uses.length
+      if (!old || rank(hit) > rank(old)) best.set(x.id, hit)
+    }
+  }
+  return [...best.values()].sort((a, b) => (b.match.includes('avoid') - a.match.includes('avoid')) || b.uses.length - a.uses.length).slice(0, limit)
+}
+
 // ---------------------------------------------------------------- pages
 const MORE_CSS = `.ln>p:not(.nt){display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.ln>.nt{display:none}.lp details,.lp pre{max-width:100%;min-width:0}.lp pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto}.pg{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:18px 0}.ba{display:grid;gap:10px;margin:8px 0}.ba>div{border:1px solid var(--edge);background:var(--surface);padding:8px 12px;min-width:0}.ba .avoid{border-left:4px solid #e0533d}.ba .prefer{border-left:4px solid var(--lime)}.ba b{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}.ba pre{margin:6px 0 0;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}.gl h2{margin:22px 0 4px}.gl .tm{border-top:1px solid var(--edge);padding:10px 0}.gl .tm h3{margin:0 0 2px}.gl .tm p{margin:2px 0}.gl .tm{padding:8px 0}#rv .cd{border:1px solid var(--edge);background:var(--surface);padding:16px;margin:12px 0;overflow-wrap:anywhere}#rv .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rv button{padding:10px 14px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}#rv button.go{background:var(--lime);color:var(--ink);font-weight:700}`
 const PAGE_CSS = `form.lq{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}form.lq input{flex:1 1 220px;min-width:0;padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq select,form.lq button{padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq button{background:var(--lime);color:var(--ink);font-weight:700;cursor:pointer}
