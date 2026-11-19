@@ -23,7 +23,7 @@ import { landingPage, lastLine } from './landing.mjs'
 import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
-import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
+import { impactPage, impactNow, impactOf, loadImpact, startImpact, shownLibs, LIBS } from './impact.mjs'
 import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
@@ -298,7 +298,7 @@ function handle(req, res) {
   if (url.pathname === '/api/impact') {
     const lib = LIBS.some((l) => l.id === url.searchParams.get('lib')) ? url.searchParams.get('lib') : LIBS[0].id, r = impactOf(impactNow(), lib)
     res.writeHead(r ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' })
-    return res.end(JSON.stringify(r || { status: 'counting' }))
+    return res.end(JSON.stringify(r ? { ...r, libs: shownLibs(impactNow()).map((l) => ({ id: l.id, name: l.name })) } : { status: 'counting' })) // libs: the libraries listed now, most active first
   }
   // what is counted and what is not
   if (url.pathname === '/method') {
