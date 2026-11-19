@@ -203,7 +203,7 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods
 const HELP = 'CKB Pulse as a Model Context Protocol server. Connect an MCP client to this address (Streamable HTTP, POST), e.g.\n  claude mcp add --transport http ckb-pulse <this address>\n'
 // the HTTP side: POST carries JSON-RPC; no event stream is offered, so GET is 405 as the transport allows. A browser
 // that opens the address (it asks for HTML) is sent to the page that explains how to connect
-export function mcpHttp(req, res, handle, base, page = '/use#ai') {
+export function mcpHttp(req, res, handle, base, page = '/use#ai', seen = null) {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
   if (req.method === 'GET' && /text\/html/.test(req.headers.accept || '')) { res.writeHead(303, { location: `${base}${page}`, 'cache-control': 'no-store' }); return res.end() }
   if (req.method !== 'POST') { res.writeHead(405, { ...CORS, allow: 'POST, OPTIONS', 'content-type': 'text/plain; charset=utf-8' }); return res.end(HELP) }
@@ -217,6 +217,7 @@ export function mcpHttp(req, res, handle, base, page = '/use#ai') {
     if (big) return
     let msg
     try { msg = JSON.parse(body) } catch { return send(400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }) }
+    if (seen) { try { for (const m of Array.isArray(msg) ? msg : [msg]) if (m && typeof m.method === 'string') seen(m.method.slice(0, 40), m.method === 'tools/call' && typeof m.params?.name === 'string' ? m.params.name.slice(0, 60) : '') } catch {} }
     try { const r = await handle(msg, { base }); send(r.status, r.json) } catch (err) { console.warn('mcp', err.message); send(500, { jsonrpc: '2.0', id: null, error: { code: -32603, message: 'Internal error' } }) }
   })
 }

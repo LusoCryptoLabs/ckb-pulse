@@ -48,3 +48,18 @@ test('a person reading three pages counts once on the site, and the count stays 
   assert.equal(after.people, 2)
   assert.equal(after.visitors.pulse, 2)
 })
+
+test('MCP use: methods and tools per day, probes apart, callers counted once and kept as a number', async () => {
+  const { mcpUse, visits } = await import('../visits.mjs')
+  const t0 = Date.parse('2032-04-04T10:00:00Z'), agent = 'node', probe = 'mcpbeat/0.1 (+https://mcpbeat.com/bot/; liveness check)'
+  mcpUse('initialize', '', '198.51.100.1', probe, t0)
+  mcpUse('tools/call', 'pulse_overview', '198.51.100.1', probe, t0)
+  mcpUse('tools/call', 'repo_detail', '198.51.100.2', agent, t0)
+  mcpUse('tools/call', 'repo_detail', '198.51.100.2', agent, t0)
+  mcpUse('tools/call', 'person_detail', '198.51.100.3', agent, t0)
+  const day = (v) => v.days.find((d) => d.day === '2032-04-04').mcp
+  const m = day(visits(1, t0))
+  assert.deepEqual([m.methods['tools/call'], m.tools.repo_detail, m.probeTools.pulse_overview, m.callers], [4, 2, 1, 2])
+  mcpUse('initialize', '', '198.51.100.9', agent, t0 + 864e5)
+  assert.equal(day(visits(2, t0 + 864e5)).callers, 2)
+})

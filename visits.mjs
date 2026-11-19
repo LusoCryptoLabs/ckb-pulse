@@ -34,7 +34,7 @@ function dayRec(day) {
     // older days keep their counts and lose their salt and hashes
     for (const [k, r] of Object.entries(V.days)) {
       if (k === day) continue
-      if (r.salt) { delete r.salt; r.visitors = Object.fromEntries(Object.entries(r.seen || {}).map(([p, l]) => [p, l.length])); r.people = peopleOf(r.seen); delete r.seen }
+      if (r.salt) { delete r.salt; r.visitors = Object.fromEntries(Object.entries(r.seen || {}).map(([p, l]) => [p, l.length])); r.people = peopleOf(r.seen); delete r.seen; if (r.mcp && Array.isArray(r.mcp.callers)) r.mcp.callers = r.mcp.callers.length }
       if (Date.now() - Date.parse(k) > KEEP_DAYS * 864e5) delete V.days[k]
     }
   }
@@ -52,6 +52,27 @@ export function count(name, ua, now = Date.now()) {
   dirty = true
   return true
 }
+// What MCP clients do, per day: how many asked each method and each tool, and how many different callers used a tool.
+// Directories, liveness checks and research surveys say who they are in their user agent (measured 2026-11-19: 10,794 of
+// 15,186 POSTs in 14 days); a tool call from one counts apart, as a probe. Callers are hashes of the day's salt, kept for
+// the day only, like the visitors: afterwards only the number stays
+const PROBE = /bot|probe|prober|liveness|monitor|crawl|oracle|uptime|check|scan|spider|index|survey|research|audit|directory|inventory|catalog|collector|observatory|radar|watch|verify|health/i
+export const isProbe = (ua) => PROBE.test(ua || '')
+export function mcpUse(method, tool, ip, ua, now = Date.now()) {
+  const d = dayRec(dayOf(now)), m = (d.mcp ||= { methods: {}, tools: {}, probeTools: {}, callers: [] })
+  m.methods[method] = (m.methods[method] || 0) + 1
+  if (method === 'tools/call' && tool) {
+    const probe = isProbe(ua), box = probe ? m.probeTools : m.tools
+    box[tool] = (box[tool] || 0) + 1
+    if (!probe && d.salt) {
+      const h = crypto.createHash('sha256').update(`${d.salt}|mcp|${ip || ''}|${ua || ''}`).digest('hex').slice(0, 16)
+      if (!m.callers.includes(h)) m.callers.push(h)
+    }
+  }
+  dirty = true
+}
+const mcpOf = (m) => (m ? { methods: m.methods, tools: m.tools, probeTools: m.probeTools, callers: Array.isArray(m.callers) ? m.callers.length : m.callers } : null)
+
 // one request to a page; ip and ua as the proxy gives them
 export function hit(page, ip, ua, now = Date.now()) {
   const d = dayRec(dayOf(now))
@@ -67,7 +88,7 @@ export function visits(n = 30, now = Date.now()) {
   const days = []
   for (let i = n - 1; i >= 0; i--) {
     const day = dayOf(now - i * 864e5), r = V.days[day]
-    days.push({ day, people: r ? (r.seen ? peopleOf(r.seen) : r.people ?? null) : 0, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
+    days.push({ day, mcp: mcpOf(r?.mcp), people: r ? (r.seen ? peopleOf(r.seen) : r.people ?? null) : 0, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
   }
   const total = { views: {}, visitors: {}, bots: {}, counts: {}, botCounts: {} }
   for (const d of days) for (const k of ['views', 'visitors', 'bots', 'counts', 'botCounts']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
