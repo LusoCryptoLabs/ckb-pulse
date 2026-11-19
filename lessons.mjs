@@ -234,7 +234,7 @@ ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
 ${pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!pub && v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
 <form class="lq" method="get" action="${esc(base)}${pre}" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
 ${searching
-    ? `${repo ? `<h2>${esc(t('ls.repo.h', { repo }))}</h2><p><a href="https://github.com/${esc(repo)}" rel="noreferrer">github.com/${esc(repo)}</a></p>` : ''}<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${pager}${found.slice((pg - 1) * PER_PAGE, pg * PER_PAGE).map((l) => card(t, base, lang, l, pre)).join('\n')}${pager}`
+    ? `${repo ? `<h2>${esc(t('ls.repo.h', { repo }))}</h2><p><a href="https://github.com/${esc(repo)}" rel="noreferrer">github.com/${esc(repo)}</a></p>${pub && found.length && !q.trim() && !area && !concept && !level ? `<p class="tg">${esc(t('ls.conf.batch'))} ${batchConfirmUrls(base, repo, found.map((l) => l.id)).map((u, k, all) => `<a href="${esc(u)}" rel="noreferrer">${esc(all.length > 1 ? t('ls.conf.batch.n', { a: k * BATCH + 1, b: Math.min(found.length, (k + 1) * BATCH) }) : t('ls.conf.batch.a'))}</a>`).join(' · ')}</p>` : ''}` : ''}<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${pager}${found.slice((pg - 1) * PER_PAGE, pg * PER_PAGE).map((l) => card(t, base, lang, l, pre)).join('\n')}${pager}`
     : `<nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="#${x.slug}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>
 ${topics.map((x) => `<section class="lt" id="${x.slug}"><h2>${esc(x.area)}</h2><p>${esc(x.summary)}</p>
 ${x.lessons.slice(0, PEEK).map((l) => card(t, base, lang, l, pre)).join('\n')}${x.lessons.length > PEEK ? `<p><a href="${esc(base)}${pre}?area=${esc(x.slug)}&amp;lang=${lang}">${esc(t('ls.topic.all', { n: x.lessons.length }))}</a></p>` : ''}</section>`).join('\n')}`}
@@ -260,6 +260,17 @@ function patternBlock(t, patterns) {
 // commit or a public member of the owning organisation.
 const LOGIN_OK = /^[A-Za-z0-9-]{1,39}$/
 export const confirmUrl = (base, l) => `https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Lesson: ${l.id}`)}&body=${encodeURIComponent([`${base}/learned/${l.id}`, '', 'Verdict: right', '', 'If something is wrong, change the line above to "Verdict: needs a fix" and say what. It counts when you own a source repository of this lesson, wrote one of its source commits, or are a public member of the organisation that owns it.'].join(String.fromCharCode(10)))}`
+// One issue for the lessons of a project (ckb-lessons, pipeline/confirm.py: title "Lessons: owner/repo", a line a lesson,
+// "right | id"). An address cannot carry much: 30 lessons an issue, more in further issues.
+export const BATCH = 30
+export const batchConfirmUrls = (base, repo, ids) => {
+  const out = []
+  for (let k = 0; k < ids.length; k += BATCH) {
+    const body = [`${base}/learned?repo=${repo}`, '', 'One line a lesson. Keep "right" where the lesson is right, write "needs a fix" where it is not, and delete the lines you have not read.', '', ...ids.slice(k, k + BATCH).map((id) => `right | ${id}`)].join(String.fromCharCode(10))
+    out.push(`https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Lessons: ${repo}`)}&body=${encodeURIComponent(body)}`)
+  }
+  return out
+}
 function confirmBlock(t, base, l) {
   const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) ? l.confirmed : null
   const by = c ? `<p class="nt">${esc(t('ls.conf.by'))} <a href="https://github.com/${esc(c.by)}" rel="noreferrer">@${esc(c.by)}</a> (${esc(t('ls.conf.role.' + c.role))})${c.date ? `, ${esc(c.date)}` : ''}.</p>` : ''
