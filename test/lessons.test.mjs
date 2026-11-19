@@ -485,3 +485,20 @@ test('POST /api/check: the lessons for changed lines, with the file and line, on
     assert.equal(last, 429, 'the 32nd call in a minute from one address waits')
   })
 })
+
+test('a public lesson asks its maintainers to confirm it, and shows who did', async () => {
+  const { confirmUrl } = await import('../lessons.mjs')
+  const l = PUB.lessons[0]
+  const u = new URL(confirmUrl('https://pulse.example', l))
+  assert.equal(u.origin + u.pathname, 'https://github.com/LusoCryptoLabs/ckb-pulse/issues/new')
+  assert.equal(u.searchParams.get('title'), 'Lesson: ccc/keep-the-change', 'the title the lessons pipeline reads')
+  assert.match(u.searchParams.get('body'), /^https:\/\/pulse\.example\/learned\/ccc\/keep-the-change\n\nVerdict: right\n/, 'and its verdict line')
+  const plain = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: PUB, id: l.id, pub: true })
+  assert.ok(plain.includes('Do you maintain a project this lesson came from?') && !plain.includes('Confirmed by'))
+  const conf = { ...PUB, lessons: [{ ...l, evidence: 'L2', confirmed: { by: 'alice', role: 'owner', date: '2026-11-20' } }] }
+  const html = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: conf, id: l.id, pub: true })
+  assert.ok(html.includes('Confirmada por <a href="https://github.com/alice"') && html.includes('dono do projeto') && html.includes('2026-11-20'))
+  const bad = { ...PUB, lessons: [{ ...l, confirmed: { by: 'a"><script>', role: 'owner', date: 'x' } }] }
+  assert.ok(!lessonPage({ lang: 'en', base: 'b', url: 'u', data: bad, id: l.id, pub: true }).includes('Confirmed by'), 'a login that is not a GitHub login is not shown')
+  assert.ok(!lessonPage({ lang: 'en', base: 'b', url: 'u', data: V2, id: 'ccc/keep-the-change' }).includes('issues/new?title=Lesson'), 'the private page does not ask')
+})
