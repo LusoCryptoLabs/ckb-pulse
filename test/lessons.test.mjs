@@ -8,7 +8,7 @@ import http from 'node:http'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import { lessonsPage, lessonPage, lessonsApi, lessonsMcp, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
+import { lessonsPage, lessonPage, withdrawnPage, lessonsApi, lessonsMcp, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
 import { OPT_OUT } from '../config.mjs'
 
 const lesson = (o = {}) => ({ title: 'Example lesson one', lesson: 'Do the example thing.', concepts: ['Example concept'], status: 'current', note: '', sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 'fix: an example' }], ...o })
@@ -274,6 +274,17 @@ test('the released lessons page is for everyone: indexable, licensed, linked to 
   const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: PUB, id: 'ccc/keep-the-change', pub: true })
   assert.ok(one.includes('https://github.com/owner/repo/commit/abc1234') && one.includes('CC BY 4.0') && !one.includes('name="robots"') && !one.includes('/lessons'))
   assert.ok(lessonsPage({ lang: 'zh', base: 'x', url: 'x', data: PUB, pub: true }).includes('由人决定发布'))
+})
+
+test('a withdrawn lesson says so with a 410, in three languages, and names the date', async () => {
+  for (const [lang, want] of [['en', 'withdrawn on 2026-11-20'], ['pt', 'retirada em 2026-11-20'], ['zh', '2026-11-20 撤下']]) {
+    assert.ok(withdrawnPage({ lang, base: 'https://pulse.example', url: 'u', date: '2026-11-20' }).includes(want), lang)
+  }
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, withdrawn: [{ id: 'ccc/old-one', date: '2026-11-20' }] }) }, async (port) => {
+    const r = await get(port, '/learned/ccc/old-one'); assert.equal(r.status, 410); assert.ok(r.body.includes('withdrawn on 2026-11-20'))
+    assert.equal((await get(port, '/learned/ccc/never-existed')).status, (await get(port, '/no-such-page-here')).status, 'an id that was never public is not announced')
+    assert.equal((await get(port, '/learned/ccc/keep-the-change')).status, 200)
+  })
 })
 
 test('on a running server: /learned does not exist until a lesson is released, then it opens without a key, and the private pages stay shut', async () => {

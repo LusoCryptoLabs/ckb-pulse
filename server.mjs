@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, lessonsApi, lessonsMcp, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, withdrawnPage, lessonsApi, lessonsMcp, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -252,6 +252,8 @@ function handle(req, res) {
       if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), pub: true }))
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/learned/'.length), pub: true })
       if (page) return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, page)
+      const gone = (data.withdrawn || []).find((w) => `/learned/${w.id}` === url.pathname) // it was public once: say so
+      if (gone) return sendText(req, res, 410, { 'content-type': TYPES['.html'], ...pub }, withdrawnPage({ lang, base: b, url: `${b}${url.pathname}`, date: gone.date }))
     }
   }
   // the lessons: pages, JSON and MCP, all behind the key; without it, or without the file, they are routes that do not exist
