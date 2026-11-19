@@ -24,6 +24,8 @@ function save() {
   dirty = false
   const tmp = file + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(V)); fs.renameSync(tmp, file)
 }
+// people on the whole site that day: a visitor reading three pages is one person, not three. Counted before the hashes go
+const peopleOf = (seen) => new Set(Object.values(seen || {}).flat()).size
 const dayOf = (now) => new Date(now).toISOString().slice(0, 10)
 function dayRec(day) {
   let d = V.days[day]
@@ -32,7 +34,7 @@ function dayRec(day) {
     // older days keep their counts and lose their salt and hashes
     for (const [k, r] of Object.entries(V.days)) {
       if (k === day) continue
-      if (r.salt) { delete r.salt; r.visitors = Object.fromEntries(Object.entries(r.seen || {}).map(([p, l]) => [p, l.length])); delete r.seen }
+      if (r.salt) { delete r.salt; r.visitors = Object.fromEntries(Object.entries(r.seen || {}).map(([p, l]) => [p, l.length])); r.people = peopleOf(r.seen); delete r.seen }
       if (Date.now() - Date.parse(k) > KEEP_DAYS * 864e5) delete V.days[k]
     }
   }
@@ -65,7 +67,7 @@ export function visits(n = 30, now = Date.now()) {
   const days = []
   for (let i = n - 1; i >= 0; i--) {
     const day = dayOf(now - i * 864e5), r = V.days[day]
-    days.push({ day, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
+    days.push({ day, people: r ? (r.seen ? peopleOf(r.seen) : r.people ?? null) : 0, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
   }
   const total = { views: {}, visitors: {}, bots: {}, counts: {}, botCounts: {} }
   for (const d of days) for (const k of ['views', 'visitors', 'bots', 'counts', 'botCounts']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
