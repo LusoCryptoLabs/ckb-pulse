@@ -465,3 +465,23 @@ test('check_code returns the lessons about what the code uses, flags a repeated 
     const use = await get(port, '/use?lang=en'); assert.ok(use.body.includes('id="rule"') && use.body.includes('call check_code') && use.body.includes('check_code</code>'))
   })
 })
+
+test('POST /api/check: the lessons for changed lines, with the file and line, one each; a bad body is a 400; too many calls a 429', async () => {
+  const { checkChunks } = await import('../lessons.mjs')
+  const L = [{ id: 'ccc/fee', area: 'ccc', title: 'completeFeeBy adds change', lesson: 'x', patterns: ['avoid: await tx.completeFeeBy(signer);'], sources: [{ repo: 'a/b', hash: '1' }] }]
+  const r = checkChunks(L, [{ path: 'src/a.ts', start: 40, code: ['const x = 1', 'await tx.completeFeeBy(signer);'].join('\n') }, { path: 'src/b.ts', start: 3, code: 'tx.completeFeeBy(s)' }])
+  assert.equal(r.length, 1, 'a lesson comes once')
+  assert.deepEqual([r[0].path, r[0].line], ['src/a.ts', 41], 'where the avoid pattern is repeated, at its own line')
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [{ ...PUB.lessons[0], patterns: ['avoid: drop_change_output(tx)'] }] }) }, async (port) => {
+    const post = (body) => new Promise((resolve, reject) => { const q = http.request({ host: '127.0.0.1', port, path: '/api/check', method: 'POST', headers: { 'content-type': 'application/json' } }, (res) => { let b = ''; res.on('data', (c) => { b += c }); res.on('end', () => resolve({ status: res.statusCode, body: b })) }); q.on('error', reject); q.end(body) })
+    const ok = await post(JSON.stringify({ chunks: [{ path: 'lib/tx.rs', start: 10, code: 'let a = 1;\ndrop_change_output(tx);' }] }))
+    assert.equal(ok.status, 200)
+    const j = JSON.parse(ok.body)
+    assert.deepEqual([j.count, j.lessons[0].id, j.lessons[0].path, j.lessons[0].line], [1, 'ccc/keep-the-change', 'lib/tx.rs', 11])
+    assert.ok(j.lessons[0].url.endsWith('/learned/ccc/keep-the-change'))
+    assert.equal((await post('{"nope":1}')).status, 400)
+    let last = 0
+    for (let k = 0; k < 31; k++) last = (await post(JSON.stringify({ chunks: [{ path: 'a', code: 'x' }] }))).status
+    assert.equal(last, 429, 'the 32nd call in a minute from one address waits')
+  })
+})
