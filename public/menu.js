@@ -103,7 +103,7 @@ if (typeof document !== 'undefined') {
     const used = e.target.closest?.('[data-count]')
     if (used) { try { navigator.sendBeacon('/api/count', JSON.stringify({ name: used.dataset.count })) } catch {} }
     const copy = e.target.closest?.('[data-copy]')
-    if (copy) { e.preventDefault(); try { await navigator.clipboard.writeText(copy.dataset.copy); copy.textContent = copy.dataset.copied } catch { prompt('', copy.dataset.copy) } setTimeout(() => { if (d) d.open = false }, 900); return }
+    if (copy) { e.preventDefault(); try { await navigator.clipboard.writeText(copy.dataset.copy); const was = copy.textContent; copy.textContent = copy.dataset.copied; setTimeout(() => { copy.textContent = was }, 1800) } catch { prompt('', copy.dataset.copy) } setTimeout(() => { if (d) d.open = false }, 900); return }
     if (d && e.target.closest('.pm-panel a, .pm-panel button, .ps-panel a')) d.open = false
   })
   document.addEventListener('keydown', (e) => {

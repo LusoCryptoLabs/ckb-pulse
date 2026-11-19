@@ -389,3 +389,17 @@ test('patterns labelled avoid and prefer show as before and after, and a commit 
   const r = reviewPage({ lang: 'en', base: 'https://p.example', url: 'u', data: d, pub: true })
   assert.ok(r.includes('id="rv"') && r.includes('localStorage') && !r.includes('fetch('))
 })
+
+test('the index shows a few lessons per topic, a search pages at 12, and the cite block stays inside the column', () => {
+  const many = Array.from({ length: 30 }, (_, i) => lesson({ id: `a/l${i}`, title: `Lesson number ${i}`, area: 'a', concepts: ['Shared'], related: [], sources: [{ repo: 'o/r', hash: 'abc1234', subject: 's' }] }))
+  const d = { version: 1, generated: 'x', lessons: many, areas: { a: { name: 'A topic', summary: 's' } } }
+  const args = { lang: 'en', base: 'https://p.example', url: 'u', data: d, pub: true }
+  const index = lessonsPage(args)
+  assert.equal((index.match(/class="ln/g) || []).length, 2)
+  assert.ok(index.includes('/learned?area=a&amp;lang=en'))
+  const p1 = lessonsPage({ ...args, concept: 'Shared' }), p3 = lessonsPage({ ...args, concept: 'Shared', page: '3' })
+  assert.equal((p1.match(/class="ln/g) || []).length, 12)
+  assert.equal((p3.match(/class="ln/g) || []).length, 6)
+  assert.ok(p1.includes('page=2') && p3.includes('rel="prev"') && !p3.includes('rel="next"'))
+  assert.ok(lessonPage({ ...args, id: 'a/l0' }).includes('.lp pre{white-space:pre-wrap'))
+})

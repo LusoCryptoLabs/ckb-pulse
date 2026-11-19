@@ -255,7 +255,7 @@ function handle(req, res) {
       if (url.pathname === '/learned/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, reviewPage({ lang, base: b, url: `${b}/learned/review`, data, pub: true }))
       if (url.pathname === '/learned/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, startPage({ lang, base: b, url: `${b}/learned/start`, data, pub: true }))
       if (url.pathname === '/learned.json') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(JSON.stringify(data)) }
-      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), pub: true }))
+      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), page: (url.searchParams.get('page') || '').slice(0, 4), pub: true }))
       const lid = url.pathname.slice('/learned/'.length)
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: lid, pub: true })
       if (page) hit(`learned:${lid}`, ipOf(req), req.headers['user-agent']) // reads of this lesson: a count, no one in it
@@ -281,7 +281,7 @@ function handle(req, res) {
       if (url.pathname === '/lessons/glossary') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, glossaryPage({ lang, base: b, url: `${b}/lessons/glossary`, data }))
       if (url.pathname === '/lessons/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, reviewPage({ lang, base: b, url: `${b}/lessons/review`, data }))
       if (url.pathname === '/lessons/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, startPage({ lang, base: b, url: `${b}/lessons/start`, data }))
-      if (url.pathname === '/lessons') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, lessonsPage({ lang, base: b, url: `${b}/lessons`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10) }))
+      if (url.pathname === '/lessons') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, lessonsPage({ lang, base: b, url: `${b}/lessons`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), page: (url.searchParams.get('page') || '').slice(0, 4) }))
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/lessons/'.length) })
       if (page) return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, page)
     }
