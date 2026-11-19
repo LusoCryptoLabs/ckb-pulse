@@ -133,6 +133,50 @@ export function lessonsOf(data, repo, n = 5) {
   return { count: found.length, top: found.slice(0, n).map((l) => ({ id: l.id, title: l.title })) }
 }
 
+// ---------------------------------------------------------------- checking code against the lessons
+// What a builder's code uses that the lessons talk about: function and method names, RPC methods, constants. A
+// code-like name has an underscore or a capital inside (completeFeeBy, extract_metric, get_live_cell), or is a long hex
+// constant. Plain words (since, capacity) are left out: as names in code they say too little.
+const CODEY = /[A-Za-z_][A-Za-z0-9_]{3,}|0x[0-9a-fA-F_]{6,}/g
+const isCodey = (w) => /^0x/i.test(w) || (/_/.test(w) && /[a-z]/i.test(w.replace(/_/g, ''))) || /[a-z][A-Z]/.test(w)
+const norm = (w) => w.toLowerCase().replace(/^0x([0-9a-f_]+)$/, (m, h) => '0x' + h.replace(/_/g, ''))
+// names every program has, whatever it does: they tie a lesson to code for no reason
+const COMMON = new Set(['bigint', 'uint8array', 'tostring', 'tolowercase', 'touppercase', 'parseint', 'parsefloat', 'foreach', 'settimeout', 'setinterval', 'addeventlistener', 'queryselector', 'getelementbyid', 'usestate', 'useeffect', 'usememo', 'usecallback', 'innerhtml', 'textcontent', 'fromcharcode', 'hasownproperty', 'json_encode', 'self_', '__init__', 'unwrap_or', 'to_string', 'as_ref', 'as_slice', 'to_vec', 'into_iter', 'is_empty', 'is_some', 'is_none', 'is_ok', 'is_err'])
+const codeNames = (text) => new Set((String(text || '').match(CODEY) || []).filter(isCodey).map(norm).filter((w) => !COMMON.has(w)))
+const kindOf = (p) => { const m = /^\s*(avoid|prefer)\s*:\s*(.*)$/is.exec(p); return m ? [m[1].toLowerCase(), m[2]] : ['', p] }
+let indexFor = null, indexOf = null
+function lessonIndex(lessons) {
+  if (indexFor === lessons) return indexOf
+  const items = lessons.map((l) => {
+    const pats = (l.patterns || []).map(kindOf)
+    const names = codeNames([l.title, l.lesson, l.note, l.why, ...(l.patterns || [])].join(' '))
+    return { l, names, title: codeNames(l.title), pat: codeNames((l.patterns || []).join(' ')), avoid: pats.filter(([k]) => k === 'avoid').map(([, c]) => codeNames(c)).filter((x) => x.size), prefer: pats.filter(([k]) => k === 'prefer').map(([, c]) => c) }
+  })
+  const df = new Map()
+  for (const it of items) for (const w of it.names) df.set(w, (df.get(w) || 0) + 1)
+  indexFor = lessons; indexOf = { items, df, n: items.length }
+  return indexOf
+}
+/** The lessons that apply to a piece of code: those that name what the code uses, best first, and above all those whose
+ * "avoid" pattern the code repeats. A list of hints to read, not a finding: nothing is run or proven. */
+export function checkCode(lessons, code, limit = 8) {
+  const { items, df, n } = lessonIndex(lessons)
+  const mine = codeNames(code)
+  const idf = (w) => Math.log((n + 1) / (df.get(w) || 1))
+  const out = []
+  for (const it of items) {
+    const shared = [...it.names].filter((w) => mine.has(w) && (df.get(w) || 0) <= Math.max(3, n * 0.15))
+    if (!shared.length) continue
+    const avoidHit = it.avoid.some((a) => { const have = [...a].filter((w) => mine.has(w)); return have.length >= Math.max(1, Math.ceil(a.size * 0.5)) }) // local names in a pattern differ from code to code
+    const score = shared.reduce((x, w) => x + idf(w) * (it.title.has(w) ? 2 : 1) * (it.pat.has(w) ? 1.5 : 1), 0) + (avoidHit ? 100 : 0) // what a lesson is about is in its title and its pattern
+    out.push({ score, it, shared, avoidHit })
+  }
+  out.sort((a, b) => b.score - a.score)
+  return out.slice(0, limit).map(({ it, shared, avoidHit }) => ({ id: it.l.id, title: it.l.title, lesson: it.l.lesson, why: it.l.why || '', level: it.l.level || '',
+    match: avoidHit ? 'your code repeats the pattern this lesson says to avoid' : 'your code uses what this lesson is about', uses: shared.slice(0, 6),
+    prefer: it.prefer.slice(0, 2), sources: it.l.sources }))
+}
+
 // ---------------------------------------------------------------- pages
 const MORE_CSS = `.ln>p:not(.nt){display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.ln>.nt{display:none}.lp details,.lp pre{max-width:100%;min-width:0}.lp pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto}.pg{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:18px 0}.ba{display:grid;gap:10px;margin:8px 0}.ba>div{border:1px solid var(--edge);background:var(--surface);padding:8px 12px;min-width:0}.ba .avoid{border-left:4px solid #e0533d}.ba .prefer{border-left:4px solid var(--lime)}.ba b{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}.ba pre{margin:6px 0 0;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}.gl h2{margin:22px 0 4px}.gl .tm{border-top:1px solid var(--edge);padding:10px 0}.gl .tm h3{margin:0 0 2px}.gl .tm p{margin:2px 0}.gl .tm{padding:8px 0}#rv .cd{border:1px solid var(--edge);background:var(--surface);padding:16px;margin:12px 0;overflow-wrap:anywhere}#rv .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rv button{padding:10px 14px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}#rv button.go{background:var(--lime);color:var(--ink);font-weight:700}`
 const PAGE_CSS = `form.lq{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}form.lq input{flex:1 1 220px;min-width:0;padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq select,form.lq button{padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq button{background:var(--lime);color:var(--ink);font-weight:700;cursor:pointer}
@@ -369,6 +413,12 @@ const TOOLS = [
     run: (a, { data, base, at }) => { const repo = text(a.repo, 'repo'); if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw told('repo must be owner/repo'); const found = searchLessons(visible(data()).lessons, { repo, limit: 50 }); return { count: found.length, lessons: found.map(brief(base, at)) } },
   },
   {
+    name: 'check_code',
+    description: 'Check CKB code against the lessons. Paste the code (TypeScript, Rust, Go, Python, any language): it returns the lessons about the functions, RPC methods and constants the code uses, best match first, and marks code that repeats a pattern a lesson says to avoid. Hints to read, not proof: nothing is run, and the code is not stored. Use it after writing code that builds, signs or reads CKB transactions.',
+    inputSchema: { type: 'object', properties: { code: { type: 'string', description: 'the code, up to 30,000 characters' }, limit: { type: 'integer', minimum: 1, maximum: 20 } }, required: ['code'] },
+    run: (a, { data, base, at }) => { const code = text(a.code, 'code', 30000); if (!code) throw told('code is empty'); const found = checkCode(visible(data()).lessons, code, Number.isInteger(a.limit) ? Math.min(20, Math.max(1, a.limit)) : 8); return { about: 'Lessons that apply to what this code uses. Read each one and its source before changing anything.', count: found.length, lessons: found.map((x) => ({ ...x, url: `${base}${at || '/lessons'}/${x.id}` })) } },
+  },
+  {
     name: 'list_areas',
     description: 'The areas of the lessons (CCC, scripts, Fiber, wallets...) with how many lessons each has, and the period they cover.',
     inputSchema: { type: 'object', properties: {} },
@@ -386,6 +436,13 @@ export const publicLessonTools = (data) => TOOLS.map((t) => ({
     : t.description,
   run: (a, ctx) => t.run(a, { data, base: ctx.base, at: '/learned' }),
 }))
+/** What a CKB project pastes into its AGENTS.md or CLAUDE.md so its agent reads and checks the lessons by itself. */
+export const agentRule = (base) => `## CKB lessons
+This project builds on Nervos CKB. The CKB Pulse MCP server (${base}/mcp) holds lessons from real fixes in other CKB projects.
+- Before writing or changing code that builds, signs or reads CKB transactions, scripts, witnesses, since values, capacity or indexer queries, call search_lessons with the functions involved and read the lessons that match with get_lesson.
+- After writing that code, call check_code with it and go through every lesson it returns before you finish.
+- Each lesson links to the commit it came from. When a lesson and the current library docs disagree, follow the docs and say so.
+Setup in Claude Code: claude mcp add --transport http ckb-pulse ${base}/mcp`
 export const LESSON_TOOL_INFO = publicLessonTools(() => null).map(({ name, description }) => ({ name, description }))
 export const PUBLIC_LESSONS_NOTE = 'CKB lessons: what CKB projects learned from their own fixes, drawn from their public commits and checked against those commits and the project code today. Read the source before relying on one. CC BY 4.0. Start with search_lessons, then get_lesson.'
 /** The private MCP server: data() gives the export as it is now. */

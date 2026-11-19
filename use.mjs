@@ -4,7 +4,7 @@
 import { words } from './cards.mjs'
 import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
-import { LESSON_TOOL_INFO } from './lessons.mjs'
+import { LESSON_TOOL_INFO, agentRule } from './lessons.mjs'
 import { FIBER_PAUSED, today } from './public/menu.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -36,12 +36,13 @@ export function usePage({ lang, base, url, img = '' }) {
     ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul>`],
     ['ai', `<p>${esc(t('use.ai.p'))}</p><h3>${esc(t('use.ai.claude'))}</h3><pre><code>${esc(install(base))}</code></pre><h3>${esc(t('use.ai.other'))}</h3><pre><code>${esc(base)}/mcp</code></pre>
 <h3>${esc(t('use.ai.try'))}</h3><blockquote>${esc(t('use.ai.q'))}</blockquote><h3>${esc(t('use.ai.tools'))}</h3>
-<ul class="tools">${TOOL_INFO.map(({ name }) => `<li><code>${esc(name)}</code> <span>${esc(t('use.tool.' + name))}</span></li>`).join('')}</ul>
+<ul class="tools">${[...TOOL_INFO, ...LESSON_TOOL_INFO].map(({ name }) => `<li><code>${esc(name)}</code> <span>${esc(t('use.tool.' + name))}</span></li>`).join('')}</ul>
 <p>${esc(t('use.ai.llms', { url: `${base}/llms.txt` }))}</p>`],
+    ['rule', `<p>${esc(t('use.rule.p'))}</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><code style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(agentRule(base))}</code></pre>`], // read on a phone, copied whole: the lines wrap
   ]
   // what is for anyone first, what is for people who write code after: the page used to run them together
   const have = new Set(parts.map(([id]) => id))
-  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'impact', 'data', 'ai']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
+  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'impact', 'data', 'ai', 'rule']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
   const byId = new Map(parts)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
@@ -75,6 +76,12 @@ ${LESSON_TOOL_INFO.map(({ name, description }) => `- ${name} (same MCP server): 
 - [Lessons](${base}/learned): by topic and level, with search; [start here](${base}/learned/start), [glossary](${base}/learned/glossary)
 - [All lessons as JSON](${base}/learned.json): every released lesson with its sources, test files and how it was checked
 - [Feed](${base}/learned.xml): Atom, the newest lessons
+
+For a CKB project's AGENTS.md or CLAUDE.md, so its agent reads and checks the lessons by itself:
+
+\`\`\`
+${agentRule(base)}
+\`\`\`
 
 ## Pages
 

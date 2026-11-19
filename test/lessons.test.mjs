@@ -8,7 +8,7 @@ import http from 'node:http'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import { lessonsPage, lessonPage, startPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
+import { lessonsPage, lessonPage, startPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, checkCode, agentRule, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
 import { OPT_OUT } from '../config.mjs'
 
 const lesson = (o = {}) => ({ title: 'Example lesson one', lesson: 'Do the example thing.', concepts: ['Example concept'], status: 'current', note: '', sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 'fix: an example' }], ...o })
@@ -158,7 +158,7 @@ test('the MCP server lists its four tools and answers them; a bad argument is to
   const call = async (method, params) => (await handle({ jsonrpc: '2.0', id: 1, method, params }, { base: 'https://pulse.example' })).json
   assert.equal((await call('initialize', {})).result.serverInfo.name, 'ckb-lessons')
   assert.deepEqual((await call('tools/list')).result.tools.map((t) => t.name), LESSON_TOOLS)
-  assert.deepEqual(LESSON_TOOLS, ['search_lessons', 'get_lesson', 'lessons_from_project', 'list_areas'])
+  assert.deepEqual(LESSON_TOOLS, ['search_lessons', 'get_lesson', 'lessons_from_project', 'check_code', 'list_areas'])
   const found = JSON.parse((await call('tools/call', { name: 'search_lessons', arguments: { query: 'witness index' } })).result.content[0].text)
   assert.deepEqual(found.lessons.map((l) => l.id), ['scripts/witness-args'])
   const one = JSON.parse((await call('tools/call', { name: 'get_lesson', arguments: { id: 'ccc/keep-the-change' } })).result.content[0].text)
@@ -439,4 +439,29 @@ test('a project shows what CKB learned from it, and the lessons page filters by 
   assert.ok(!lessonsPage({ lang: 'en', base: 'b', url: 'u', data: two, repo: '../x', pub: true }).includes('<h2>Lessons from'), 'a bad name is ignored')
   const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: two, id: 'ccc/keep-the-change', pub: true })
   assert.ok(one.includes('/learned?repo=owner%2Frepo&amp;lang=pt') && one.includes('mais deste projeto'))
+})
+
+test('check_code returns the lessons about what the code uses, flags a repeated avoid pattern, and nothing for code with no CKB in it', async () => {
+  const L = [
+    { id: 'ccc/fee', area: 'ccc', title: 'completeFeeBy adds change', lesson: 'completeFeeBy adds a change output instead of shrinking one.', patterns: ['avoid: await tx.completeFeeBy(signer);', 'prefer: await tx.completeFeeChangeToOutput(signer, 0);'], sources: [{ repo: 'a/b', hash: '1' }] },
+    { id: 'scripts/since', area: 'scripts', title: 'Handle None from extract_metric', lesson: 'since.extract_metric() returns None for a bad since.', patterns: ['avoid: let (ty, inner_value) = since.extract_metric().unwrap();'], sources: [{ repo: 'a/c', hash: '2' }] },
+    { id: 'other/epoch', area: 'other', title: 'Absolute epoch since needs the 0x20 flag', lesson: 'Set 0x2000000000000000 for an absolute epoch.', patterns: [], sources: [{ repo: 'a/d', hash: '3' }] },
+    { id: 'node/live', area: 'node', title: 'get_live_cell may say unknown', lesson: 'get_live_cell returns unknown for a spent cell it no longer knows.', patterns: [], sources: [{ repo: 'a/e', hash: '4' }] },
+  ]
+  const fee = checkCode(L, ['await tx.completeInputsByCapacity(signer);', 'await tx.completeFeeBy(signer);'].join('\n'))
+  assert.equal(fee[0].id, 'ccc/fee'); assert.match(fee[0].match, /avoid/); assert.deepEqual(fee[0].prefer, ['await tx.completeFeeChangeToOutput(signer, 0);'])
+  const since = checkCode(L, 'let (ty, value) = since.extract_metric().unwrap();')
+  assert.equal(since[0].id, 'scripts/since'); assert.match(since[0].match, /avoid/, 'a local name in the pattern differs from the code: still a hit')
+  assert.equal(checkCode(L, 'const F = 0x2000_0000_0000_0000n')[0].id, 'other/epoch', 'hex constants match with or without underscores')
+  const live = checkCode(L, 'r = rpc.call("get_live_cell", [op, False])')
+  assert.equal(live[0].id, 'node/live'); assert.match(live[0].match, /uses what/)
+  assert.deepEqual(checkCode(L, "import React, { useState } from 'react'; export const C = () => { const [n, setN] = useState(0); return n }"), [], 'no CKB, no lesson')
+  assert.ok(agentRule('https://p.example').includes('call check_code') && agentRule('https://p.example').includes('https://p.example/mcp') && !/[\u2013\u2014]/.test(agentRule('x')))
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [{ ...PUB.lessons[0], patterns: ['avoid: drop_change_output(tx)'] }] }) }, async (port) => {
+    const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'check_code', arguments: { code: 'drop_change_output(tx)' } } })
+    const r = await new Promise((resolve, reject) => { const q = http.request({ host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' } }, (res) => { let b = ''; res.on('data', (c) => { b += c }); res.on('end', () => resolve(JSON.parse(b.slice(b.indexOf('{'))))) }); q.on('error', reject); q.end(body) })
+    const out = JSON.parse(r.result.content[0].text)
+    assert.equal(out.lessons[0].url.endsWith('/learned/ccc/keep-the-change'), true); assert.match(out.lessons[0].match, /avoid/)
+    const use = await get(port, '/use?lang=en'); assert.ok(use.body.includes('id="rule"') && use.body.includes('call check_code') && use.body.includes('check_code</code>'))
+  })
 })
