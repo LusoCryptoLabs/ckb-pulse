@@ -268,7 +268,7 @@ test('the released lessons page is for everyone: indexable, licensed, linked to 
   const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/learned', data: PUB, pub: true })
   assert.ok(html.includes('href="https://pulse.example/learned/ccc/keep-the-change?lang=en"') && html.includes('action="https://pulse.example/learned"'))
   assert.ok(!html.includes('name="robots"') && !html.includes('/lessons'), 'indexable, and nothing points to the private paths')
-  assert.ok(html.includes('1 lessons so far, each one released by a person.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
+  assert.ok(html.includes('1 lessons from 1 projects so far, each one released by a person.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
   assert.ok(html.includes('Written by a model from public commits'), 'what it is, up front')
   assert.ok(!html.includes('/lessons/api') && !html.includes('/lessons/mcp'))
   const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: PUB, id: 'ccc/keep-the-change', pub: true })
