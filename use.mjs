@@ -5,6 +5,8 @@ import { words } from './cards.mjs'
 import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
 import { LESSON_TOOL_INFO, agentRule } from './lessons.mjs'
+// what a CKB project copies to .github/workflows/ckb-lessons.yml (LusoCryptoLabs/ckb-pulse-action)
+const ACTION_YML = ['name: CKB lessons', 'on:', '  pull_request:', 'permissions:', '  contents: read', '  pull-requests: write', 'jobs:', '  lessons:', '    runs-on: ubuntu-latest', '    steps:', '      - uses: LusoCryptoLabs/ckb-pulse-action@v1'].join('\n')
 import { FIBER_PAUSED, today } from './public/menu.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -38,11 +40,12 @@ export function usePage({ lang, base, url, img = '' }) {
 <h3>${esc(t('use.ai.try'))}</h3><blockquote>${esc(t('use.ai.q'))}</blockquote><h3>${esc(t('use.ai.tools'))}</h3>
 <ul class="tools">${[...TOOL_INFO, ...LESSON_TOOL_INFO].map(({ name }) => `<li><code>${esc(name)}</code> <span>${esc(t('use.tool.' + name))}</span></li>`).join('')}</ul>
 <p>${esc(t('use.ai.llms', { url: `${base}/llms.txt` }))}</p>`],
+    ['action', `<p>${esc(t('use.action.p'))}</p><pre><code>${esc(ACTION_YML)}</code></pre>${go([['https://github.com/LusoCryptoLabs/ckb-pulse-action', 'use.action.a', 1]])}`],
     ['rule', `<p>${esc(t('use.rule.p'))}</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><code style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(agentRule(base))}</code></pre>`], // read on a phone, copied whole: the lines wrap
   ]
   // what is for anyone first, what is for people who write code after: the page used to run them together
   const have = new Set(parts.map(([id]) => id))
-  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'impact', 'data', 'ai', 'rule']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
+  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'impact', 'data', 'ai', 'rule', 'action']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
   const byId = new Map(parts)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
@@ -76,6 +79,12 @@ ${LESSON_TOOL_INFO.map(({ name, description }) => `- ${name} (same MCP server): 
 - [Lessons](${base}/learned): by topic and level, with search; [start here](${base}/learned/start), [glossary](${base}/learned/glossary)
 - [All lessons as JSON](${base}/learned.json): every released lesson with its sources, test files and how it was checked
 - [Feed](${base}/learned.xml): Atom, the newest lessons
+
+On every pull request, the lessons that apply to the changed lines as a comment: copy this to .github/workflows/ckb-lessons.yml (https://github.com/LusoCryptoLabs/ckb-pulse-action):
+
+\`\`\`yaml
+${ACTION_YML}
+\`\`\`
 
 For a CKB project's AGENTS.md or CLAUDE.md, so its agent reads and checks the lessons by itself:
 
