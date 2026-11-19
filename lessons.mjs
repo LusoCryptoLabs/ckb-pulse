@@ -190,6 +190,16 @@ ${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }
 
+/** The page of a lesson that was public and is not now: a link someone kept says so, with a 410, instead of looking like a mistake. */
+export function withdrawnPage({ lang, base, url, date }) {
+  const t = words(lang), pre = '/learned', title = `${t('ls.pub.gone.h')} · CKB Pulse`
+  return `${head(t, { lang, base, title, desc: t('ls.pub.gone.h'), pub: true })}
+${pageBar(t, { base, lang, current: '', here: pre })}
+<article class="lp"><h1>${esc(t('ls.pub.gone.h'))}</h1><p class="big">${esc(t('ls.pub.gone.p', { date }))}</p><p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p></article>
+${pageFoot(t, url)}
+</main>${menuScript(base)}</body></html>`
+}
+
 // ---------------------------------------------------------------- the same for programs: JSON and MCP
 const brief = (base) => (l) => ({ id: l.id, title: l.title, lesson: l.lesson, area: l.area, concepts: l.concepts, status: l.status, evidence: l.evidence, last_touched: l.last_touched, url: `${base}/lessons/${l.id}` })
 const full = (base) => (l) => ({ ...l, url: `${base}/lessons/${l.id}` })
