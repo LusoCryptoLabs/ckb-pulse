@@ -377,3 +377,15 @@ test('a released lesson has a share card and says so in its page; a private one 
   assert.ok(lessonPage({ ...args, pub: true }).includes('og:image" content="https://pulse.example/og/lesson.png?id='))
   assert.ok(!lessonPage(args).includes('og:image'))
 })
+
+test('patterns labelled avoid and prefer show as before and after, and a commit that changed a test is linked', async () => {
+  const { glossaryPage, reviewPage } = await import('../lessons.mjs')
+  const d = { ...DATA, version: 1, topics: undefined, lessons: [lesson({ id: 'a/b', title: 'One', area: 'a', patterns: ['avoid: let x = 1', 'prefer: const x = 1'], tests: [{ repo: 'owner/repo', hash: 'abc1234', files: ['tests/a.test.ts'] }], concepts: ['Zeta', 'Alpha'], level: 'basic', related: [], sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 's' }] })], areas: { a: { name: 'A' } } }
+  const html = lessonPage({ lang: 'en', base: 'https://p.example', url: 'u', data: d, id: 'a/b', pub: true })
+  assert.ok(html.includes('class="avoid"') && html.includes('class="prefer"') && html.includes('const x = 1'))
+  assert.ok(html.includes('https://github.com/owner/repo/commit/abc1234') && html.includes('tests/a.test.ts'))
+  const g = glossaryPage({ lang: 'en', base: 'https://p.example', url: 'u', data: d, pub: true })
+  assert.ok(g.indexOf('Alpha') < g.indexOf('Zeta') && g.includes('/learned?concept=Alpha'))
+  const r = reviewPage({ lang: 'en', base: 'https://p.example', url: 'u', data: d, pub: true })
+  assert.ok(r.includes('id="rv"') && r.includes('localStorage') && !r.includes('fetch('))
+})
