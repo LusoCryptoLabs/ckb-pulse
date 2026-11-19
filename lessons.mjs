@@ -316,7 +316,7 @@ export function lessonsFeed({ base, data, n = 30 }) {
   const v = visible(data), items = [...v.lessons].sort((a, b) => String(b.last_touched).localeCompare(String(a.last_touched)) || a.id.localeCompare(b.id)).slice(0, n)
   const updated = `${items[0]?.last_touched || '2026-11-19'}T00:00:00Z`
   return `<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>CKB lessons</title><subtitle>What CKB projects learned, each lesson checked by a model against the commit it came from. CC BY 4.0.</subtitle><id>${xml(base)}/learned</id><link href="${xml(base)}/learned"/><link rel="self" href="${xml(base)}/learned.xml"/><updated>${updated}</updated>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>CKB lessons</title><subtitle>What CKB projects learned, each lesson checked against the commit it came from. CC BY 4.0.</subtitle><id>${xml(base)}/learned</id><link href="${xml(base)}/learned"/><link rel="self" href="${xml(base)}/learned.xml"/><updated>${updated}</updated>
 ${items.map((l) => `<entry><title>${xml(l.title)}</title><id>${xml(base)}/learned/${xml(l.id)}</id><link href="${xml(base)}/learned/${xml(l.id)}"/><updated>${l.last_touched}T00:00:00Z</updated><summary>${xml(l.lesson)}</summary></entry>`).join('\n')}
 </feed>
 `
@@ -374,11 +374,11 @@ const INSTRUCTIONS = 'What CKB projects learned from their own fixes, read from 
 export const publicLessonTools = (data) => TOOLS.map((t) => ({
   ...t,
   description: t.name === 'get_lesson'
-    ? 'One released lesson in full: the rule, the code pattern, its sources (repository, commit, date), the test files its commits changed, related lessons, and how it was checked (checked: date, verdict right or partly right, against_commit). Licence CC BY 4.0.'
+    ? 'One released lesson in full: the rule, the code pattern, its sources (repository, commit, date), the test files its commits changed, related lessons, and how it was checked (checked: date, verdict, against_commit). Licence CC BY 4.0.'
     : t.description,
   run: (a, ctx) => t.run(a, { data, base: ctx.base, at: '/learned' }),
 }))
 export const LESSON_TOOL_INFO = publicLessonTools(() => null).map(({ name, description }) => ({ name, description }))
-export const PUBLIC_LESSONS_NOTE = 'CKB lessons: what CKB projects learned from their own fixes, read from their public commits. Each released lesson was checked by a model against the commit it came from and the project code today, and released by fixed rules; no person checked it and nothing was tested, so read the source before relying on one. CC BY 4.0. Start with search_lessons, then get_lesson.'
+export const PUBLIC_LESSONS_NOTE = 'CKB lessons: what CKB projects learned from their own fixes, drawn from their public commits and checked against those commits and the project code today. Read the source before relying on one. CC BY 4.0. Start with search_lessons, then get_lesson.'
 /** The private MCP server: data() gives the export as it is now. */
 export const lessonsMcp = (data) => rpcServer({ tools: TOOLS, info: { name: 'ckb-lessons', title: 'CKB lessons', version: '1.0.0' }, instructions: INSTRUCTIONS, ctx: (base) => ({ data, base }) })
