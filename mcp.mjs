@@ -147,8 +147,10 @@ const LIST = TOOLS.map(({ run, ...t }) => ({ ...t, annotations: { readOnlyHint: 
 export const TOOL_INFO = TOOLS.map(({ name, description }) => ({ name, description }))
 
 // api: highlights, news, projects, project, person, peopleIn, updates, trends (the server's own readers)
-export function makeMcp(api) {
-  return rpcServer({ tools: TOOLS, list: LIST, info: { name: 'ckb-pulse', title: 'CKB Pulse', version: '1.1.0' }, instructions: INSTRUCTIONS, ctx: (base) => ({ api, link: links(base) }) })
+// extra: more tools (the released lessons), with a note added to the instructions
+export function makeMcp(api, { extra = [], note = '' } = {}) {
+  const tools = [...TOOLS, ...extra], list = [...LIST, ...extra.map(({ run, ...t }) => ({ ...t, annotations: { readOnlyHint: true, openWorldHint: false } }))]
+  return rpcServer({ tools, list, info: { name: 'ckb-pulse', title: 'CKB Pulse', version: '1.1.0' }, instructions: note ? `${INSTRUCTIONS} ${note}` : INSTRUCTIONS, ctx: (base) => ({ api, base, link: links(base) }) })
 }
 
 // a Model Context Protocol server over JSON-RPC for a list of tools: { name, description, inputSchema, run(args, ctx) }.

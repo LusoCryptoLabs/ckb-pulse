@@ -4,6 +4,7 @@
 import { words } from './cards.mjs'
 import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
+import { LESSON_TOOL_INFO } from './lessons.mjs'
 import { FIBER_PAUSED, today } from './public/menu.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -65,6 +66,15 @@ Pulse is a Model Context Protocol server at ${base}/mcp (Streamable HTTP, one JS
 ## MCP tools
 
 ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n')}
+
+## CKB lessons
+
+What CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each linked to the commits it came from. Written by a model from public commits; each released lesson was checked by a model against its commit and the project code today, and released by fixed rules. No person checked them and nothing was tested: read the source before relying on one. CC BY 4.0, credit "LusoCryptoLabs, CKB lessons".
+
+${LESSON_TOOL_INFO.map(({ name, description }) => `- ${name} (same MCP server): ${description}`).join('\n')}
+- [Lessons](${base}/learned): by topic and level, with search; [start here](${base}/learned/start), [glossary](${base}/learned/glossary)
+- [All lessons as JSON](${base}/learned.json): every released lesson with its sources, test files and how it was checked
+- [Feed](${base}/learned.xml): Atom, the newest lessons
 
 ## Pages
 
