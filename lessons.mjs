@@ -259,6 +259,8 @@ function patternBlock(t, patterns) {
 // (ckb-lessons, pipeline/confirm.py) and counts it only from the owner of a source repository, the author of a source
 // commit or a public member of the owning organisation.
 const LOGIN_OK = /^[A-Za-z0-9-]{1,39}$/
+// what the check against the source commit found, in the order of the words ls.verdict.0 to .3
+const VERDICTS = ['right', 'partly right', 'wrong', 'not CKB specific']
 export const confirmUrl = (base, l) => `https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Lesson: ${l.id}`)}&body=${encodeURIComponent([`${base}/learned/${l.id}`, '', 'Verdict: right', '', 'If something is wrong, change the line above to "Verdict: needs a fix" and say what. It counts when you own a source repository of this lesson, wrote one of its source commits, or are a public member of the organisation that owns it.'].join(String.fromCharCode(10)))}`
 // One issue for the lessons of a project (ckb-lessons, pipeline/confirm.py: title "Lessons: owner/repo", a line a lesson,
 // "right | id"). An address cannot carry much: 30 lessons an issue, more in further issues.
@@ -266,7 +268,7 @@ export const BATCH = 30
 export const batchConfirmUrls = (base, repo, ids) => {
   const out = []
   for (let k = 0; k < ids.length; k += BATCH) {
-    const body = [`${base}/learned?repo=${repo}`, '', 'One line a lesson. Keep "right" where the lesson is right, write "needs a fix" where it is not, and delete the lines you have not read.', '', ...ids.slice(k, k + BATCH).map((id) => `right | ${id}`)].join(String.fromCharCode(10))
+    const body = [`${base}/learned?repo=${repo}`, '', 'One line a lesson. Replace the ? with "right" or "needs a fix" on each lesson you have read. A line left with its ? is not counted. You can save and come back: the issue is read every day until it is closed.', '', ...ids.slice(k, k + BATCH).map((id) => `? | ${id}`)].join(String.fromCharCode(10))
     out.push(`https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Lessons: ${repo}`)}&body=${encodeURIComponent(body)}`)
   }
   return out
@@ -297,7 +299,7 @@ ${(l.tests || []).length ? `<h2>${esc(t('ls.tests'))}</h2><p class="nt">${esc(t(
 <dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(l.evidence || 'L0')}: ${esc(t('ls.evidence.' + (l.evidence || 'L0')))}</dd>
-<dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.checked?.date || l.last_checked)}</dd></dl>
+<dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.checked?.date || l.last_checked)}</dd>${pub && l.checked?.verdict && VERDICTS.includes(l.checked.verdict) ? `<dt>${esc(t('ls.verdict'))}</dt><dd>${esc(t('ls.verdict.' + VERDICTS.indexOf(l.checked.verdict)))}</dd>` : ''}</dl>
 <h2>${esc(t('ls.sources', { n: l.sources.length }))}</h2><ul>${l.sources.map((s) => `<li>${s.date ? `${esc(s.date)} · ` : ''}<a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>${s.subject ? `: ${esc(s.subject)}` : ''} · <a href="${esc(base)}${pre}?repo=${encodeURIComponent(s.repo)}&amp;lang=${lang}">${esc(t('ls.repo.more'))}</a></li>`).join('')}</ul>
 ${l.related.length ? `<h2>${esc(t('ls.related'))}</h2><ul>${l.related.map((i) => `<li>${link(i)}</li>`).join('')}</ul>` : ''}
 ${(l.history || []).length ? `<h2>${esc(t('ls.history'))}</h2><ul>${l.history.map((h) => `<li>${esc(h.date)} · ${esc(h.what)}</li>`).join('')}</ul>` : ''}
