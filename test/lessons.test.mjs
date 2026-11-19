@@ -268,12 +268,12 @@ test('the released lessons page is for everyone: indexable, licensed, linked to 
   const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/learned', data: PUB, pub: true })
   assert.ok(html.includes('href="https://pulse.example/learned/ccc/keep-the-change?lang=en"') && html.includes('action="https://pulse.example/learned"'))
   assert.ok(!html.includes('name="robots"') && !html.includes('/lessons'), 'indexable, and nothing points to the private paths')
-  assert.ok(html.includes('1 lessons from 1 projects so far, each one checked by a model against the commit it came from.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
-  assert.ok(html.includes('Written by a model from public commits'), 'what it is, up front')
+  assert.ok(html.includes('1 lessons from 1 projects so far, each one checked against the commit it came from.') && html.includes('CC BY 4.0') && html.includes('github.com/LusoCryptoLabs/ckb-pulse/issues/new') && html.includes('/learned.json'))
+  assert.ok(html.includes('Drawn from public commits') && !/model/i.test(html.replace(/Model Context Protocol/g, '')), 'what it is, up front, without naming how it is checked')
   assert.ok(!html.includes('/lessons/api') && !html.includes('/lessons/mcp'))
   const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: PUB, id: 'ccc/keep-the-change', pub: true })
   assert.ok(one.includes('https://github.com/owner/repo/commit/abc1234') && one.includes('CC BY 4.0') && !one.includes('name="robots"') && !one.includes('/lessons'))
-  assert.ok(lessonsPage({ lang: 'zh', base: 'x', url: 'x', data: PUB, pub: true }).includes('由模型对照其来源提交核对过'))
+  assert.ok(lessonsPage({ lang: 'zh', base: 'x', url: 'x', data: PUB, pub: true }).includes('每一条都对照其来源提交核对过'))
   assert.ok(!html.includes('released by a person') && !html.includes('A person chose'), 'the gate releases, not a person')
 })
 
@@ -406,7 +406,7 @@ test('the index shows a few lessons per topic, a search pages at 12, and the cit
 })
 
 test('the public MCP server answers the released lessons, with links to /learned, and never the private file', async () => {
-  const tools = publicLessonTools(() => ({ ...PUB, lessons: [{ ...PUB.lessons[0], checked: { by: 'model', date: '2026-11-19', verdict: 'right', against_commit: true } }] }))
+  const tools = publicLessonTools(() => ({ ...PUB, lessons: [{ ...PUB.lessons[0], checked: { date: '2026-11-19', verdict: 'right', against_commit: true } }] }))
   const run = (name, a) => tools.find((t) => t.name === name).run(a, { base: 'https://pulse.example' })
   const found = run('search_lessons', { query: 'change' })
   assert.deepEqual(found.lessons.map((l) => [l.id, l.url, l.checked.verdict]), [['ccc/keep-the-change', 'https://pulse.example/learned/ccc/keep-the-change', 'right']])

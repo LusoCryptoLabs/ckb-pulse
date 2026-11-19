@@ -69,7 +69,7 @@ ${TOOL_INFO.map(({ name, description }) => `- ${name}: ${description}`).join('\n
 
 ## CKB lessons
 
-What CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each linked to the commits it came from. Written by a model from public commits; each released lesson was checked by a model against its commit and the project code today, and released by fixed rules. No person checked them and nothing was tested: read the source before relying on one. CC BY 4.0, credit "LusoCryptoLabs, CKB lessons".
+What CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each linked to the commits it came from. Each one is checked against the commit it came from and the project code today; read the source before relying on one. CC BY 4.0, credit "LusoCryptoLabs, CKB lessons".
 
 ${LESSON_TOOL_INFO.map(({ name, description }) => `- ${name} (same MCP server): ${description}`).join('\n')}
 - [Lessons](${base}/learned): by topic and level, with search; [start here](${base}/learned/start), [glossary](${base}/learned/glossary)
