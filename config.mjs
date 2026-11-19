@@ -35,7 +35,18 @@ export const CODE_SEARCHES = [
   '"org.nervos.ckb" filename:pom.xml', // 7
   '"ckb-types" filename:Cargo.toml', // 525
   '"ckb-testtool" filename:Cargo.toml', // 189
+  // added 2026-11-19, from a coverage check (scripts/coverage.mjs): each found CKB work Pulse did not follow
+  '"@nervosnetwork/fiber-js" filename:package.json',
+  '"@ckb-ccc/spore" filename:package.json',
+  '"@offckb/cli" filename:package.json',
+  '"ckb-hash" filename:Cargo.toml',
 ]
+// Repositories that say CKB only in their name or description: no topic, no library in a manifest (an app that talks
+// to a node over RPC, a Rust tool without ckb-std). The coverage check of 2026-11-19 found about 60 of them active in
+// 30 days against 307 followed. {since} is 30 days ago. A hit is kept only when textIsCkb (pulse.mjs) agrees.
+export const TEXT_SEARCHES = ['ckb in:name,description pushed:>{since}', 'nervos in:name,description pushed:>{since}']
+// What a README must say when the name carries "ckb" and nothing else explains it (ckb-automata, ckb_pet)
+export const README_CKB = /\bnervos\b|@ckb-ccc|ckb-std|ckb-sdk|ckb-vm|ckb\.dev|ckb testnet|ckb mainnet|ckb node|lock script|type script|cell dep|\bxudt\b|rgb\+\+|fiber network|common knowledge base/i
 // Fiber apps call a Fiber node over its RPC and often declare no CKB library, topic or description (chukwuma619/twine,
 // 2026-11-02). These field names are Fiber's own: on 2026-11-02 the two searches found 58 repositories, all Fiber work,
 // 41 of them not followed. They match source files, so any depth counts.

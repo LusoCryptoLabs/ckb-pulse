@@ -5,7 +5,7 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
-import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, isNoiseActor, isAutomaticAuthor, isOptedOut, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
+import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, TEXT_SEARCHES, README_CKB, isNoiseActor, isAutomaticAuthor, isOptedOut, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
 const DATA = process.env.DATA_DIR || path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'data')
 fs.mkdirSync(DATA, { recursive: true })
@@ -506,6 +506,30 @@ export async function discover() {
       if (items.length < 100) break
     }
   }
+  // by name and description: kept only when the text itself, or the README, says it is chain work
+  const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
+  let readmes = 0
+  for (const q of TEXT_SEARCHES) {
+    for (let page = 1; page <= 3; page++) {
+      const r = await gh(`/search/repositories?q=${encodeURIComponent(q.replace('{since}', since))}&per_page=100&page=${page}&sort=updated`, { search: true })
+      await sleep(POLL.repoSearchMs)
+      const items = r.body?.items || []
+      for (const it of items) {
+        if (found.has(it.full_name) || it.fork || it.archived || it.private !== false) continue
+        let ok = textIsCkb(it)
+        if (ok === null && readmes < 80 && state.textNo?.[it.full_name] !== it.pushed_at) { // the name says ckb and nothing explains it: the README decides, once per push
+          readmes++
+          const rd = await gh(`/repos/${it.full_name}/readme`)
+          let text = ''
+          try { text = Buffer.from(rd.body?.content || '', 'base64').toString('utf8').slice(0, 6000) } catch {}
+          ok = README_CKB.test(text) && !CKB_NOT.test(text)
+          if (!ok) (state.textNo ||= {})[it.full_name] = it.pushed_at
+        }
+        if (ok) found.set(it.full_name, { meta: it, code: true, text: true })
+      }
+      if (items.length < 100) break
+    }
+  }
   const keep = []
   const recent = Date.now() - 180 * 864e5
   for (const [full, hit] of found) {
@@ -602,6 +626,17 @@ async function markAgentProposals() {
 function ckbContext(m) {
   const text = `${m.name} ${m.description || ''} ${(m.topics || []).join(' ')}`
   return CKB_CONTEXT.test(text) && !CKB_NOT.test(text)
+}
+// A repository found by its name or description. true: the text says chain work (Nervos by name, or ckb with a word of
+// context). false: not CKB (Kurdish, a keyboard driver, "nervosa"). null: "ckb" in the name and nothing else to go by.
+const NERVOS = /\bnervos\b/i, CKB_WORD = /(^|[^a-z0-9])ckb([^a-z0-9]|$)/i, TEXT_NOT = /ckb-next|corsair|keyboard|rgb driver|nervos[ao]\b/i
+function textIsCkb(m) {
+  const text = `${m.name} ${m.description || ''} ${(m.topics || []).join(' ')}`
+  if (CKB_NOT.test(text) || TEXT_NOT.test(`${m.full_name || ''} ${text}`)) return false
+  if (NERVOS.test(text)) return m.description || (m.topics || []).length ? true : null // a repository called just "nervos", with nothing said: the README decides
+  if (!CKB_WORD.test(text)) return false
+  const rest = text.replace(/ckb/ig, ' ')
+  return CKB_CONTEXT.test(rest) ? true : null
 }
 function vetRepo(m) {
   const topics = (m.topics || []).filter((x) => VET_TOPICS.includes(x))
@@ -801,7 +836,7 @@ function announceNews() {
 setInterval(() => { try { announceNews() } catch (err) { console.warn('news', err.message) } }, 60e3).unref()
 
 // the pure rules, for the tests
-export { ckbContext, vetRepo, leaders, manifestOk, normalise, intake, newsWorthy, markAI, aiScan, readShas }
+export { ckbContext, vetRepo, textIsCkb, leaders, manifestOk, normalise, intake, newsWorthy, markAI, aiScan, readShas }
 export const invalidate = () => { hlCache = null }
 
 // repositories behind scripts the explorer knows: followed like an owner someone suggested, so their work shows
