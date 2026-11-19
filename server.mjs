@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -256,7 +256,7 @@ function handle(req, res) {
       if (url.pathname === '/learned/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, reviewPage({ lang, base: b, url: `${b}/learned/review`, data, pub: true }))
       if (url.pathname === '/learned/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, startPage({ lang, base: b, url: `${b}/learned/start`, data, pub: true }))
       if (url.pathname === '/learned.json') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(JSON.stringify(data)) }
-      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), page: (url.searchParams.get('page') || '').slice(0, 4), pub: true }))
+      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), repo: (url.searchParams.get('repo') || '').slice(0, 201), page: (url.searchParams.get('page') || '').slice(0, 4), pub: true }))
       const lid = url.pathname.slice('/learned/'.length)
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: lid, pub: true })
       if (page) hit(`learned:${lid}`, ipOf(req), req.headers['user-agent']) // reads of this lesson: a count, no one in it
@@ -377,7 +377,7 @@ function handle(req, res) {
   if (url.pathname === '/api/repo') {
     const d = repoDetail(url.searchParams.get('name') || '')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }
-    return sendJson(req, res, d)
+    return sendJson(req, res, { ...d, lessons: lessonsOf(loadLessons(DATA_DIR, 'public-lessons.json'), d.name) }) // what CKB learned from it, with credit
   }
   // a suggested organisation or person: POST {"login"} starts a check, GET ?id= reads how it went
   if (url.pathname === '/api/propose' && req.method === 'POST') {

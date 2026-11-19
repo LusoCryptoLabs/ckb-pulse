@@ -117,7 +117,7 @@ test('search: every word must match, the title counts most, and an area or a pro
 test('a lesson\'s page has the rule, the pattern, its sources with dates, related lessons, evidence and history', () => {
   const html = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/lessons/ccc/keep-the-change', data: V2, id: 'ccc/keep-the-change' })
   for (const want of ['Never drop the change output', 'outputs[change].capacity -= fee', '2026-11-12 · <a href="https://github.com/owner/repo/commit/abc1234"', 'https://github.com/other/app/commit/def5678',
-    'href="https://pulse.example/lessons/scripts/witness-args?lang=en">Read witness args', 'seen in two or more projects', '@ckb-ccc/core &gt;= 1.0', '2026-11-18 · feat(lessons): add what the projects learned', 'Last checked by a person</dt><dd>never', '<meta name="robots" content="noindex">'])
+    'href="https://pulse.example/lessons/scripts/witness-args?lang=en">Read witness args', 'seen in two or more projects', '@ckb-ccc/core &gt;= 1.0', '2026-11-18 · feat(lessons): add what the projects learned', 'Last checked</dt><dd>never', '<meta name="robots" content="noindex">'])
     assert.ok(html.includes(want), want)
   assert.equal(lessonPage({ lang: 'en', base: 'x', url: 'x', data: V2, id: 'ccc/no-such' }), null)
   assert.equal(lessonPage({ lang: 'en', base: 'x', url: 'x', data: V2, id: '../../etc/passwd' }), null)
@@ -426,4 +426,17 @@ test('the public MCP server answers the released lessons, with links to /learned
     const init = (await post({ jsonrpc: '2.0', id: 4, method: 'initialize', params: { protocolVersion: '2025-06-18' } })).result
     assert.match(init.instructions, /CKB lessons/)
   })
+})
+
+test('a project shows what CKB learned from it, and the lessons page filters by project with credit', async () => {
+  const { lessonsOf } = await import('../lessons.mjs')
+  const two = { ...PUB, lessons: [PUB.lessons[0], { ...PUB.lessons[0], id: 'ccc/other', title: 'Other one', sources: [{ repo: 'else/where', hash: 'def5678', date: '2026-11-13' }] }] }
+  assert.deepEqual(lessonsOf(two, 'Owner/Repo'), { count: 1, top: [{ id: 'ccc/keep-the-change', title: 'Keep the change output' }] }, 'GitHub names are not case sensitive')
+  assert.deepEqual(lessonsOf(null, 'owner/repo'), { count: 0, top: [] })
+  assert.deepEqual(lessonsOf({ version: 2, lessons: two.lessons }, 'owner/repo'), { count: 0, top: [] }, 'only the released file')
+  const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: two, repo: 'owner/repo', pub: true })
+  assert.ok(html.includes('Lessons from owner/repo') && html.includes('Keep the change output') && !html.includes('Other one'))
+  assert.ok(!lessonsPage({ lang: 'en', base: 'b', url: 'u', data: two, repo: '../x', pub: true }).includes('<h2>Lessons from'), 'a bad name is ignored')
+  const one = lessonPage({ lang: 'pt', base: 'https://pulse.example', url: 'u', data: two, id: 'ccc/keep-the-change', pub: true })
+  assert.ok(one.includes('/learned?repo=owner%2Frepo&amp;lang=pt') && one.includes('mais deste projeto'))
 })
