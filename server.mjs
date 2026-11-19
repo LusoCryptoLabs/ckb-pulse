@@ -11,7 +11,7 @@ import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits, count, mcpUse } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
-import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, words, rasterise } from './cards.mjs'
+import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, pageCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
 import { startFiber, fiberState, fiberBus, fiberHealth } from './fiber.mjs'
 import { FIBER_PAUSED } from './public/menu.js'
@@ -115,6 +115,17 @@ async function shareCard(req, res, url) {
   if (url.pathname === '/og/repo.png') { const d = repoDetail(q.get('name') || ''); if (d) png = await card(`r|${d.name}|${lang}|${host}|${q.get('v') || ''}`, () => repoCard({ d, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/person.png') { const p = personDetail(q.get('login') || ''); if (p) png = await card(`p|${p.login}|${lang}|${host}|${q.get('v') || ''}`, () => personCard({ p, leaders: highlightsNow(), lang, host })) }
   if (url.pathname === '/og/fiber.png' && !FIBER_PAUSED) { const d = fiberState(q.get('net') === 'testnet' ? 'testnet' : 'mainnet'); if (d) png = await card(`fb|${d.net}|${lang}|${host}|${q.get('v') || ''}`, () => fiberCard({ d, lang, host })) }
+  if (url.pathname === '/og/learned.png') {
+    const data = loadLessons(DATA_DIR, 'public-lessons.json'), t = words(lang)
+    if (data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length) {
+      const v = visible(data), projects = new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size, confirmed = v.lessons.filter((l) => l.confirmed).length
+      png = await card(`ll|${v.lessons.length}|${projects}|${confirmed}|${lang}|${host}`, () => pageCard({ eyebrow: 'CKB LESSONS · CC BY 4.0', title: t('ls.h1'), numbers: [[v.lessons.length, t('og.lessons')], [projects, t('k.projects')], ...(confirmed ? [[confirmed, t('og.confirmed')]] : [])], line: t('og.lessons.line'), lang, host }))
+    }
+  }
+  if (url.pathname === '/og/impact.png') {
+    const t = words(lang), lib = LIBS.some((l) => l.id === q.get('lib')) ? q.get('lib') : LIBS[0].id, r = impactOf(impactNow(), lib)
+    if (r) png = await card(`im|${lib}|${r.using}|${r.active}|${r.owners}|${lang}|${host}`, () => pageCard({ eyebrow: t('im.nav').toUpperCase(), title: t('im.h1', { lib: r.name }), numbers: [[r.using, t('im.k.using')], [r.active, t('og.active')], [r.owners, t('og.owners')]], line: '', lang, host }))
+  }
   if (url.pathname === '/og/use.png') png = await card(`u|${lang}|${host}|${q.get('v') || ''}`, () => useCard({ ...useFacts(), lang, host }))
   if (url.pathname === '/og/lesson.png') { const data = loadLessons(DATA_DIR, 'public-lessons.json'), l = data?.version === 1 && Array.isArray(data.lessons) ? data.lessons.find((x) => x.id === q.get('id')) : null; if (l) png = await card(`l|${l.id}|${lang}|${host}|${q.get('v') || ''}`, () => lessonCard({ l, lang, host })) }
   if (!png) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }

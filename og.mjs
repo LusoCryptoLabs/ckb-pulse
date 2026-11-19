@@ -3,5 +3,8 @@
 // what it draws: when the numbers or the names change, the address changes with them and nobody is served an old one.
 import crypto from 'node:crypto'
 
-export const stampOf = (value) => crypto.createHash('sha1').update(JSON.stringify(value ?? null)).digest('base64url').slice(0, 10)
+// LOOK goes into every stamp: when the cards are redrawn in a new design the addresses change too, so no site keeps showing
+// the old picture (2: the LusoCryptoLabs look, 2026-11-19; the forum still showed the lime cards for unchanged numbers)
+export const LOOK = 2
+export const stampOf = (value) => crypto.createHash('sha1').update(JSON.stringify([LOOK, value ?? null])).digest('base64url').slice(0, 10)
 export const withStamp = (path, value) => `${path}${path.includes('?') ? '&' : '?'}v=${stampOf(value)}`

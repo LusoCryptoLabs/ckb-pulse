@@ -34,3 +34,12 @@ test('a project created this week carries the "new on CKB" ribbon and still draw
   const d = { name: 'someone/fresh', group: 'builders', desc: 'A new thing', stars: 0, contributors: [], createdAt: new Date(Date.now() - 3 * 864e5).toISOString(), daily: { days: 30, people: Array(30).fill(1), bots: Array(30).fill(0) } }
   assert.ok(isPng(await repoCard({ d, leaders, lang: 'en', host: 'pulse.example' })))
 })
+
+test('the share cards wear the LusoCryptoLabs look of the pages: no lime, straight corners, the kit fonts and the studio wordmark', async () => {
+  const fsx = await import('node:fs')
+  const src = fsx.readFileSync(new URL('../cards.mjs', import.meta.url), 'utf8')
+  assert.doesNotMatch(src, /#cbf34d|#e2ff7a|url\(#glow\)|url\(#gold\)/i, 'the first look (lime, glow, gold pills) is gone: a link shared on the forum showed it on 2026-11-19')
+  assert.deepEqual([...src.matchAll(/ rx="([^"]*)"/g)].map((m) => m[1]).filter((v) => v !== '0'), [], 'every box has straight corners')
+  assert.match(src, /'Archivo'/); assert.match(src, /'Space Mono'/); assert.match(src, /lcl-wordmark-paper\.svg/)
+  for (const f of ['Archivo-600.ttf', 'Archivo-800.ttf', 'SpaceMono-400.ttf', 'SpaceMono-700.ttf', 'Archivo-OFL.txt', 'SpaceMono-OFL.txt']) assert.ok(fsx.existsSync(new URL('../fonts/' + f, import.meta.url)), f)
+})
