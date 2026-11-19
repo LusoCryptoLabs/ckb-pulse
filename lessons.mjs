@@ -126,6 +126,13 @@ export function searchLessons(lessons, { q = '', area = '', repo = '', concept =
   return out.slice(0, limit).map(([, l]) => l)
 }
 
+/** The released lessons that came from one project: how many, and the first few, for the project's card. */
+export function lessonsOf(data, repo, n = 5) {
+  if (!data || data.version !== 1 || !repo) return { count: 0, top: [] }
+  const found = searchLessons(visible(data).lessons, { repo, limit: 200 })
+  return { count: found.length, top: found.slice(0, n).map((l) => ({ id: l.id, title: l.title })) }
+}
+
 // ---------------------------------------------------------------- pages
 const MORE_CSS = `.ln>p:not(.nt){display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.ln>.nt{display:none}.lp details,.lp pre{max-width:100%;min-width:0}.lp pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto}.pg{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:18px 0}.ba{display:grid;gap:10px;margin:8px 0}.ba>div{border:1px solid var(--edge);background:var(--surface);padding:8px 12px;min-width:0}.ba .avoid{border-left:4px solid #e0533d}.ba .prefer{border-left:4px solid var(--lime)}.ba b{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}.ba pre{margin:6px 0 0;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}.gl h2{margin:22px 0 4px}.gl .tm{border-top:1px solid var(--edge);padding:10px 0}.gl .tm h3{margin:0 0 2px}.gl .tm p{margin:2px 0}.gl .tm{padding:8px 0}#rv .cd{border:1px solid var(--edge);background:var(--surface);padding:16px;margin:12px 0;overflow-wrap:anywhere}#rv .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rv button{padding:10px 14px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}#rv button.go{background:var(--lime);color:var(--ink);font-weight:700}`
 const PAGE_CSS = `form.lq{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}form.lq input{flex:1 1 220px;min-width:0;padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq select,form.lq button{padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq button{background:var(--lime);color:var(--ink);font-weight:700;cursor:pointer}
@@ -146,14 +153,15 @@ const card = (t, base, lang, l, pre) => `<article class="ln${l.status === 'super
 
 const PER_PAGE = 12
 const PEEK = 2
-export function lessonsPage({ lang, base, url, data, q = '', area = '', concept = '', level = '', page = 1, pub = false }) {
+export function lessonsPage({ lang, base, url, data, q = '', area = '', concept = '', level = '', repo = '', page = 1, pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), topics = shownLessons(data)
   const title = `CKB Pulse · ${t('ls.title')}`, desc = t('ls.lead')
-  const searching = !!(q.trim() || area || concept || level)
-  const found = searching ? searchLessons(v.lessons, { q, area, concept, level, limit: 200, loose: true }) : []
+  if (!/^[A-Za-z0-9-]{1,39}\/[\w-][\w.-]{0,99}$/.test(repo)) repo = '' // a GitHub owner/repo, nothing else
+  const searching = !!(q.trim() || area || concept || level || repo)
+  const found = searching ? searchLessons(v.lessons, { q, area, concept, level, repo, limit: 200, loose: true }) : []
   const pages = Math.max(1, Math.ceil(found.length / PER_PAGE)), pg = Math.min(pages, Math.max(1, Number.parseInt(page, 10) || 1))
-  const keep = new URLSearchParams({ ...(q.trim() ? { q } : {}), ...(area ? { area } : {}), ...(concept ? { concept } : {}), ...(level ? { level } : {}), lang })
+  const keep = new URLSearchParams({ ...(q.trim() ? { q } : {}), ...(area ? { area } : {}), ...(concept ? { concept } : {}), ...(level ? { level } : {}), ...(repo ? { repo } : {}), lang })
   const pageHref = (n) => `${base}${pre}?${new URLSearchParams([...keep, ...(n > 1 ? [['page', String(n)]] : [])])}`.replace(/&/g, '&amp;')
   const pager = pages > 1 ? `<p class="pg">${pg > 1 ? `<a href="${pageHref(pg - 1)}" rel="prev">${esc(t('ls.prev'))}</a>` : ''}<span>${esc(t('ls.page', { p: pg, n: pages }))}</span>${pg < pages ? `<a href="${pageHref(pg + 1)}" rel="next">${esc(t('ls.next'))}</a>` : ''}</p>` : ''
   const areaOpts = topics.map((x) => `<option value="${esc(x.slug)}"${x.slug === area ? ' selected' : ''}>${esc(x.area)}</option>`).join('')
@@ -165,7 +173,7 @@ ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
 ${pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!pub && v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
 <form class="lq" method="get" action="${esc(base)}${pre}" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
 ${searching
-    ? `<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${pager}${found.slice((pg - 1) * PER_PAGE, pg * PER_PAGE).map((l) => card(t, base, lang, l, pre)).join('\n')}${pager}`
+    ? `${repo ? `<h2>${esc(t('ls.repo.h', { repo }))}</h2><p><a href="https://github.com/${esc(repo)}" rel="noreferrer">github.com/${esc(repo)}</a></p>` : ''}<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${pager}${found.slice((pg - 1) * PER_PAGE, pg * PER_PAGE).map((l) => card(t, base, lang, l, pre)).join('\n')}${pager}`
     : `<nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="#${x.slug}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>
 ${topics.map((x) => `<section class="lt" id="${x.slug}"><h2>${esc(x.area)}</h2><p>${esc(x.summary)}</p>
 ${x.lessons.slice(0, PEEK).map((l) => card(t, base, lang, l, pre)).join('\n')}${x.lessons.length > PEEK ? `<p><a href="${esc(base)}${pre}?area=${esc(x.slug)}&amp;lang=${lang}">${esc(t('ls.topic.all', { n: x.lessons.length }))}</a></p>` : ''}</section>`).join('\n')}`}
@@ -207,8 +215,8 @@ ${(l.tests || []).length ? `<h2>${esc(t('ls.tests'))}</h2><p class="nt">${esc(t(
 <dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(l.evidence || 'L0')}: ${esc(t('ls.evidence.' + (l.evidence || 'L0')))}</dd>
-<dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.last_checked)}</dd></dl>
-<h2>${esc(t('ls.sources', { n: l.sources.length }))}</h2><ul>${l.sources.map((s) => `<li>${s.date ? `${esc(s.date)} · ` : ''}<a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>: ${esc(s.subject)}</li>`).join('')}</ul>
+<dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.checked?.date || l.last_checked)}</dd></dl>
+<h2>${esc(t('ls.sources', { n: l.sources.length }))}</h2><ul>${l.sources.map((s) => `<li>${s.date ? `${esc(s.date)} · ` : ''}<a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>${s.subject ? `: ${esc(s.subject)}` : ''} · <a href="${esc(base)}${pre}?repo=${encodeURIComponent(s.repo)}&amp;lang=${lang}">${esc(t('ls.repo.more'))}</a></li>`).join('')}</ul>
 ${l.related.length ? `<h2>${esc(t('ls.related'))}</h2><ul>${l.related.map((i) => `<li>${link(i)}</li>`).join('')}</ul>` : ''}
 ${(l.history || []).length ? `<h2>${esc(t('ls.history'))}</h2><ul>${l.history.map((h) => `<li>${esc(h.date)} · ${esc(h.what)}</li>`).join('')}</ul>` : ''}
 ${pub ? shareBlock(t, base, lang, l) : ''}
