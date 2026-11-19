@@ -8,7 +8,7 @@ import crypto from 'node:crypto'
 import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
-import { initVisits, hit, visits, count } from './visits.mjs'
+import { initVisits, hit, visits, count, mcpUse } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, words, rasterise } from './cards.mjs'
@@ -341,7 +341,7 @@ function handle(req, res) {
     return sendText(req, res, 200, { 'content-type': TYPES['.svg'], 'cache-control': 'public, max-age=600' }, svg)
   }
   if (url.pathname === '/api/visits') return sendJson(req, res, visits(30))
-  if (url.pathname === '/mcp') { if (req.method === 'POST') hit('mcp', ipOf(req), req.headers['user-agent']); return mcpHttp(req, res, mcp, baseOf(req)) }
+  if (url.pathname === '/mcp') { if (req.method === 'POST') hit('mcp', ipOf(req), req.headers['user-agent']); return mcpHttp(req, res, mcp, baseOf(req), '/use#ai', (method, tool) => mcpUse(method, tool, ipOf(req), req.headers['user-agent'])) }
   if (url.pathname === '/api/fiber') {
     const d = fiberState(url.searchParams.get('net') || 'mainnet')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"unknown network"}') }
