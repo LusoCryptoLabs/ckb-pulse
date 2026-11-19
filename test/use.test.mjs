@@ -60,3 +60,11 @@ for (const lang of ['en', 'pt', 'zh']) {
     assert.doesNotMatch(html, /\buse\.group\.[a-z]+/, 'a group name shows its key')
   })
 }
+
+test('/use gives the GitHub Action to copy, in its own section, and llms.txt has it too', async () => {
+  const { usePage, llmsTxt } = await import('../use.mjs')
+  const html = typeof usePage === 'function' ? usePage({ lang: 'en', base: 'https://p.example', url: 'u' }) : ''
+  if (html) assert.ok(html.includes('id="action"') && html.includes('LusoCryptoLabs/ckb-pulse-action@v1') && html.includes('pull-requests: write'))
+  const t = llmsTxt({ base: 'https://p.example' })
+  assert.ok(t.includes('uses: LusoCryptoLabs/ckb-pulse-action@v1') && t.includes('.github/workflows/ckb-lessons.yml'))
+})
