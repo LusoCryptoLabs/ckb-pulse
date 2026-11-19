@@ -35,3 +35,16 @@ test('monitors and previews count apart, as bots', () => {
   assert.deepEqual(v.total.visitors, { pulse: 1 })
   assert.deepEqual(v.total.bots, { pulse: 7 })
 })
+
+test('a person reading three pages counts once on the site, and the count stays after the day ends', async () => {
+  const { hit, visits } = await import('../visits.mjs')
+  const t0 = Date.parse('2031-03-03T10:00:00Z'), ua = 'Mozilla/5.0 people-test'
+  for (const page of ['pulse', 'learned', 'digest']) hit(page, '203.0.113.7', ua, t0)
+  hit('pulse', '203.0.113.8', ua, t0)
+  const day = (v) => v.days.find((d) => d.day === '2031-03-03')
+  assert.equal(day(visits(1, t0)).people, 2)
+  hit('pulse', '203.0.113.9', ua, t0 + 864e5) // the next day drops the hashes of this one
+  const after = day(visits(2, t0 + 864e5))
+  assert.equal(after.people, 2)
+  assert.equal(after.visitors.pulse, 2)
+})
