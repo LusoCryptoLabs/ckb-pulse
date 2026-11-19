@@ -127,7 +127,7 @@ export function searchLessons(lessons, { q = '', area = '', repo = '', concept =
 }
 
 // ---------------------------------------------------------------- pages
-const MORE_CSS = `.ba{display:grid;gap:10px;margin:8px 0}.ba>div{border:1px solid var(--edge);background:var(--surface);padding:8px 12px;min-width:0}.ba .avoid{border-left:4px solid #e0533d}.ba .prefer{border-left:4px solid var(--lime)}.ba b{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}.ba pre{margin:6px 0 0;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}.gl h2{margin:22px 0 4px}.gl .tm{border-top:1px solid var(--edge);padding:10px 0}.gl .tm h3{margin:0 0 2px}.gl .tm p{margin:2px 0}#rv .cd{border:1px solid var(--edge);background:var(--surface);padding:16px;margin:12px 0;overflow-wrap:anywhere}#rv .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rv button{padding:10px 14px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}#rv button.go{background:var(--lime);color:var(--ink);font-weight:700}`
+const MORE_CSS = `.ln>p:not(.nt){display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.ln>.nt{display:none}.lp details,.lp pre{max-width:100%;min-width:0}.lp pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto}.pg{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:18px 0}.ba{display:grid;gap:10px;margin:8px 0}.ba>div{border:1px solid var(--edge);background:var(--surface);padding:8px 12px;min-width:0}.ba .avoid{border-left:4px solid #e0533d}.ba .prefer{border-left:4px solid var(--lime)}.ba b{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}.ba pre{margin:6px 0 0;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}.gl h2{margin:22px 0 4px}.gl .tm{border-top:1px solid var(--edge);padding:10px 0}.gl .tm h3{margin:0 0 2px}.gl .tm p{margin:2px 0}#rv .cd{border:1px solid var(--edge);background:var(--surface);padding:16px;margin:12px 0;overflow-wrap:anywhere}#rv .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rv button{padding:10px 14px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}#rv button.go{background:var(--lime);color:var(--ink);font-weight:700}`
 const PAGE_CSS = `form.lq{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}form.lq input{flex:1 1 220px;min-width:0;padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq select,form.lq button{padding:10px 12px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:inherit}form.lq button{background:var(--lime);color:var(--ink);font-weight:700;cursor:pointer}
 nav.ls{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 18px}nav.ls a{padding:5px 11px;border:1px solid var(--edge);color:var(--fg);text-decoration:none;font-size:13px}nav.ls a span{color:var(--mut);margin-left:6px}nav.ls a[aria-current=true]{border-color:var(--fg)}
 section.lt{margin:22px 0 8px;overflow-wrap:anywhere}section.lt h2{margin:0 0 4px;font:600 21px var(--font-ui,sans-serif);color:var(--fg);text-transform:none;letter-spacing:-.01em}section.lt>p{margin:4px 0 10px;color:var(--mut)}
@@ -144,12 +144,18 @@ const lvl = (t, l) => (l.level ? `<span class="bd">${esc(t('ls.level.' + l.level
 const card = (t, base, lang, l, pre) => `<article class="ln${l.status === 'superseded' ? ' old' : ''}"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a>${lvl(t, l)}${badges(t, l)}</h3><p>${esc(l.lesson)}</p>${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
 <p class="tg">${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?concept=${encodeURIComponent(c)}&amp;lang=${lang}">#${esc(c)}</a>`).join(' ')} · ${esc(t('ls.sources', { n: l.sources.length }))}${l.last_touched ? ` · ${esc(l.last_touched)}` : ''}</p></article>`
 
-export function lessonsPage({ lang, base, url, data, q = '', area = '', concept = '', level = '', pub = false }) {
+const PER_PAGE = 12
+const PEEK = 2
+export function lessonsPage({ lang, base, url, data, q = '', area = '', concept = '', level = '', page = 1, pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), topics = shownLessons(data)
   const title = `CKB Pulse · ${t('ls.title')}`, desc = t('ls.lead')
   const searching = !!(q.trim() || area || concept || level)
   const found = searching ? searchLessons(v.lessons, { q, area, concept, level, limit: 200, loose: true }) : []
+  const pages = Math.max(1, Math.ceil(found.length / PER_PAGE)), pg = Math.min(pages, Math.max(1, Number.parseInt(page, 10) || 1))
+  const keep = new URLSearchParams({ ...(q.trim() ? { q } : {}), ...(area ? { area } : {}), ...(concept ? { concept } : {}), ...(level ? { level } : {}), lang })
+  const pageHref = (n) => `${base}${pre}?${new URLSearchParams([...keep, ...(n > 1 ? [['page', String(n)]] : [])])}`.replace(/&/g, '&amp;')
+  const pager = pages > 1 ? `<p class="pg">${pg > 1 ? `<a href="${pageHref(pg - 1)}" rel="prev">${esc(t('ls.prev'))}</a>` : ''}<span>${esc(t('ls.page', { p: pg, n: pages }))}</span>${pg < pages ? `<a href="${pageHref(pg + 1)}" rel="next">${esc(t('ls.next'))}</a>` : ''}</p>` : ''
   const areaOpts = topics.map((x) => `<option value="${esc(x.slug)}"${x.slug === area ? ' selected' : ''}>${esc(x.area)}</option>`).join('')
   return `${head(t, { lang, base, title, desc, pub })}
 ${pageBar(t, { base, lang, current: '', here: pre })}
@@ -159,10 +165,10 @@ ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
 ${pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!pub && v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
 <form class="lq" method="get" action="${esc(base)}${pre}" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
 ${searching
-    ? `<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.map((l) => card(t, base, lang, l, pre)).join('\n')}`
+    ? `<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${pager}${found.slice((pg - 1) * PER_PAGE, pg * PER_PAGE).map((l) => card(t, base, lang, l, pre)).join('\n')}${pager}`
     : `<nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="#${x.slug}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>
 ${topics.map((x) => `<section class="lt" id="${x.slug}"><h2>${esc(x.area)}</h2><p>${esc(x.summary)}</p>
-${x.lessons.map((l) => card(t, base, lang, l, pre)).join('\n')}</section>`).join('\n')}`}
+${x.lessons.slice(0, PEEK).map((l) => card(t, base, lang, l, pre)).join('\n')}${x.lessons.length > PEEK ? `<p><a href="${esc(base)}${pre}?area=${esc(x.slug)}&amp;lang=${lang}">${esc(t('ls.topic.all', { n: x.lessons.length }))}</a></p>` : ''}</section>`).join('\n')}`}
 ${pub
     ? `<p class="tg">${esc(t('ls.pub.license'))} <a href="${esc(base)}/learned.json">JSON</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('ls.pub.remove'))}</a></p>`
     : `<p class="tg">${esc(t('ls.how'))}</p>
