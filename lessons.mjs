@@ -96,14 +96,16 @@ const tokens = (s) => String(s || '').toLowerCase().match(/[\p{L}\p{N}+#]+/gu) |
 const stem = (w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)
 /** Every word of the query somewhere in the lesson; a word in the title counts most, then concepts and the library it applies
  * to, then the text and the sources. Best first, then the most recently changed. */
-export function searchLessons(lessons, { q = '', area = '', repo = '', limit = 50 } = {}) {
+export function searchLessons(lessons, { q = '', area = '', repo = '', concept = '', level = '', limit = 50, loose = false } = {}) {
   const want = tokens(q).map(stem), r = repo.toLowerCase()
-  const out = []
+  const out = [], partial = []
   for (const l of lessons) {
     if (area && l.area !== area) continue
+    if (concept && !(l.concepts || []).includes(concept)) continue
+    if (level && l.level !== level) continue
     if (r && !l.sources.some((s) => String(s.repo).toLowerCase() === r)) continue
     const fields = [[l.title, 3], [(l.concepts || []).join(' '), 2], [(l.applies_to || []).join(' '), 2], [l.id, 2],
-      [`${l.lesson} ${l.note || ''} ${(l.patterns || []).join(' ')}`, 1], [l.sources.map((s) => `${s.repo} ${s.subject}`).join(' '), 1]]
+      [`${l.lesson} ${l.why || ''} ${l.note || ''} ${(l.patterns || []).join(' ')}`, 1], [l.sources.map((s) => `${s.repo} ${s.subject}`).join(' '), 1]]
       .map(([t, w]) => [tokens(t).map(stem).join(' '), w])
     let score = 0, all = true
     for (const w of want) {
@@ -112,8 +114,14 @@ export function searchLessons(lessons, { q = '', area = '', repo = '', limit = 5
       score += Math.max(...hit.map(([, x]) => x))
     }
     if (all) out.push([score, l])
+    else if (loose && want.length > 1) { // not every word: how many, with a word that only starts the same (a prefix of three letters) counting too
+      const n = want.filter((w) => fields.some(([t]) => t.includes(w) || (w.length >= 4 && t.split(' ').some((x) => x.startsWith(w.slice(0, 4)))))).length
+      if (n >= Math.ceil(want.length / 2)) partial.push([n * 10 + score, l])
+    }
   }
-  out.sort((a, b) => b[0] - a[0] || String(b[1].last_touched || '').localeCompare(String(a[1].last_touched || '')))
+  const order = (a, b) => b[0] - a[0] || String(b[1].last_touched || '').localeCompare(String(a[1].last_touched || ''))
+  out.sort(order)
+  if (!out.length && loose && partial.length) { partial.sort(order); const r2 = partial.slice(0, limit).map(([, l]) => l); r2.partial = true; return r2 }
   return out.slice(0, limit).map(([, l]) => l)
 }
 
@@ -130,24 +138,26 @@ const head = (t, { lang, base, title, desc, pub }) => `<!doctype html><html lang
 ${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>`
 const href = (base, id, lang, pre = '/lessons') => `${base}${pre}/${id}?lang=${lang}`
 const badges = (t, l) => `${l.status === 'superseded' ? `<span class="bd old">${esc(t('ls.old'))}</span>` : ''}<span class="bd" title="${esc(t('ls.evidence.' + (l.evidence || 'L0')))}">${esc(l.evidence || 'L0')}</span>`
-const card = (t, base, lang, l, pre) => `<article class="ln${l.status === 'superseded' ? ' old' : ''}"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a>${badges(t, l)}</h3><p>${esc(l.lesson)}</p>${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
-<p class="tg">${(l.concepts || []).map((c) => `#${esc(c)}`).join(' ')} · ${esc(t('ls.sources', { n: l.sources.length }))}${l.last_touched ? ` · ${esc(l.last_touched)}` : ''}</p></article>`
+const lvl = (t, l) => (l.level ? `<span class="bd">${esc(t('ls.level.' + l.level))}</span>` : '')
+const card = (t, base, lang, l, pre) => `<article class="ln${l.status === 'superseded' ? ' old' : ''}"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a>${lvl(t, l)}${badges(t, l)}</h3><p>${esc(l.lesson)}</p>${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
+<p class="tg">${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?concept=${encodeURIComponent(c)}&amp;lang=${lang}">#${esc(c)}</a>`).join(' ')} · ${esc(t('ls.sources', { n: l.sources.length }))}${l.last_touched ? ` · ${esc(l.last_touched)}` : ''}</p></article>`
 
-export function lessonsPage({ lang, base, url, data, q = '', area = '', pub = false }) {
+export function lessonsPage({ lang, base, url, data, q = '', area = '', concept = '', level = '', pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), topics = shownLessons(data)
   const title = `CKB Pulse · ${t('ls.title')}`, desc = t('ls.lead')
-  const searching = !!(q.trim() || area)
-  const found = searching ? searchLessons(v.lessons, { q, area, limit: 200 }) : []
+  const searching = !!(q.trim() || area || concept || level)
+  const found = searching ? searchLessons(v.lessons, { q, area, concept, level, limit: 200, loose: true }) : []
   const areaOpts = topics.map((x) => `<option value="${esc(x.slug)}"${x.slug === area ? ' selected' : ''}>${esc(x.area)}</option>`).join('')
   return `${head(t, { lang, base, title, desc, pub })}
 ${pageBar(t, { base, lang, current: '', here: pre })}
 ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: esc(desc) })}
 <p>${esc(pub ? t('ls.pub.count', { n: v.lessons.length, m: new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size }) : t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>
+<p><a href="${esc(base)}${pre}/start?lang=${lang}"><b>${esc(t('ls.start.nav'))}</b></a>${pub ? ` · <a href="${esc(base)}/learned.xml">${esc(t('ls.feed'))}</a>` : ''}</p>
 ${pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!pub && v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
 <form class="lq" method="get" action="${esc(base)}${pre}" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="${esc(t('ls.search'))}" aria-label="${esc(t('ls.search'))}"><select name="area" aria-label="${esc(t('ls.topics'))}"><option value="">${esc(t('ls.all'))}</option>${areaOpts}</select><input type="hidden" name="lang" value="${esc(lang)}"><button type="submit">${esc(t('ls.find'))}</button></form>
 ${searching
-    ? `<p>${esc(found.length ? t('ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.map((l) => card(t, base, lang, l, pre)).join('\n')}`
+    ? `<p>${esc(found.length ? t(found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.map((l) => card(t, base, lang, l, pre)).join('\n')}`
     : `<nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="#${x.slug}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>
 ${topics.map((x) => `<section class="lt" id="${x.slug}"><h2>${esc(x.area)}</h2><p>${esc(x.summary)}</p>
 ${x.lessons.map((l) => card(t, base, lang, l, pre)).join('\n')}</section>`).join('\n')}`}
@@ -172,8 +182,9 @@ export function lessonPage({ lang, base, url, data, id, pub = false }) {
 ${pageBar(t, { base, lang, current: '', here: `${pre}/${l.id}` })}
 <article class="lp">
 <p class="back"><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}${pre}?area=${esc(l.area)}&amp;lang=${lang}">${esc(v.areas[l.area]?.name || l.area)}</a></p>
-<h1>${esc(l.title)}${badges(t, l)}</h1>
+<h1>${esc(l.title)}${lvl(t, l)}${badges(t, l)}</h1>
 <p class="big">${esc(l.lesson)}</p>
+${l.why ? `<p><b>${esc(t('ls.why'))}</b> ${esc(l.why)}</p>` : ''}
 ${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
 ${l.superseded_by ? `<p class="nt">${esc(t('ls.replaced'))} ${link(l.superseded_by)}</p>` : ''}
 ${(l.patterns || []).length ? `<h2>${esc(t('ls.pattern'))}</h2><ul>${l.patterns.map((p) => `<li><code>${esc(p)}</code></li>`).join('')}</ul>` : ''}
@@ -184,6 +195,7 @@ ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies
 <h2>${esc(t('ls.sources', { n: l.sources.length }))}</h2><ul>${l.sources.map((s) => `<li>${s.date ? `${esc(s.date)} · ` : ''}<a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>: ${esc(s.subject)}</li>`).join('')}</ul>
 ${l.related.length ? `<h2>${esc(t('ls.related'))}</h2><ul>${l.related.map((i) => `<li>${link(i)}</li>`).join('')}</ul>` : ''}
 ${(l.history || []).length ? `<h2>${esc(t('ls.history'))}</h2><ul>${l.history.map((h) => `<li>${esc(h.date)} · ${esc(h.what)}</li>`).join('')}</ul>` : ''}
+${pub ? shareBlock(t, base, lang, l) : ''}
 </article>
 ${pub ? `<p class="tg">${esc(t('ls.pub.notice'))} ${esc(t('ls.pub.license'))} <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('ls.pub.remove'))}</a></p>` : ''}
 ${pageFoot(t, url)}
@@ -200,6 +212,47 @@ ${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
 }
 
+/** Copy the link, copy the lesson as Markdown, a way to cite it, and a way to say it is wrong or out of date (an issue on the public Pulse repository, with the id filled in). */
+function shareBlock(t, base, lang, l) {
+  const link = `${base}/learned/${l.id}`, copied = esc(t('sh.copied'))
+  const md = `## ${l.title}\n\n${l.lesson}${l.why ? `\n\n${t('ls.why')} ${l.why}` : ''}\n\n${t('ls.md.source')} ${link} (CC BY 4.0, LusoCryptoLabs, CKB lessons)`
+  const cite = `LusoCryptoLabs, "${l.title}", CKB lessons, ${link}, CC BY 4.0${l.last_touched ? `, last changed ${l.last_touched}` : ''}.`
+  const report = `https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Lesson: ${l.id}`)}&body=${encodeURIComponent(`${link}\n\nWhat is wrong or out of date:\n`)}`
+  return `<p class="share"><button type="button" data-copy="${esc(link)}" data-copied="${copied}">${esc(t('ls.share.copy'))}</button> <button type="button" data-copy="${esc(md)}" data-copied="${copied}">${esc(t('ls.share.md'))}</button> <a href="${esc(report)}" rel="noreferrer">${esc(t('ls.report'))}</a></p>
+<details><summary>${esc(t('ls.cite'))}</summary><pre><code>${esc(cite)}</code></pre></details>`
+}
+
+/** The way in for someone new: the lessons by level, the basic ones first, each with its why. */
+export function startPage({ lang, base, url, data, pub = false }) {
+  const pre = pub ? '/learned' : '/lessons'
+  const t = words(lang), v = visible(data), title = `${t('ls.start.h')} · CKB Pulse`
+  const order = ['basic', 'working', 'advanced']
+  const by = Object.fromEntries(order.map((x) => [x, v.lessons.filter((l) => l.level === x).sort((a, b) => (b.sources.length - a.sources.length) || a.title.localeCompare(b.title))]))
+  const none = v.lessons.filter((l) => !l.level).length
+  return `${head(t, { lang, base, title, desc: t('ls.start.p'), pub })}
+${pageBar(t, { base, lang, current: '', here: `${pre}/start` })}
+${pageHead({ eyebrow: t('ls.nav'), title: t('ls.start.h'), lede: esc(t('ls.start.p')) })}
+<p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>
+${order.map((x) => by[x].length ? `<section class="lt" id="${x}"><h2>${esc(t('ls.level.' + x))} <span class="tg">${by[x].length}</span></h2><p>${esc(t('ls.start.' + x))}</p>
+${by[x].slice(0, x === 'basic' ? 40 : 25).map((l) => `<article class="ln"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a></h3><p>${esc(l.lesson)}</p>${l.why ? `<p class="nt">${esc(t('ls.why'))} ${esc(l.why)}</p>` : ''}</article>`).join('\n')}
+<p><a href="${esc(base)}${pre}?level=${x}&amp;lang=${lang}">${esc(t('ls.start.all', { n: by[x].length }))}</a></p></section>` : '').join('\n')}
+${none ? `<p class="tg">${esc(t('ls.start.unlevelled', { n: none }))}</p>` : ''}
+${pageFoot(t, url)}
+</main>${menuScript(base)}</body></html>`
+}
+
+const xml = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c])
+/** An Atom feed of the lessons most recently changed. */
+export function lessonsFeed({ base, data, n = 30 }) {
+  const v = visible(data), items = [...v.lessons].sort((a, b) => String(b.last_touched).localeCompare(String(a.last_touched)) || a.id.localeCompare(b.id)).slice(0, n)
+  const updated = `${items[0]?.last_touched || '2026-11-19'}T00:00:00Z`
+  return `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>CKB lessons</title><subtitle>What CKB projects learned, released by a person. CC BY 4.0.</subtitle><id>${xml(base)}/learned</id><link href="${xml(base)}/learned"/><link rel="self" href="${xml(base)}/learned.xml"/><updated>${updated}</updated>
+${items.map((l) => `<entry><title>${xml(l.title)}</title><id>${xml(base)}/learned/${xml(l.id)}</id><link href="${xml(base)}/learned/${xml(l.id)}"/><updated>${l.last_touched}T00:00:00Z</updated><summary>${xml(l.lesson)}</summary></entry>`).join('\n')}
+</feed>
+`
+}
+
 // ---------------------------------------------------------------- the same for programs: JSON and MCP
 const brief = (base) => (l) => ({ id: l.id, title: l.title, lesson: l.lesson, area: l.area, concepts: l.concepts, status: l.status, evidence: l.evidence, last_touched: l.last_touched, url: `${base}/lessons/${l.id}` })
 const full = (base) => (l) => ({ ...l, url: `${base}/lessons/${l.id}` })
@@ -213,7 +266,7 @@ export function lessonsApi(data, url, base) {
     const l = v.lessons.find((x) => x.id === id)
     return l ? { status: 200, json: full(base)(l) } : { status: 404, json: { error: 'no such lesson' } }
   }
-  const found = searchLessons(v.lessons, { q: (q.get('q') || '').slice(0, 200), area: (q.get('area') || '').slice(0, 40), repo: (q.get('repo') || '').slice(0, 200), limit: int(q.get('limit'), 1, 200, 50) })
+  const found = searchLessons(v.lessons, { q: (q.get('q') || '').slice(0, 200), area: (q.get('area') || '').slice(0, 40), repo: (q.get('repo') || '').slice(0, 200), concept: (q.get('concept') || '').slice(0, 80), level: (q.get('level') || '').slice(0, 10), limit: int(q.get('limit'), 1, 200, 50) })
   return { status: 200, json: { from: v.from, to: v.to, read: v.read, areas: v.areas, count: found.length, lessons: found.map(brief(base)) } }
 }
 

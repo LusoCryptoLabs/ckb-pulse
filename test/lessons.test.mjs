@@ -8,7 +8,7 @@ import http from 'node:http'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import { lessonsPage, lessonPage, withdrawnPage, lessonsApi, lessonsMcp, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
+import { lessonsPage, lessonPage, startPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, searchLessons, visible, shownLessons, access, cookieOf, loadLessons, LESSON_TOOLS } from '../lessons.mjs'
 import { OPT_OUT } from '../config.mjs'
 
 const lesson = (o = {}) => ({ title: 'Example lesson one', lesson: 'Do the example thing.', concepts: ['Example concept'], status: 'current', note: '', sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 'fix: an example' }], ...o })
@@ -305,6 +305,62 @@ test('on a running server: /learned does not exist until a lesson is released, t
     const j = await get(port, '/learned.json'); assert.equal(j.status, 200); assert.equal(JSON.parse(j.body).lessons.length, 1); assert.equal(j.headers['access-control-allow-origin'], '*')
     assert.equal((await get(port, '/lessons')).status, nothing.status, 'the private pages still need the key')
     assert.equal((await get(port, '/lessons/api?q=change')).status, nothing.status)
+  })
+})
+
+// teaching, sharing, searching
+const TL = { ...PUB, lessons: [
+  { ...PUB.lessons[0], why: 'Without it the fee eats the change cell.', level: 'basic', related: [] },
+  { ...PUB.lessons[0], id: 'ccc/second-one', title: 'Second one', lesson: 'Witnesses must follow the inputs order.', concepts: ['Witnesses and signatures'], level: 'advanced', why: 'A reordered input breaks the signature.', sources: [{ repo: 'other/app', hash: 'def5678', date: '2026-11-13' }, { repo: 'owner/repo', hash: 'abc1234', date: '2026-11-12' }] },
+  { ...PUB.lessons[0], id: 'ccc/no-level', title: 'No level yet', lesson: 'Something else entirely.', level: null, why: null }] }
+
+test('a lesson page says why it matters and its level, and a public one can be copied, cited and reported', () => {
+  const html = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: TL, id: 'ccc/keep-the-change', pub: true })
+  assert.ok(html.includes('Why it matters:</b> Without it the fee eats the change cell.') && html.includes('>Basic<'))
+  assert.ok(html.includes('data-copy="https://pulse.example/learned/ccc/keep-the-change"') && html.includes('Copy as Markdown') && html.includes('## Keep the change output'))
+  assert.ok(html.includes('LusoCryptoLabs, &quot;Keep the change output&quot;, CKB lessons, https://pulse.example/learned/ccc/keep-the-change, CC BY 4.0'))
+  assert.ok(html.includes('https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=Lesson%3A%20ccc%2Fkeep-the-change'), 'an issue with the id filled in')
+  const priv = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: TL, id: 'ccc/keep-the-change' })
+  assert.ok(!priv.includes('title=Lesson') && !priv.includes('Copy as Markdown'), 'the private page offers no copy of the lesson and puts no private id into a public issue')
+  assert.ok(lessonPage({ lang: 'pt', base: 'x', url: 'u', data: TL, id: 'ccc/keep-the-change', pub: true }).includes('Porque importa:'))
+})
+
+test('the start page lists the basic lessons first with their why, and the rest by level, in three languages', () => {
+  const html = startPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: TL, pub: true })
+  assert.ok(html.indexOf('id="basic"') > 0 && html.indexOf('id="basic"') < html.indexOf('id="advanced"') && !html.includes('id="working"'))
+  assert.ok(html.includes('Without it the fee eats the change cell.') && html.includes('A reordered input breaks the signature.'))
+  assert.ok(html.includes('1 lessons have no level yet') && html.includes('level=basic'))
+  for (const [lang, w] of [['pt', 'Começa aqui'], ['zh', '从这里开始']]) assert.ok(startPage({ lang, base: 'x', url: 'u', data: TL, pub: true }).includes(w), lang)
+})
+
+test('concepts are links that filter exactly, and a search that no lesson fully matches shows the closest ones and says so', () => {
+  const v = visible(TL).lessons
+  assert.deepEqual(searchLessons(v, { concept: 'Witnesses and signatures' }).map((l) => l.id), ['ccc/second-one'])
+  assert.deepEqual(searchLessons(v, { level: 'basic' }).map((l) => l.id), ['ccc/keep-the-change'])
+  assert.deepEqual(searchLessons(v, { q: 'witnesses reordered banana' }), [], 'strict by default')
+  const loose = searchLessons(v, { q: 'witnesses reordered banana', loose: true })
+  assert.equal(loose.partial, true); assert.equal(loose[0].id, 'ccc/second-one')
+  const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: TL, q: 'witnesses reordered banana', pub: true })
+  assert.ok(html.includes('No lesson has every word. The closest 1:'))
+  const idx = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: TL, pub: true })
+  assert.ok(idx.includes('?concept=Transaction%20building%20and%20fees') && idx.includes('/learned/start') && idx.includes('/learned.xml'))
+})
+
+test('an Atom feed of the released lessons, newest first, escaped', () => {
+  const xmlOut = lessonsFeed({ base: 'https://pulse.example', data: { ...TL, lessons: [{ ...TL.lessons[0], title: 'A <b>&</b> title' }, { ...TL.lessons[1], last_touched: '2026-11-10' }] } })
+  assert.ok(xmlOut.startsWith('<?xml') && xmlOut.includes('<feed xmlns="http://www.w3.org/2005/Atom">') && xmlOut.includes('A &lt;b&gt;&amp;&lt;/b&gt; title'))
+  assert.ok(xmlOut.indexOf('A &lt;b&gt;') < xmlOut.indexOf('Second one'), 'newest first')
+  assert.ok(xmlOut.includes('<id>https://pulse.example/learned/ccc/keep-the-change</id>'))
+})
+
+test('on a running server: the start page, the feed and the filters work in the open and in private', async () => {
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify(TL) }, async (port) => {
+    const s = await get(port, '/learned/start'); assert.equal(s.status, 200); assert.ok(s.body.includes('id="basic"'))
+    const x = await get(port, '/learned.xml'); assert.equal(x.status, 200); assert.match(String(x.headers['content-type']), /atom\+xml/)
+    const c = await get(port, '/learned?concept=Witnesses%20and%20signatures'); assert.ok(c.body.includes('Second one') && !c.body.includes('Keep the change output</a>'))
+    const nothing = await get(port, '/no-such-page-here')
+    assert.equal((await get(port, '/lessons/start')).status, nothing.status, 'the private start page needs the key')
+    const k = await get(port, `/lessons/start?k=${KEY}`); assert.equal(k.status, 303)
   })
 })
 
