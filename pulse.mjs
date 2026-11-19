@@ -106,7 +106,7 @@ export function load() {
     // discover again once when the rules change: 1, the ckb-context rule (topic-only false friends drop out);
     // 2, fourteen more searches (2026-10-10); 3, the fiber-network topic asks for chain words too (2026-10-29);
     // 4, apps that call a Fiber node (2026-11-02)
-    if (state.ctxRule !== 4) { state.discoveredAt = 0; state.ctxRule = 4 }
+    if (state.ctxRule !== 5) { state.discoveredAt = 0; state.ctxRule = 5 } // 5: names and descriptions are searched too (2026-11-19)
     // work by AI agents on their own branches became automatic on 2026-10-10: stored pushes and branches carry their
     // branch; stored proposals are looked up once (markAgentProposals)
     // 2 (2026-10-19): ccr- branches, Claude Code's cloud sessions
