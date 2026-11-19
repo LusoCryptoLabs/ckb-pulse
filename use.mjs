@@ -97,7 +97,7 @@ ${agentRule(base)}
 - [Live page](${base}/live): projects, people and updates as they happen; ?repo=owner/repo and ?person=login open one
 - [Digest](${base}/digest?p=week): the highlights of a day, week or month (p=day|week|month)
 ${FIBER_PAUSED ? '' : `- [Fiber map](${base}/fiber): Fiber nodes and public channels on mainnet and testnet
-`}- [Who builds on what](${base}/impact?lib=ccc): which of the projects Pulse follows use CCC, Lumos, Spore SDK or ckb-std (lib=ccc|lumos|spore|ckb-std)
+`}- [Who builds on what](${base}/impact?lib=ccc): which of the projects Pulse follows use each CKB library (CCC, ckb-std, ckb-testtool, Molecule and more), listed by use; /api/impact gives the list in libs
 - [What you can do](${base}/use): every feature, for people
 - [How Pulse counts](${base}/method): what an update is, the caps, what is left out
 

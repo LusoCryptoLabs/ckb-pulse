@@ -119,7 +119,7 @@ test('the page has a share button, a switch between libraries, language links th
   const html = page('en')
   assert.equal((html.match(/class="pshare"/g) || []).length, 1)
   assert.ok(html.includes('data-copy="https://pulse.example/impact?lib=ccc&amp;lang=en&amp;d='))
-  assert.ok(html.includes('<b>CCC</b>') && html.includes('lib=lumos&amp;lang=en'))
+  assert.ok(html.includes('<b>CCC</b>') && !html.includes('lib=lumos&amp;lang=en'), 'Lumos has one owner here: it is not listed')
   assert.ok(html.includes('href="https://pulse.example/impact?lib=ccc&amp;lang=pt"'))
   assert.ok(!html.includes('<img src=x>') && html.includes('&lt;img src=x&gt;'))
 })
