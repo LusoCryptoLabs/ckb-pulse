@@ -125,6 +125,9 @@ export const AUTOMATIC_AUTHORS = new Set(['actions-user', 'claude', 'cursoragent
 // when it comes in, taken out of what is stored, and left out of the history, the lists, the cards and the feeds.
 // Named on /privacy. Empty on 2026-11-18: nobody has asked.
 export const OPT_OUT = new Set([])
+// The publisher's own accounts (lowercase GitHub logins). A lesson one of them confirmed as owner of its source is "checked by the
+// owner", not "confirmed": on 2026-11-19 all 21 confirmations were from LusoCryptoLabs, 16 on lessons from its own repositories.
+export const OWN_ACCOUNTS = new Set(['lusocryptolabs', 'tecmeup123'])
 export const isOptedOut = (login) => OPT_OUT.has(String(login).toLowerCase())
 export const isAutomaticAuthor = (login) => isNoiseActor(login) || AUTOMATIC_AUTHORS.has(String(login).toLowerCase()) || isOptedOut(login)
 // Accounts that say they are an AI, not a person (their own bio: "AI assistant ... not a human contributor", seen on
