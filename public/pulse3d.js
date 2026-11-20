@@ -1713,7 +1713,8 @@ function openIntro() {
   introFrom = document.activeElement
   introOpen = true; $('intro').hidden = false
   backdropInert(true)
-  $('intro-go').focus()
+  $('intro-go').focus({ preventScroll: true }) // the button is at the foot of a long card: focusing it must not scroll the title away
+  $('intro').querySelector('.card').scrollTop = 0
 }
 // the first visit: after the intro, a short flight to the project and the person of the week, then back home. Any
 // touch of the controls, a key or a click ends it: a hand on the scene keeps the view it takes, anything else goes

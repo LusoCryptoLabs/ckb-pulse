@@ -628,3 +628,56 @@ test('the lesson page says where it stands first, leads on to the topic, and a p
   assert.ok(html.includes('/learned/start?lang=en') && html.includes('/learned/glossary?lang=en'))
   assert.ok(!html.includes('/lessons'), 'nothing points to the private paths')
 })
+
+// the batch after the audit: the tools, the open answers, a language that stays
+import vm from 'node:vm'
+import { LANG_SCRIPT } from '../digest.mjs'
+
+test('search_lessons says how many match, where the next page starts, what the proof levels are, and gives a hint when nothing matches', () => {
+  const run = (a) => publicLessonTools(() => SD).find((t) => t.name === 'search_lessons').run(a, { base: 'https://pulse.example' })
+  const tool = publicLessonTools(() => SD).find((t) => t.name === 'search_lessons')
+  assert.ok(tool.inputSchema.properties.evidence.enum.includes('best') && tool.inputSchema.properties.offset, 'the schema has evidence and offset')
+  assert.ok(/L3 reproduced by a public test/.test(tool.description) && /nextOffset/.test(tool.description), 'the model is told what the codes mean and how to page')
+  const first = run({ limit: 2 })
+  assert.equal(first.count, 5); assert.equal(first.lessons.length, 2); assert.equal(first.nextOffset, 2)
+  const last = run({ limit: 2, offset: 4 })
+  assert.equal(last.lessons.length, 1); assert.equal(last.nextOffset, undefined)
+  assert.deepEqual(run({ evidence: 'best' }).lessons.map((l) => l.id).sort(), ['ccc/confirmed', 'ccc/reproduced'])
+  const none = run({ query: 'zzzzqx' })
+  assert.equal(none.count, 0); assert.match(none.hint, /Try fewer/)
+  const api = lessonsApi(SD, new URL('https://pulse.example/lessons/api?limit=2&offset=2&evidence=best'), 'https://pulse.example')
+  assert.equal(api.json.count, 2); assert.equal(api.json.lessons.length, 0, 'the offset is past the two that match'); assert.equal(api.json.nextOffset, undefined)
+  const api2 = lessonsApi(SD, new URL('https://pulse.example/lessons/api?limit=3'), 'https://pulse.example')
+  assert.equal(api2.json.count, 5); assert.equal(api2.json.lessons.length, 3); assert.equal(api2.json.nextOffset, 3)
+})
+
+test('on a running server the JSON answers can be read from any website, and a kept week is linked', async () => {
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify(SD) }, async (port) => {
+    const state = await get(port, '/api/state')
+    assert.equal(state.status, 200); assert.equal(state.headers['access-control-allow-origin'], '*')
+    const use = await get(port, '/use')
+    for (const p of ['/learned.json', '/learned.xml']) assert.ok(use.body.includes(p), p)
+    assert.ok(use.body.includes('can be read from any website'))
+    assert.ok((await get(port, '/digest?p=week')).body.includes('<script>try{var q=new URLSearchParams(location.search)'), 'the page carries the language script')
+  })
+})
+
+test('a language chosen once is applied to a page reached without one, and never over a language in the address', () => {
+  const body = LANG_SCRIPT.replace(/^<script>/, '').replace(/<\/script>$/, '')
+  const run = ({ search = '', stored = 'pt', html = 'en' }) => {
+    const calls = []
+    vm.runInNewContext(body, {
+      URLSearchParams, location: { search, pathname: '/use', hash: '#ai', origin: 'https://pulse.example', href: `https://pulse.example/use${search}#ai`, replace: (u) => calls.push(u) },
+      localStorage: { getItem: () => stored }, document: { documentElement: { lang: html } },
+    })
+    return { calls }
+  }
+  assert.deepEqual(run({}).calls, ['/use?lang=pt#ai'], 'a stored language, and a page in another one')
+  assert.deepEqual(run({ search: '?lang=en' }).calls, [], 'a language in the address wins')
+  assert.deepEqual(run({ stored: 'en' }).calls, [], 'the same language: nothing to do')
+  assert.deepEqual(run({ stored: 'zh', html: 'zh-CN' }).calls, [], 'zh-CN is zh')
+  assert.deepEqual(run({ stored: 'xx' }).calls, [], 'only a language the site has')
+  assert.deepEqual(run({ stored: null }).calls, [], 'no choice, no change')
+  assert.deepEqual(run({ search: '?x=1' }).calls, ['/use?x=1&lang=pt#ai'], 'the rest of the address stays')
+  assert.deepEqual(run({ search: '?lang=pt' }).calls, [], 'once the language is in the address there is nothing left to do, so it cannot loop')
+})

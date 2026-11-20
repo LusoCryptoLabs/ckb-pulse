@@ -28,7 +28,9 @@ export const LOOK_META = `<meta name="color-scheme" content="dark light"><meta n
 export const ICON_VERSION = 'lcl1'
 export const iconLinks = (base) => `<link rel="icon" type="image/svg+xml" href="${esc(base)}/icon.svg?v=${ICON_VERSION}"><link rel="icon" type="image/png" sizes="32x32" href="${esc(base)}/icon-32.png?v=${ICON_VERSION}"><link rel="apple-touch-icon" href="${esc(base)}/icon-192.png?v=${ICON_VERSION}">`
 export const fontLinks = (base) => `<link rel="preload" href="${esc(base)}/vendor/fonts/Archivo-latin-wght.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="${esc(base)}/vendor/fonts/SpaceMono-latin-400.woff2" as="font" type="font/woff2" crossorigin>`
-export const menuHead = (base) => `${LOOK_META}${iconLinks(base)}${fontLinks(base)}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${MIGRATE_SCRIPT}${THEME_SCRIPT}`
+// a person who chose a language on any page keeps it on the pages they reach without one in the address (the live page keeps it the same way)
+export const LANG_SCRIPT = `<script>try{var q=new URLSearchParams(location.search),l=localStorage.getItem('ckbpulse.lang');if(!q.get('lang')&&/^(en|pt|zh)$/.test(l)&&l!==document.documentElement.lang.slice(0,2)){q.set('lang',l);location.replace(location.pathname+'?'+q+location.hash)}}catch(e){}</script>`
+export const menuHead = (base) => `${LANG_SCRIPT}${LOOK_META}${iconLinks(base)}${fontLinks(base)}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${MIGRATE_SCRIPT}${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
 export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
@@ -65,6 +67,8 @@ const DAY_MS = 864e5
 // two kept weeks can share a number (the first digest was kept on a Thursday, the next on the Monday after): the
 // earlier one is then named by its date
 export const labelOf = (w) => (D.weeks.some((x) => x !== w && x.at > w.at && weekLabel(x.at) === weekLabel(w.at)) ? new Date(w.at).toISOString().slice(0, 10) : weekLabel(w.at))
+// the labels of the kept weeks, the newest first
+export const keptWeeks = () => [...D.weeks].sort((a, b) => b.at - a.at).map(labelOf)
 export const weekByLabel = (label) => D.weeks.find((w) => labelOf(w) === label) || null
 // a kept week in the shape the page and the card read
 export const weekLeaders = (w) => ({ week: { stats: w.stats, repos: w.repos, commits: w.commits, people: w.people, orgs: w.orgs, bars: [] } })
@@ -125,7 +129,7 @@ details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summa
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
-export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null }) {
+export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [] }) {
   const t = words(lang), L = leaders[period], s = L.stats
   const q = (p, l) => (fixed ? `${url.replace(/\/digest.*$/, '')}/digest/${fixed.label}?lang=${l}` : `${url}?p=${p}&lang=${l}`)
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
@@ -167,6 +171,7 @@ ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).ma
 ${arrivals.length ? `<section><h2>${esc(t('dg.arrived'))}</h2><p class="names">${arrivals.slice(0, 60).map(person).join(' · ')}${arrivals.length > 60 ? ` · ${esc(t('dg.more', { n: arrivals.length - 60 }))}` : ''}</p><p><small>${esc(t('dg.arrivedNote'))}</small></p></section>` : ''}
 ${rhythm && !fixed ? `<section><h2>${esc(t('rh.title'))}</h2><p>${esc(t('rh.line', { commits: rhythm.commits, median: rhythm.median }))}</p><p><small>${esc(t('rh.note'))}</small></p></section>` : ''}
 ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs: cur.devs, month, newDevs: cur.newDevs, yearAgo: ago?.devs ?? 0 }))}</p></section>` : ''}
+${period === 'week' && kept.length ? `<section class="no-print"><h2>${esc(t('dg.earlier'))}</h2><p class="names">${kept.map((k) => (fixed && fixed.label === k ? `<b>${esc(k)}</b>` : `<a href="${esc(base)}/digest/${esc(k)}?lang=${lang}">${esc(k)}</a>`)).join(' · ')}</p></section>` : ''}
 <footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed?lang=${lang}">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
 ${useLink(t, base, lang)}${maker(t)}
