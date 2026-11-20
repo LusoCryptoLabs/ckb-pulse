@@ -14,6 +14,7 @@ const install = (base) => `claude mcp add --transport http ckb-pulse ${base}/mcp
 const API = [
   ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'], ['/api/impact?lib=ccc', 'use.api.impact'],
   ...(FIBER_PAUSED ? [] : [['/api/fiber?net=mainnet|testnet', 'use.api.fiber']]), ['/api/stream', 'use.api.stream'],
+  ['/learned.json', 'use.api.learned'], ['/learned.xml', 'use.api.atom'],
 ]
 
 const PAGE_CSS = `nav.jump{display:grid;gap:10px;margin:0 0 8px}nav.jump .jg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.jump .jl{flex-basis:100%;font:500 11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}nav.jump a{padding:5px 11px;border:1px solid var(--edge);border-radius:999px;text-decoration:none;font-size:14px}h2.grp{margin:34px 0 0}
@@ -36,7 +37,7 @@ export function usePage({ lang, base, url, img = '' }) {
     ['impact', `<p>${esc(t('use.impact.p'))}</p>${go([[`${base}/impact?${L}`, 'use.impact.a']])}`],
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
     ...(FIBER_PAUSED ? [] : [['fiber', `<p>${esc(t('use.fiber.p'))}</p>${go([[`${base}/fiber`, 'use.fiber.a']])}`]]),
-    ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul>`],
+    ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul><p>${esc(t('use.api.open'))}</p>`],
     ['ai', `<p>${esc(t('use.ai.p'))}</p><h3>${esc(t('use.ai.claude'))}</h3><pre><code>${esc(install(base))}</code></pre><h3>${esc(t('use.ai.other'))}</h3><pre><code>${esc(base)}/mcp</code></pre>
 <h3>${esc(t('use.ai.try'))}</h3><blockquote>${esc(t('use.ai.q'))}</blockquote><h3>${esc(t('use.ai.tools'))}</h3>
 <ul class="tools">${[...TOOL_INFO, ...LESSON_TOOL_INFO].map(({ name }) => `<li><code>${esc(name)}</code> <span>${esc(t('use.tool.' + name))}</span></li>`).join('')}</ul>

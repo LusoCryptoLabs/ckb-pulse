@@ -81,6 +81,11 @@ export function barHtml(t, { base = '', lang = 'en', current = '', here = '', sh
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links
 if (typeof document !== 'undefined') {
+  // choosing a language on a plain page is remembered: the pages reached without ?lang= open in it
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a[lang]')
+    try { const l = a && new URL(a.href).searchParams.get('lang'); if (l && /^(en|pt|zh)$/.test(l) && a.lang.slice(0, 2) === l) localStorage.setItem('ckbpulse.lang', l) } catch {}
+  })
   // the look: Auto follows the device (no attribute), Dark and Light are the person's choice, kept in this browser
   const LOOK = 'ckbpulse.theme'
   const chosen = () => { try { const s = localStorage.getItem(LOOK); return s === 'dark' || s === 'lcl' ? 'dark' : s === 'light' || s === 'lcl-light' ? 'light' : 'auto' } catch { return document.documentElement.dataset.theme || 'auto' } }

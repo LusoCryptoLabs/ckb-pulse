@@ -529,8 +529,9 @@ export function lessonsApi(data, url, base) {
     const l = v.lessons.find((x) => x.id === id)
     return l ? { status: 200, json: full(base)(l) } : { status: 404, json: { error: 'no such lesson' } }
   }
-  const found = searchLessons(v.lessons, { q: (q.get('q') || '').slice(0, 200), area: (q.get('area') || '').slice(0, 40), repo: (q.get('repo') || '').slice(0, 200), concept: (q.get('concept') || '').slice(0, 80), level: (q.get('level') || '').slice(0, 10), evidence: (q.get('evidence') || '').slice(0, 4), sort: (q.get('sort') || '').slice(0, 5), limit: int(q.get('limit'), 1, 200, 50) })
-  return { status: 200, json: { from: v.from, to: v.to, read: v.read, areas: v.areas, count: found.length, lessons: found.map(brief(base)) } }
+  const found = searchLessons(v.lessons, { q: (q.get('q') || '').slice(0, 200), area: (q.get('area') || '').slice(0, 40), repo: (q.get('repo') || '').slice(0, 200), concept: (q.get('concept') || '').slice(0, 80), level: (q.get('level') || '').slice(0, 10), evidence: (q.get('evidence') || '').slice(0, 4), sort: (q.get('sort') || '').slice(0, 5), limit: 400 })
+  const limit = int(q.get('limit'), 1, 200, 50), offset = int(q.get('offset'), 0, 400, 0)
+  return { status: 200, json: { from: v.from, to: v.to, read: v.read, areas: v.areas, count: found.length, offset, ...(offset + limit < found.length ? { nextOffset: offset + limit } : {}), lessons: found.slice(offset, offset + limit).map(brief(base)) } }
 }
 
 const told = (message) => Object.assign(new Error(message), { told: true })
@@ -538,9 +539,13 @@ const text = (v, name, max = 200) => { if (v === undefined || v === null || v ==
 const TOOLS = [
   {
     name: 'search_lessons',
-    description: 'Search what CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each with the commits it came from. Every word of the query must match. Use it before writing CKB code that builds transactions, handles witnesses, locks, Fiber channels or indexer queries.',
-    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words, e.g. "witness lock args"' }, area: { type: 'string', description: 'an area id from list_areas' }, limit: { type: 'integer', minimum: 1, maximum: 50 } } },
-    run: (a, { data, base, at }) => { const v = visible(data()); const found = searchLessons(v.lessons, { q: text(a.query, 'query'), area: text(a.area, 'area', 40), limit: Number.isInteger(a.limit) ? Math.min(50, Math.max(1, a.limit)) : 10 }); return { count: found.length, lessons: found.map(brief(base, at)) } },
+    description: 'Search what CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each with the commits it came from. Every word of the query must match (words like "how" and "the" are left out). Use it before writing CKB code that builds transactions, handles witnesses, locks, Fiber channels or indexer queries. count is how many lessons match, not how many came back: when nextOffset is present, call again with it as offset. evidence keeps one level of proof: L3 reproduced by a public test, L2 confirmed by someone who maintains the project, L1 seen in two or more projects, L0 one fix checked against its commit; best is L2 and L3.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words, e.g. "witness lock args"' }, area: { type: 'string', description: 'an area id from list_areas' }, evidence: { type: 'string', enum: ['L0', 'L1', 'L2', 'L3', 'best'], description: 'keep only lessons with this proof' }, limit: { type: 'integer', minimum: 1, maximum: 50 }, offset: { type: 'integer', minimum: 0, description: 'skip this many matches (the nextOffset of the last answer)' } } },
+    run: (a, { data, base, at }) => {
+      const v = visible(data()), limit = Number.isInteger(a.limit) ? Math.min(50, Math.max(1, a.limit)) : 10, offset = Number.isInteger(a.offset) ? Math.max(0, a.offset) : 0
+      const found = searchLessons(v.lessons, { q: text(a.query, 'query'), area: text(a.area, 'area', 40), evidence: text(a.evidence, 'evidence', 4), limit: 400 })
+      return { count: found.length, offset, ...(offset + limit < found.length ? { nextOffset: offset + limit } : {}), ...(found.length ? {} : { hint: 'No lesson has every word. Try fewer or different words, or an area from list_areas.' }), lessons: found.slice(offset, offset + limit).map(brief(base, at)) }
+    },
   },
   {
     name: 'get_lesson',

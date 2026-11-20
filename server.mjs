@@ -9,7 +9,7 @@ import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, high
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits, count, mcpUse } from './visits.mjs'
-import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, THEME_SCRIPT, LOOK_META } from './digest.mjs'
+import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, keptWeeks, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, pageCard, words, rasterise } from './cards.mjs'
 import { initPush, publicKey, subscribe, unsubscribe, notifyEvent, notifyNews } from './push.mjs'
@@ -201,6 +201,7 @@ const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, pr
 function handle(req, res) {
   let url
   try { url = new URL(req.url, 'http://x') } catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('bad request') }
+  if (req.method === 'GET' && url.pathname.startsWith('/api/')) res.setHeader('access-control-allow-origin', '*') // public data, readable from any website
   // liveness stays 200; collector.ok turns false when no organisation feed has answered for 10 minutes, and the VPS
   // watcher (sentinela, SONDA_pulse-*) mails when it does
   if (url.pathname === '/health') {
@@ -238,12 +239,12 @@ function handle(req, res) {
     const w = weekByLabel(dw[1])
     if (!w) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
     hit('digest', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=3600', vary: LANG_VARY }, digestPage({ period: 'week', lang: langOf(url.searchParams, req), leaders: weekLeaders(w), news: w.news.map((n) => ({ ...n, createdAt: new Date(w.at).toISOString() })), trends: null, groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, fixed: { label: dw[1], at: w.at } }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=3600', vary: LANG_VARY }, digestPage({ period: 'week', lang: langOf(url.searchParams, req), kept: keptWeeks(), leaders: weekLeaders(w), news: w.news.map((n) => ({ ...n, createdAt: new Date(w.at).toISOString() })), trends: null, groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, fixed: { label: dw[1], at: w.at } }))
   }
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, kept: keptWeeks(), leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
   }
   // the page of the DAO grants was taken out on 2026-11-18: old links go to the live page, the JSON is gone
   if (url.pathname === '/funded') { res.writeHead(301, { location: '/', 'cache-control': 'public, max-age=3600' }); return res.end() }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { digestPage, feedXml, loadDigests, weeks, digestDue } from '../digest.mjs'
+import { digestPage, feedXml, loadDigests, weeks, digestDue, keptWeeks } from '../digest.mjs'
 
 const period = (n) => ({ stats: { updates: 120, people: 14, projects: 9 }, bars: Array.from({ length: n }, (_, i) => (i * 7) % 11), repos: [['ckb-devrel/ccc', 30], ['nervosnetwork/ckb', 12]], commits: [['ckb-devrel/ccc', 44]], pushes: [], people: [['alice', 20, ''], ['bob', 9, '']], peopleCommits: [], orgs: [['ckb-devrel', 40]] })
 const leaders = { day: period(24), week: period(7), month: period(30) }
@@ -84,6 +84,12 @@ test('each kept week has an address that does not change, and the feed links to 
   assert.match(page, /<b>970<\/b>/)
   assert.match(page, /The week 2026-W43, kept on 26 October 2026/)
   assert.match(page, /og\/digest\.png\?w=2026-W43/)
+  assert.ok(!page.includes('Earlier weeks'), 'no list when the page is not given the kept weeks')
+  const withKept = digestPage({ period: 'week', lang: 'en', leaders: { week: { stats: weekByLabel('2026-W43').stats, repos: [], commits: [], people: [], orgs: [], bars: [] } }, news: [], trends: null, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest', fixed: { label: '2026-W43', at: weeks()[1].at }, kept: keptWeeks() })
+  assert.deepEqual(keptWeeks(), ['2026-W43', '2026-10-22'], 'the newest first')
+  assert.ok(withKept.includes('Earlier weeks') && withKept.includes('<b>2026-W43</b>') && withKept.includes('href="https://pulse.example/digest/2026-10-22?lang=en">2026-10-22</a>'), 'each kept week is linked, the one shown is not')
+  const day = digestPage({ period: 'day', lang: 'en', leaders: { day: { stats: { updates: 1, people: 1, projects: 1 }, repos: [], commits: [], people: [], orgs: [], bars: [] } }, news: [], trends: null, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest', kept: keptWeeks() })
+  assert.ok(!day.includes('Earlier weeks'), 'only the weekly digest lists the weeks')
 })
 
 test('the monthly digest lists who joined, in order, with a note that it is not a ranking', () => {
