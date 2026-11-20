@@ -238,7 +238,7 @@ article.ln.old{opacity:.7}.ln .tg,.lp .tg{font-size:12px;color:var(--mut)}.ln .n
 .lp{overflow-wrap:anywhere}.lp .big{font-size:19px;line-height:1.5;margin:8px 0 14px}.lp h2{font:600 15px var(--font-ui,sans-serif);margin:22px 0 8px;text-transform:none;letter-spacing:0;color:var(--fg)}.lp ul{padding-left:18px}.lp li{margin:4px 0;font-size:14px}.lp li a{color:var(--lime)}.lp dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px;margin:10px 0}.lp dt{color:var(--mut)}.lp dd{margin:0}.lp code{font-size:13px;overflow-wrap:anywhere}.lp .back{font-size:14px}`
 
 const head = (t, { lang, base, title, desc, pub, img, canonical }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
-<meta name="description" content="${esc(desc)}">${pub ? (canonical ? `<link rel="canonical" href="${esc(canonical)}">` : '') : '<meta name="robots" content="noindex">'}${img ? `<meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
+<meta name="description" content="${esc(desc)}">${pub ? `${canonical ? `<link rel="canonical" href="${esc(canonical)}">` : ''}<link rel="alternate" type="application/atom+xml" title="CKB lessons" href="${esc(base)}/learned.xml">` : '<meta name="robots" content="noindex">'}${img ? `<meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 ${menuHead(base)}<style>${CSS}${PAGE_CSS}${MORE_CSS}</style></head><body><main>`
 const href = (base, id, lang, pre = '/lessons') => `${base}${pre}/${id}?lang=${lang}`
 const badges = (t, l) => `${l.status === 'superseded' ? `<span class="bd old">${esc(t('ls.old'))}</span>` : ''}<span class="bd" title="${esc(t('ls.evidence.' + evidenceOf(l)))}">${esc(t('ls.ev.short.' + evidenceOf(l)))}</span>`
@@ -280,6 +280,14 @@ export function lessonsPage({ lang, base, url, data, q = '', area = '', concept 
   const topicChips = `<nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="${esc(base)}${pre}?area=${esc(x.slug)}&amp;lang=${lang}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>`
   const proofChips = `<nav class="ls" aria-label="${esc(t('ls.proof.h'))}"><span class="tg">${esc(t('ls.proof.h'))}:</span>${PROOF.filter(count).map((k) => `<a href="${esc(base)}${pre}?evidence=${k}&amp;lang=${lang}" title="${esc(t('ls.evidence.' + k))}">${esc(t('ls.ev.short.' + k))}<span>${count(k)}</span></a>`).join('')}</nav>
 <details class="lg"><summary>${esc(t('ls.proof.what'))}</summary><ul>${PROOF.map((k) => `<li><b>${esc(t('ls.ev.short.' + k))}</b>: ${esc(t('ls.evidence.' + k))}</li>`).join('')}</ul></details>`
+  // new or newly proven in the last week, for someone who comes back: the lessons that appeared, were confirmed or were reproduced
+  const today = DAY.test(String(data.generated).slice(0, 10)) ? String(data.generated).slice(0, 10) : lessonEvents(data)[0]?.at || ''
+  const since = today ? new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 864e5).toISOString().slice(0, 10) : ''
+  const fresh = !today ? [] : [...lessonEvents(data).filter((e) => e.kind !== 'changed' && e.at >= since),
+    ...v.lessons.filter((l) => DAY.test(String(l.first_seen)) && l.first_seen >= since).map((l) => ({ at: l.first_seen, kind: 'new', l }))]
+    .sort((x, y) => y.at.localeCompare(x.at) || x.l.id.localeCompare(y.l.id))
+  const shown = ['new', 'reproduced', 'confirmed'].flatMap((k) => fresh.filter((e) => e.kind === k).slice(0, 3)) // a few of each: a day of confirmations must not push out the rest
+  const news = fresh.length ? `<section class="lt" id="new"><h2>${esc(t('ls.new.h'))}</h2><ul>${shown.map((e) => `<li><a href="${esc(href(base, e.l.id, lang, pre))}">${esc(e.l.title)}</a><br><span class="tg">${esc(t('ls.new.' + e.kind, { by: e.c?.by || '', role: e.c ? t('ls.conf.role.' + e.c.role) : '' }))} · ${esc(e.at)}</span></li>`).join('')}</ul><p><a href="${esc(base)}${pre}?evidence=best&amp;sort=proof&amp;lang=${lang}">${esc(t('ls.new.proven'))}</a></p></section>` : ''
   const canonical = pub ? `${base}${pre}${keep.size || pg > 1 ? `?${new URLSearchParams([...keep, ...(pg > 1 ? [['page', String(pg)]] : [])])}` : ''}` : ''
   return `${head(t, { lang, base, title, desc, pub, canonical, img: pub ? `${base}${withStamp('/og/learned.png', [v.lessons.length, v.lessons.filter((l) => l.confirmed).length])}&lang=${lang}` : '' })}
 ${pageBar(t, { base, lang, current: '', here })}
@@ -292,7 +300,7 @@ ${!searching && pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!sea
 ${lang !== 'en' ? `<p class="tg">${esc(t('ls.english'))}</p>` : ''}${chips}
 ${searching
     ? `${repo ? `<h2>${esc(t('ls.repo.h', { repo }))}</h2><p><a href="https://github.com/${esc(repo)}" rel="noreferrer">github.com/${esc(repo)}</a></p>${pub && found.length && !q.trim() && !area && !concept && !level && !evidence ? `<p class="tg">${esc(t('ls.conf.batch'))} ${batchConfirmUrls(base, repo, found.map((l) => l.id)).map((u, k, all) => `<a href="${esc(u)}" rel="noreferrer">${esc(all.length > 1 ? t('ls.conf.batch.n', { a: k * BATCH + 1, b: Math.min(found.length, (k + 1) * BATCH) }) : t('ls.conf.batch.a'))}</a>`).join(' · ')}</p>` : ''}` : ''}<p>${esc(found.length ? t(found.fuzzy ? 'ls.fuzzy' : found.partial ? 'ls.partial' : 'ls.found', { n: found.length }) : t('ls.none'))} <a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>${found.length ? '' : `<p class="nt">${esc(t('ls.none.tip'))}</p>${topicChips}`}${pager}${found.slice((pg - 1) * PER_PAGE, pg * PER_PAGE).map((l) => card(t, base, lang, l, pre)).join('\n')}${pager}`
-    : `${proofChips}<p class="lk">${esc(t('ls.all.n', { n: v.lessons.length }))}: <a href="${esc(base)}${pre}?sort=proof&amp;lang=${lang}">${esc(t('ls.sort.proof'))}</a> · <a href="${esc(base)}${pre}?sort=new&amp;lang=${lang}">${esc(t('ls.sort.new'))}</a></p>
+    : `${proofChips}${news}<p class="lk">${esc(t('ls.all.n', { n: v.lessons.length }))}: <a href="${esc(base)}${pre}?sort=proof&amp;lang=${lang}">${esc(t('ls.sort.proof'))}</a> · <a href="${esc(base)}${pre}?sort=new&amp;lang=${lang}">${esc(t('ls.sort.new'))}</a></p>
 <nav class="ls" aria-label="${esc(t('ls.topics'))}">${topics.map((x) => `<a href="#${x.slug}">${esc(x.area)}<span>${x.lessons.length}</span></a>`).join('')}</nav>
 ${topics.map((x) => `<section class="lt" id="${x.slug}"><h2>${esc(x.area)}</h2><p>${esc(x.summary)}</p>
 ${x.lessons.slice(0, PEEK).map((l) => card(t, base, lang, l, pre)).join('\n')}${x.lessons.length > PEEK ? `<p><a href="${esc(base)}${pre}?area=${esc(x.slug)}&amp;lang=${lang}">${esc(t('ls.topic.all', { n: x.lessons.length }))}</a></p>` : ''}</section>`).join('\n')}`}
@@ -505,13 +513,38 @@ ${pageFoot(t, url)}
 }
 
 const xml = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c])
-/** An Atom feed of the lessons most recently changed. */
-export function lessonsFeed({ base, data, n = 30 }) {
-  const v = visible(data), items = [...v.lessons].sort((a, b) => String(b.last_touched).localeCompare(String(a.last_touched)) || a.id.localeCompare(b.id)).slice(0, n)
-  const updated = `${items[0]?.last_touched || '2026-11-19'}T00:00:00Z`
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+/** What happened to the lessons, newest first: a lesson new or changed, one a maintainer confirmed, one a public test reproduces.
+ * The proof is read the same way the page reads it (a pattern for every field), and an event with no date is not one. */
+export function lessonEvents(data) {
+  const v = visible(data), out = []
+  for (const l of v.lessons) {
+    if (DAY.test(String(l.last_touched))) out.push({ at: l.last_touched, kind: 'changed', l })
+    const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) && DAY.test(String(l.confirmed.date)) ? l.confirmed : null
+    if (c) out.push({ at: c.date, kind: 'confirmed', l, c })
+    const r = reproduced(l)
+    if (r && DAY.test(String(r.date))) out.push({ at: r.date, kind: 'reproduced', l, r })
+  }
+  const rank = { reproduced: 0, confirmed: 1, changed: 2 }
+  return out.sort((x, y) => y.at.localeCompare(x.at) || rank[x.kind] - rank[y.kind] || x.l.id.localeCompare(y.l.id))
+}
+/** An Atom feed of what happened to the lessons: the newest changes, and every confirmation and reproduction, each its own entry
+ * (a subscriber is told when a lesson earns its proof, not only when its text changes). */
+export function lessonsFeed({ base, data, n = 60 }) {
+  const events = lessonEvents(data).slice(0, n)
+  const updated = `${events[0]?.at || '2026-11-19'}T00:00:00Z`
+  const url = (l) => `${xml(base)}/learned/${xml(l.id)}`
+  const entry = ({ at, kind, l, c, r }) => {
+    const title = kind === 'confirmed' ? `Confirmed by @${c.by}: ${l.title}` : kind === 'reproduced' ? `Reproduced by a test: ${l.title}` : l.title
+    const id = kind === 'changed' ? url(l) : `${url(l)}#${kind}-${at}`
+    const said = kind === 'confirmed' ? `Confirmed by @${c.by}, ${c.role === 'owner' ? 'who owns' : c.role === 'author' ? 'who wrote' : 'who is a public member of the organisation that owns'} a source of this lesson. ${l.lesson}`
+      : kind === 'reproduced' ? `${r.covers === 'all' ? 'A public test runs this lesson' : `A public test runs a part of this lesson (${r.covers.slice(6)})`} on ${r.library} ${r.version}: https://github.com/${r.repo}/blob/${r.commit}/${r.test}. ${l.lesson}`
+        : l.lesson
+    return `<entry><title>${xml(title)}</title><id>${id}</id><link href="${url(l)}"/><updated>${at}T00:00:00Z</updated><summary>${xml(said)}</summary></entry>`
+  }
   return `<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>CKB lessons</title><subtitle>What CKB projects learned, each lesson checked against the commit it came from. CC BY 4.0.</subtitle><id>${xml(base)}/learned</id><link href="${xml(base)}/learned"/><link rel="self" href="${xml(base)}/learned.xml"/><updated>${updated}</updated>
-${items.map((l) => `<entry><title>${xml(l.title)}</title><id>${xml(base)}/learned/${xml(l.id)}</id><link href="${xml(base)}/learned/${xml(l.id)}"/><updated>${l.last_touched}T00:00:00Z</updated><summary>${xml(l.lesson)}</summary></entry>`).join('\n')}
+<feed xmlns="http://www.w3.org/2005/Atom"><title>CKB lessons</title><subtitle>What CKB projects learned, each lesson checked against the commit it came from, and when one is confirmed by a maintainer or reproduced by a public test. CC BY 4.0.</subtitle><id>${xml(base)}/learned</id><link href="${xml(base)}/learned"/><link rel="self" href="${xml(base)}/learned.xml"/><updated>${updated}</updated>
+${events.map(entry).join('\n')}
 </feed>
 `
 }
