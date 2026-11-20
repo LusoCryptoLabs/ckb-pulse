@@ -273,6 +273,20 @@ export const batchConfirmUrls = (base, repo, ids) => {
   }
   return out
 }
+// The public test that runs what a lesson says (evidence L3 when it covers all of it). Only our own tests repository is
+// linked, and every field is matched to a pattern before it is shown: the record travels through a public JSON file.
+const TESTS_REPO = 'LusoCryptoLabs/ckb-lesson-tests'
+const REPRO_OK = { test: /^tests\/[a-z0-9-]{1,40}\/[a-z0-9-]{1,80}\.test\.mjs$/, commit: /^[0-9a-f]{7,40}$/, library: /^(@[a-z0-9-]{1,40}\/)?[a-z0-9-]{1,60}$/, version: /^\d{1,4}\.\d{1,4}\.\d{1,4}$/, covers: /^(all|part: [A-Za-z0-9 ,.()'-]{3,160})$/ }
+export function reproduced(l) {
+  const r = l.reproduced
+  return r && r.repo === TESTS_REPO && Object.entries(REPRO_OK).every(([k, re]) => re.test(String(r[k] ?? ''))) ? r : null
+}
+function reproBlock(t, l) {
+  const r = reproduced(l)
+  if (!r) return ''
+  const part = r.covers === 'all' ? '' : ` ${esc(t('ls.repro.part'))} ${esc(r.covers.slice(6))}.`
+  return `<h2>${esc(t('ls.repro'))}</h2><p>${esc(t('ls.repro.text', { lib: r.library, ver: r.version }))}${part}</p><p><a href="https://github.com/${TESTS_REPO}/blob/${esc(r.commit)}/${esc(r.test)}" rel="noreferrer"><code>${esc(r.test)}</code></a></p>`
+}
 function confirmBlock(t, base, l) {
   const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) ? l.confirmed : null
   const by = c ? `<p class="nt">${esc(t('ls.conf.by'))} <a href="https://github.com/${esc(c.by)}" rel="noreferrer">@${esc(c.by)}</a> (${esc(t('ls.conf.role.' + c.role))})${c.date ? `, ${esc(c.date)}` : ''}.</p>` : ''
@@ -296,6 +310,7 @@ ${l.note ? `<p class="nt">${esc(l.note)}</p>` : ''}
 ${l.superseded_by ? `<p class="nt">${esc(t('ls.replaced'))} ${link(l.superseded_by)}</p>` : ''}
 ${(l.patterns || []).length ? `<h2>${esc(t('ls.pattern'))}</h2>${patternBlock(t, l.patterns)}` : ''}
 ${(l.tests || []).length ? `<h2>${esc(t('ls.tests'))}</h2><p class="nt">${esc(t('ls.tests.note'))}</p><ul>${l.tests.map((x) => `<li><a href="https://github.com/${esc(x.repo)}/commit/${esc(x.hash)}" rel="noreferrer">${esc(x.repo)}</a>: ${x.files.map((f) => `<code>${esc(f)}</code>`).join(', ')}</li>`).join('')}</ul>` : ''}
+${pub ? reproBlock(t, l) : ''}
 <dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(l.evidence || 'L0')}: ${esc(t('ls.evidence.' + (l.evidence || 'L0')))}</dd>
