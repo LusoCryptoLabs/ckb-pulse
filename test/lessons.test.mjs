@@ -546,3 +546,85 @@ test('a public lesson page links the test that reproduces it, and shows nothing 
     assert.ok(!page(bad).includes('Reproduced by a test'), JSON.stringify(bad))
   }
 })
+
+// finding the lessons: proof in words, a filter and an order for it, a search that forgives, a library's own topic, a page for a wrong address
+import { notFoundPage, lessonsOf } from '../lessons.mjs'
+const EV = (id, evidence, o = {}) => ({ ...PUB.lessons[0], id: `ccc/${id}`, evidence, ...o })
+const SD = { ...PUB, areas: { ccc: { name: 'CCC (TypeScript SDK)', summary: 'Building with CCC.' }, node: { name: 'CKB node', summary: 'The node.' } }, lessons: [
+  EV('one-fix', 'L0', { title: 'Check the minimum capacity first', lesson: 'A cell needs enough capacity for its own size.', concepts: ['Capacity and cell size'], last_touched: '2026-11-10' }),
+  EV('seen-again', 'L1', { title: 'completeFeeBy needs a change lock', lesson: 'Pass the lock that gets the change.', concepts: ['Fees'], last_touched: '2026-11-12' }),
+  EV('confirmed', 'L2', { title: 'Sign after the fee is final', lesson: 'Complete the fee before you sign.', concepts: ['Fees'], last_touched: '2026-11-14', confirmed: { by: 'alice', role: 'owner', date: '2026-11-15' } }),
+  EV('reproduced', 'L3', { title: 'Witness placeholder', lesson: 'Write the placeholder before the hash.', concepts: ['Witnesses'], last_touched: '2026-11-16' }),
+  EV('on-node', 'L0', { title: 'Indexer answers in pages', lesson: 'Read every page.', concepts: ['Indexer'], area: 'node', last_touched: '2026-11-11' })] }
+const idsOf = (o) => searchLessons(SD.lessons, o).map((l) => l.id)
+const listing = (o = {}) => lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/learned', data: SD, pub: true, ...o })
+
+test('the proof is shown in words, never as a bare code, and can be filtered and ordered', () => {
+  const html = listing({ evidence: 'best', sort: 'proof' })
+  assert.ok(html.includes('>Reproduced<') && html.includes('>Confirmed<') && !/>L[0-3]</.test(html), 'words on the cards')
+  assert.deepEqual([...html.matchAll(/<h3><a href="[^"]*\/learned\/ccc\/([a-z-]+)\?/g)].map((m) => m[1]), ['reproduced', 'confirmed'], 'the best proven first, and only those')
+  assert.ok(html.includes('class="fc"') && html.includes('Best proven') && html.includes('Most proven first'), 'what is being shown is named, each with a way to drop it')
+  const index = listing()
+  assert.ok(index.includes('How proven') && index.includes('?evidence=L3&amp;lang=en') && index.includes('What do these mean?') && index.includes('reproduced by a public test'), 'the index says what the words mean')
+  assert.ok(index.includes('?sort=proof&amp;lang=en') && index.includes('?sort=new&amp;lang=en'), 'one list of all of them')
+  assert.deepEqual(idsOf({ evidence: 'L2' }), ['ccc/confirmed'])
+  assert.deepEqual(idsOf({ sort: 'proof' }).slice(0, 2), ['ccc/reproduced', 'ccc/confirmed'])
+  assert.deepEqual(idsOf({ sort: 'new' }).slice(0, 2), ['ccc/reproduced', 'ccc/confirmed'])
+  const wrong = listing({ evidence: 'L9', level: 'x', area: 'nope', sort: 'y' })
+  assert.ok(wrong.includes('How proven') && !wrong.includes('class="fc"'), 'a wrong value is dropped: the index, not an empty library')
+  assert.ok(listing({ lang: 'pt', evidence: 'L3' }).includes('Reproduzida') && listing({ lang: 'zh', evidence: 'L3' }).includes('已复现'))
+})
+
+test('the search takes a question, a name inside a longer name and a letter wrong, and fee is not found inside coffee', () => {
+  assert.deepEqual(idsOf({ q: 'how do I pass the change lock to complete fee' }), ['ccc/seen-again'], 'words that say nothing are left out')
+  assert.deepEqual(idsOf({ q: 'completefee' }), ['ccc/seen-again'], 'the start of a name')
+  assert.ok(idsOf({ q: 'complete fee' }).includes('ccc/seen-again'), 'completeFeeBy is complete, fee and by')
+  assert.deepEqual(idsOf({ q: 'capcity' }), [], 'strict by default')
+  const loose = searchLessons(SD.lessons, { q: 'capcity', loose: true })
+  assert.deepEqual(loose.map((l) => l.id), ['ccc/one-fix']); assert.equal(loose.fuzzy, true)
+  const one = { ...SD.lessons[0], id: 'ccc/coffee', title: 'Coffee break', lesson: 'Coffee break', concepts: [], applies_to: [], sources: [] }
+  assert.deepEqual(searchLessons([one], { q: 'fee' }), [], 'a piece inside a word is not a word')
+  assert.ok(idsOf({ q: 'the' }).length > 0, 'a query of only such words still searches for them')
+})
+
+test('a library has the lessons of its topic, a project the lessons of its own commits', () => {
+  const lib = lessonsOf(SD, 'ckb-devrel/ccc')
+  assert.equal(lib.area, 'ccc'); assert.equal(lib.count, 4); assert.equal(lib.top[0].id, 'ccc/reproduced', 'the best proven first')
+  const own = lessonsOf(SD, 'owner/repo')
+  assert.equal(own.area, undefined); assert.equal(own.count, 5)
+  assert.deepEqual(lessonsOf(SD, 'nobody/nothing'), { count: 0, top: [] })
+})
+
+test('a wrong address gets a page with a way on, and a slip in a lesson address finds the lesson', () => {
+  const html = notFoundPage({ lang: 'en', base: 'https://pulse.example', url: 'https://pulse.example/learned/ccc/reprodused', data: SD, path: '/learned/ccc/reprodused' })
+  assert.ok(html.includes('This page does not exist') && html.includes('<meta name="robots" content="noindex">') && html.includes('href="https://pulse.example/learned/ccc/reproduced?lang=en"') && html.includes('Closest lessons:'))
+  for (const link of ['/live?lang=en', '/digest?p=week&amp;lang=en', '/learned?lang=en', '/use?lang=en']) assert.ok(html.includes(`href="https://pulse.example${link}"`), link)
+  assert.ok(!notFoundPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: SD, path: '/nope' }).includes('Closest lessons:'))
+  assert.ok(!notFoundPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: null, path: '/nope' }).includes('<form class="lq"'), 'no lessons, no search of them')
+  assert.ok(notFoundPage({ lang: 'pt', base: 'x', url: 'u', data: SD, path: '/x' }).includes('Esta página não existe'))
+})
+
+test('on a running server: robots.txt, a sitemap with every lesson, and a page for a wrong address that only a browser gets', async () => {
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify(SD) }, async (port) => {
+    const r = await get(port, '/robots.txt', { host: 'pulse.example' })
+    assert.equal(r.status, 200); assert.ok(r.body.includes('Disallow: /lessons') && r.body.includes('Disallow: /api/') && /Sitemap: https?:\/\/pulse\.example\/sitemap\.xml/.test(r.body), r.body)
+    const m = await get(port, '/sitemap.xml', { host: 'pulse.example' })
+    assert.equal(m.status, 200); assert.match(m.headers['content-type'], /xml/)
+    for (const p of ['/learned</loc>', '/learned/start</loc>', '/learned/glossary</loc>', '/learned/ccc/reproduced</loc>', '/use</loc>']) assert.ok(m.body.includes(p), p)
+    assert.equal((m.body.match(/<loc>[^<]*\/learned\/ccc\//g) || []).length, 5); assert.ok(m.body.includes('<lastmod>2026-11-16</lastmod>'))
+    assert.ok(!/<loc>[^<]*\/lessons/.test(m.body), 'nothing private')
+    const person = await get(port, '/learned/ccc/reprodused', { accept: 'text/html' })
+    assert.equal(person.status, 404); assert.ok(person.body.includes('This page does not exist') && person.body.includes('Closest lessons:')); assert.equal(person.headers['x-robots-tag'], 'noindex')
+    const program = await get(port, '/no-such-page-here', { accept: 'application/json' })
+    assert.equal(program.status, 404); assert.equal(program.body, 'not found')
+  })
+})
+
+test('the lesson page says where it stands first, leads on to the topic, and a public page names itself', () => {
+  const html = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: SD, id: 'ccc/confirmed', pub: true })
+  assert.ok(html.indexOf('class="tg st"') > 0 && html.indexOf('class="tg st"') < html.indexOf('class="big"'), 'the proof and the check come before the rule')
+  assert.ok(html.includes('<link rel="canonical" href="https://pulse.example/learned/ccc/confirmed">'))
+  assert.ok(html.includes('More about CCC (TypeScript SDK)') && html.includes('href="https://pulse.example/learned/ccc/seen-again?lang=en"') && !html.includes('href="https://pulse.example/learned/ccc/on-node'), 'the same topic, not another')
+  assert.ok(html.includes('/learned/start?lang=en') && html.includes('/learned/glossary?lang=en'))
+  assert.ok(!html.includes('/lessons'), 'nothing points to the private paths')
+})
