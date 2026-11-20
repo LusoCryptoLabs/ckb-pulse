@@ -39,6 +39,7 @@ button, select, input { font: inherit; color: inherit; }
 .search .row { display: flex; gap: 8px; align-items: center; width: 100%; padding: 8px; border: 0; border-radius: 7px; background: none; text-align: left; cursor: pointer; }
 .search .row:hover, .search .row:focus-visible { background: color-mix(in srgb, var(--lime) 12%, transparent); }
 .search li.none { padding: 8px; color: var(--mut); }
+.search li.none a { color: var(--lime); display: inline-block; padding: 6px 0; }
 .search li img { width: 24px; height: 24px; border-radius: 50%; }
 .search li .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .search li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

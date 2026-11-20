@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, shownLibs, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, notFoundPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -248,6 +248,18 @@ function handle(req, res) {
   // the page of the DAO grants was taken out on 2026-11-18: old links go to the live page, the JSON is gone
   if (url.pathname === '/funded') { res.writeHead(301, { location: '/', 'cache-control': 'public, max-age=3600' }); return res.end() }
   if (url.pathname === '/api/funded') { res.writeHead(410, { 'content-type': 'application/json' }); return res.end('{"error":"removed"}') }
+  // what a search engine may read, and every page worth finding: the pages, the lessons, nothing private
+  if (url.pathname === '/robots.txt') {
+    res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' })
+    return res.end(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /lessons\nDisallow: /present\n\nSitemap: ${baseOf(req)}/sitemap.xml\n`)
+  }
+  if (url.pathname === '/sitemap.xml') {
+    const b = baseOf(req), data = loadLessons(DATA_DIR, 'public-lessons.json'), many = data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length ? visible(data).lessons : []
+    const pages = ['/', '/live', '/digest?p=week', '/impact', '/use', '/method', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
+    const loc = (p, at) => `<url><loc>${(b + p).replace(/&/g, '&amp;')}</loc>${at ? `<lastmod>${at}</lastmod>` : ''}</url>`
+    res.writeHead(200, { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' })
+    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => loc(p)).join('\n')}\n${many.map((l) => loc(`/learned/${l.id}`, /^\d{4}-\d{2}-\d{2}$/.test(String(l.last_touched)) ? l.last_touched : '')).join('\n')}\n</urlset>\n`)
+  }
   // everything Pulse does, for people and for AI agents
   if (url.pathname === '/use') {
     hit('use', ipOf(req), req.headers['user-agent'])
@@ -268,7 +280,7 @@ function handle(req, res) {
       if (url.pathname === '/learned/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, reviewPage({ lang, base: b, url: `${b}/learned/review`, data, pub: true }))
       if (url.pathname === '/learned/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, startPage({ lang, base: b, url: `${b}/learned/start`, data, pub: true }))
       if (url.pathname === '/learned.json') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' }); return res.end(JSON.stringify(data)) }
-      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), repo: (url.searchParams.get('repo') || '').slice(0, 201), page: (url.searchParams.get('page') || '').slice(0, 4), pub: true }))
+      if (url.pathname === '/learned') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...pub }, lessonsPage({ lang, base: b, url: `${b}/learned`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), evidence: (url.searchParams.get('evidence') || '').slice(0, 4), sort: (url.searchParams.get('sort') || '').slice(0, 5), repo: (url.searchParams.get('repo') || '').slice(0, 201), page: (url.searchParams.get('page') || '').slice(0, 4), pub: true }))
       const lid = url.pathname.slice('/learned/'.length)
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: lid, pub: true })
       if (page) hit(`learned:${lid}`, ipOf(req), req.headers['user-agent']) // reads of this lesson: a count, no one in it
@@ -294,7 +306,7 @@ function handle(req, res) {
       if (url.pathname === '/lessons/glossary') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, glossaryPage({ lang, base: b, url: `${b}/lessons/glossary`, data }))
       if (url.pathname === '/lessons/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, reviewPage({ lang, base: b, url: `${b}/lessons/review`, data }))
       if (url.pathname === '/lessons/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, startPage({ lang, base: b, url: `${b}/lessons/start`, data }))
-      if (url.pathname === '/lessons') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, lessonsPage({ lang, base: b, url: `${b}/lessons`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), page: (url.searchParams.get('page') || '').slice(0, 4) }))
+      if (url.pathname === '/lessons') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, lessonsPage({ lang, base: b, url: `${b}/lessons`, data, q: (url.searchParams.get('q') || '').slice(0, 200), area: (url.searchParams.get('area') || '').slice(0, 40), concept: (url.searchParams.get('concept') || '').slice(0, 80), level: (url.searchParams.get('level') || '').slice(0, 10), evidence: (url.searchParams.get('evidence') || '').slice(0, 4), sort: (url.searchParams.get('sort') || '').slice(0, 5), page: (url.searchParams.get('page') || '').slice(0, 4) }))
       const page = lessonPage({ lang, base: b, url: `${b}${url.pathname}`, data, id: url.pathname.slice('/lessons/'.length) })
       if (page) return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, page)
     }
@@ -436,7 +448,13 @@ function handle(req, res) {
   let name
   try { name = decodeURIComponent(rel) } catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('bad request') }
   const f = path.join(ROOT, rel === '/' ? 'index.html' : name)
-  if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found') }
+  if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) {
+    if (req.method === 'GET' && /text\/html/.test(req.headers.accept || '')) { // a person: a page with a way on; a program keeps the short answer
+      const b = baseOf(req)
+      return sendText(req, res, 404, { 'content-type': TYPES['.html'], 'cache-control': 'no-store', 'x-robots-tag': 'noindex', vary: LANG_VARY }, notFoundPage({ lang: langOf(url.searchParams, req), base: b, url: `${b}${url.pathname}`, data: loadLessons(DATA_DIR, 'public-lessons.json'), path: url.pathname }))
+    }
+    res.writeHead(404); return res.end('not found')
+  }
   // the page's own files change together on every deploy: always ask again (a 304 when nothing changed). three.js and
   // d3 under the current hash never change; an old hash or the old unversioned address still answers
   const type = TYPES[path.extname(f)] || 'application/octet-stream'

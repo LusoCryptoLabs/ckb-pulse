@@ -31,6 +31,7 @@ export function usePage({ lang, base, url, img = '' }) {
   const parts = [
     ['watch', `<p>${esc(t('use.watch.p'))}</p>${go([[`${base}/live?${L}`, 'use.watch.a'], [`${base}/present?${L}`, 'use.watch.screen', 1]])}`],
     ['follow', `<p>${esc(t('use.follow.p'))}</p>${go([[`${base}/digest?p=week&${L}`, 'use.follow.digest'], [`${base}/?tab=new&${L}`, 'use.follow.notify', 1], [`${base}/feed?${L}`, 'use.follow.feed', 1]])}`],
+    ['learn', `<p>${esc(t('use.learn.p'))}</p>${go([[`${base}/learned?${L}`, 'use.learn.a'], [`${base}/learned/start?${L}`, 'use.learn.start', 1], [`${base}/learned/glossary?${L}`, 'use.learn.gloss', 1]])}`],
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
     ['impact', `<p>${esc(t('use.impact.p'))}</p>${go([[`${base}/impact?${L}`, 'use.impact.a']])}`],
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
@@ -45,7 +46,7 @@ export function usePage({ lang, base, url, img = '' }) {
   ]
   // what is for anyone first, what is for people who write code after: the page used to run them together
   const have = new Set(parts.map(([id]) => id))
-  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['badge', 'impact', 'data', 'ai', 'rule', 'action']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
+  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['learn', 'badge', 'impact', 'data', 'ai', 'rule', 'action']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
   const byId = new Map(parts)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}

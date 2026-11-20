@@ -34,15 +34,17 @@ test('the landing says what Pulse is, in each language, with the last day in a s
   }
 })
 
-test('one way into the live view, the week, and eight doors in two groups', () => {
+test('one way into the live view, the week and the lessons, and nine doors in two groups', () => {
   for (const lang of ['en', 'pt', 'zh']) {
     const html = page(lang)
     assert.ok(html.includes(`<a href="${base}/live?lang=${lang}">${words(lang)('ld.cta')}</a>`), `${lang}: the way in`)
-    assert.equal((html.match(/<a class="card"/g) || []).length, 8, lang)
+    assert.equal((html.match(/<a class="card"/g) || []).length, 9, lang)
+    assert.ok(html.includes(`<a class="alt" href="${base}/learned?lang=${lang}">${words(lang)('m.learned')}</a>`), `${lang}: the lessons are in the first screen`)
     const all = html.indexOf(`<h2>${words(lang)('use.group.all')}</h2>`), dev = html.indexOf(`<h2>${words(lang)('use.group.dev')}</h2>`)
     assert.ok(all > 0 && dev > all, `${lang}: for everyone first`)
     for (const id of ['live', 'digest', 'screen', 'add']) assert.ok(html.indexOf(`id="d-${id}"`) > all && html.indexOf(`id="d-${id}"`) < dev, id)
-    for (const id of ['impact', 'badge', 'data', 'method']) assert.ok(html.indexOf(`id="d-${id}"`) > dev, id)
+    for (const id of ['learned', 'impact', 'badge', 'data', 'method']) assert.ok(html.indexOf(`id="d-${id}"`) > dev, id)
+    assert.ok(html.indexOf('id="d-learned"') < html.indexOf('id="d-impact"'), `${lang}: the lessons come first for developers`)
   }
 })
 
