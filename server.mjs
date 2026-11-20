@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, shownLibs, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, notFoundPage, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, notFoundPage, confirmedByOthers, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -118,7 +118,7 @@ async function shareCard(req, res, url) {
   if (url.pathname === '/og/learned.png') {
     const data = loadLessons(DATA_DIR, 'public-lessons.json'), t = words(lang)
     if (data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length) {
-      const v = visible(data), projects = new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size, confirmed = v.lessons.filter((l) => l.confirmed).length
+      const v = visible(data), projects = new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size, confirmed = v.lessons.filter(confirmedByOthers).length
       png = await card(`ll|${v.lessons.length}|${projects}|${confirmed}|${lang}|${host}`, () => pageCard({ eyebrow: 'CKB LESSONS · CC BY 4.0', title: t('ls.h1'), numbers: [[v.lessons.length, t('og.lessons')], [projects, t('k.projects')], ...(confirmed ? [[confirmed, t('og.confirmed')]] : [])], line: t('og.lessons.line'), lang, host }))
     }
   }

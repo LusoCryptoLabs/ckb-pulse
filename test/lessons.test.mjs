@@ -727,3 +727,40 @@ test('the public lesson pages point to the feed, the private ones do not', () =>
   assert.ok(pub.includes('<link rel="alternate" type="application/atom+xml" title="CKB lessons" href="https://pulse.example/learned.xml">'))
   assert.ok(!lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: V2 }).includes('learned.xml'))
 })
+
+// a confirmation by the publisher's own account is a check by the owner, not a confirmation
+import { confirmedByOthers, evidenceOf } from '../lessons.mjs'
+const MINE = { by: 'LusoCryptoLabs', role: 'owner', date: '2026-11-19' }
+const OD = { ...FD, lessons: [...FD.lessons,
+  EV('ours', 'L2', { title: 'Checked by us', lesson: 'Our rule.', first_seen: '2026-10-09', last_touched: '2026-10-10', confirmed: MINE }),
+  EV('ours-low', 'L2', { title: 'Checked by us too', lesson: 'Our other rule.', first_seen: '2026-10-09', last_touched: '2026-10-11', confirmed: { ...MINE, by: 'lusocryptolabs' } })] }
+
+test('a lesson the publisher\'s own account confirmed shows as checked by the owner, and "best proven" leaves it out', () => {
+  assert.equal(evidenceOf(OD.lessons.find((l) => l.id === 'ccc/ours')), 'OWN')
+  assert.equal(evidenceOf(OD.lessons.find((l) => l.id === 'ccc/ours-low')), 'OWN', 'a login in any case')
+  assert.equal(evidenceOf(OD.lessons.find((l) => l.id === 'ccc/proved')), 'L2', 'someone else stays confirmed')
+  assert.equal(evidenceOf({ evidence: 'L3', confirmed: MINE }), 'L3', 'reproduced stays reproduced')
+  assert.ok(confirmedByOthers(OD.lessons.find((l) => l.id === 'ccc/proved')) && !confirmedByOthers(OD.lessons.find((l) => l.id === 'ccc/ours')) && !confirmedByOthers(OD.lessons[0]))
+  const ids = (o) => searchLessons(OD.lessons, o).map((l) => l.id)
+  assert.deepEqual(ids({ evidence: 'best' }).sort(), ['ccc/forged', 'ccc/old', 'ccc/proved', 'ccc/tested'], 'reproduced, and confirmed by someone else')
+  assert.ok(!ids({ evidence: 'best' }).includes('ccc/ours') && !ids({ evidence: 'best' }).includes('ccc/ours-low'), 'the filter for the best proven has no check by the owner')
+  assert.deepEqual(ids({ evidence: 'OWN' }).sort(), ['ccc/ours', 'ccc/ours-low'])
+  assert.deepEqual(ids({ evidence: 'L2' }).sort(), ['ccc/old', 'ccc/proved'], 'L2 is now only a confirmation by someone else')
+  const page = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: OD, pub: true, evidence: 'OWN' })
+  assert.ok(/class="bd"[^>]*>Checked by the owner</.test(page) && !/class="bd"[^>]*>Confirmed</.test(page), 'the badge on the cards')
+  const index = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: OD, pub: true })
+  assert.ok(index.includes('?evidence=OWN&amp;lang=en') && index.includes('checked by the owner of the project it came from, who is also the publisher'), 'a chip and its meaning on the index')
+  const one = lessonPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: OD, id: 'ccc/ours', pub: true })
+  assert.ok(one.includes('Checked by <a href="https://github.com/LusoCryptoLabs"') && !one.includes('Confirmed by <a'), 'the line under the rule says checked, not confirmed')
+  assert.ok(lessonPage({ lang: 'en', base: 'x', url: 'u', data: OD, id: 'ccc/proved', pub: true }).includes('Confirmed by <a href="https://github.com/alice"'))
+  assert.ok(lessonsPage({ lang: 'pt', base: 'x', url: 'u', data: OD, pub: true, evidence: 'OWN' }).includes('Verificada pelo dono') && lessonsPage({ lang: 'zh', base: 'x', url: 'u', data: OD, pub: true, evidence: 'OWN' }).includes('由所有者核对'))
+})
+
+test('the feed calls it a check by the owner, and what is new this week does not count it as proof', () => {
+  const xml = lessonsFeed({ base: 'https://pulse.example', data: OD })
+  assert.ok(xml.includes('<title>Checked by the owner (@LusoCryptoLabs): Checked by us</title><id>https://pulse.example/learned/ccc/ours#confirmed-2026-11-19</id>'), 'the id stays what it was')
+  assert.ok(xml.includes('Checked by @LusoCryptoLabs, who also publishes these lessons') && xml.includes('<title>Confirmed by @alice: Confirmed by alice</title>'))
+  const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: OD, pub: true })
+  const block = html.slice(html.indexOf('id="new"'), html.indexOf('</section>', html.indexOf('id="new"')))
+  assert.ok(block.includes('confirmed by @alice') && !block.includes('Checked by us') && !block.includes('LusoCryptoLabs'))
+})

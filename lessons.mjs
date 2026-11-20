@@ -10,7 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
 import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, maker, langLinks } from './digest.mjs'
-import { isOptedOut } from './config.mjs'
+import { isOptedOut, OWN_ACCOUNTS } from './config.mjs'
 import { rpcServer } from './mcp.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -99,8 +99,12 @@ const stem = (w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.sl
 const camel = (s) => String(s || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2')
 // words that say nothing in a question ("why does my transaction fail with an error"): left out of the query when other words remain
 const STOP = new Set('a an the and or of to in on at for with from by as is are was were be been it its this that these those i me my we our you your do does did how why what when where which who can could should would will if then than so but into out up about over after before'.split(' '))
-const RANK = { L3: 3, L2: 2, L1: 1, L0: 0 }
-export const evidenceOf = (l) => l.evidence || 'L0'
+const RANK = { L3: 3, L2: 2, OWN: 1, L1: 1, L0: 0 }
+const byOwn = (l) => !!l.confirmed && OWN_ACCOUNTS.has(String(l.confirmed.by || '').toLowerCase())
+/** The proof a lesson shows: its evidence level, except that L2 confirmed by the publisher's own account reads OWN (checked by the owner). */
+export const evidenceOf = (l) => { const e = l.evidence || 'L0'; return e === 'L2' && byOwn(l) ? 'OWN' : e }
+/** True when someone other than the publisher confirmed it. */
+export const confirmedByOthers = (l) => !!l.confirmed && !byOwn(l)
 // a word starts a word of the lesson (not any piece inside one: fee is not in coffee)
 const has = (t, w) => ` ${t}`.includes(` ${w}`)
 /** True when a and b differ by one letter: one added, left out or changed, or two next to each other swapped. */
@@ -248,12 +252,12 @@ const card = (t, base, lang, l, pre) => `<article class="ln${l.status === 'super
 
 const PER_PAGE = 12
 const PEEK = 2
-const PROOF = ['L3', 'L2', 'L1', 'L0']
+const PROOF = ['L3', 'L2', 'OWN', 'L1', 'L0']
 export function lessonsPage({ lang, base, url, data, q = '', area = '', concept = '', level = '', evidence = '', sort = '', repo = '', page = 1, pub = false }) {
   const pre = pub ? '/learned' : '/lessons'
   const t = words(lang), v = visible(data), topics = shownLessons(data)
   if (!/^[A-Za-z0-9-]{1,39}\/[\w-][\w.-]{0,99}$/.test(repo)) repo = '' // a GitHub owner/repo, nothing else
-  if (!['L0', 'L1', 'L2', 'L3', 'best'].includes(evidence)) evidence = ''
+  if (!['L0', 'L1', 'L2', 'L3', 'OWN', 'best'].includes(evidence)) evidence = ''
   if (!['proof', 'new'].includes(sort)) sort = ''
   if (!['basic', 'working', 'advanced'].includes(level)) level = ''
   if (area && !topics.some((x) => x.slug === area)) area = ''
@@ -283,13 +287,13 @@ export function lessonsPage({ lang, base, url, data, q = '', area = '', concept 
   // new or newly proven in the last week, for someone who comes back: the lessons that appeared, were confirmed or were reproduced
   const today = DAY.test(String(data.generated).slice(0, 10)) ? String(data.generated).slice(0, 10) : lessonEvents(data)[0]?.at || ''
   const since = today ? new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 864e5).toISOString().slice(0, 10) : ''
-  const fresh = !today ? [] : [...lessonEvents(data).filter((e) => e.kind !== 'changed' && e.at >= since),
+  const fresh = !today ? [] : [...lessonEvents(data).filter((e) => e.kind !== 'changed' && !(e.kind === 'confirmed' && e.own) && e.at >= since), // a check by the owner is not news of proof
     ...v.lessons.filter((l) => DAY.test(String(l.first_seen)) && l.first_seen >= since).map((l) => ({ at: l.first_seen, kind: 'new', l }))]
     .sort((x, y) => y.at.localeCompare(x.at) || x.l.id.localeCompare(y.l.id))
   const shown = ['new', 'reproduced', 'confirmed'].flatMap((k) => fresh.filter((e) => e.kind === k).slice(0, 3)) // a few of each: a day of confirmations must not push out the rest
   const news = fresh.length ? `<section class="lt" id="new"><h2>${esc(t('ls.new.h'))}</h2><ul>${shown.map((e) => `<li><a href="${esc(href(base, e.l.id, lang, pre))}">${esc(e.l.title)}</a><br><span class="tg">${esc(t('ls.new.' + e.kind, { by: e.c?.by || '', role: e.c ? t('ls.conf.role.' + e.c.role) : '' }))} · ${esc(e.at)}</span></li>`).join('')}</ul><p><a href="${esc(base)}${pre}?evidence=best&amp;sort=proof&amp;lang=${lang}">${esc(t('ls.new.proven'))}</a></p></section>` : ''
   const canonical = pub ? `${base}${pre}${keep.size || pg > 1 ? `?${new URLSearchParams([...keep, ...(pg > 1 ? [['page', String(pg)]] : [])])}` : ''}` : ''
-  return `${head(t, { lang, base, title, desc, pub, canonical, img: pub ? `${base}${withStamp('/og/learned.png', [v.lessons.length, v.lessons.filter((l) => l.confirmed).length])}&lang=${lang}` : '' })}
+  return `${head(t, { lang, base, title, desc, pub, canonical, img: pub ? `${base}${withStamp('/og/learned.png', [v.lessons.length, v.lessons.filter(confirmedByOthers).length])}&lang=${lang}` : '' })}
 ${pageBar(t, { base, lang, current: '', here })}
 ${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: searching ? '' : esc(desc) })}
 ${searching ? '' : `<p>${esc(pub ? t('ls.pub.count', { n: v.lessons.length, m: new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size }) : t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>`}
@@ -356,7 +360,7 @@ function reproBlock(t, l) {
 }
 function confirmBlock(t, base, l) {
   const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) ? l.confirmed : null
-  const by = c ? `<p class="nt">${esc(t('ls.conf.by'))} <a href="https://github.com/${esc(c.by)}" rel="noreferrer">@${esc(c.by)}</a> (${esc(t('ls.conf.role.' + c.role))})${c.date ? `, ${esc(c.date)}` : ''}.</p>` : ''
+  const by = c ? `<p class="nt">${esc(t(byOwn(l) ? 'ls.conf.by.own' : 'ls.conf.by'))} <a href="https://github.com/${esc(c.by)}" rel="noreferrer">@${esc(c.by)}</a> (${esc(t('ls.conf.role.' + c.role))})${c.date ? `, ${esc(c.date)}` : ''}.</p>` : ''
   return `${by}<p class="tg"><a href="${esc(confirmUrl(base, l))}" rel="noreferrer">${esc(t('ls.conf.ask'))}</a></p>`
 }
 export function lessonPage({ lang, base, url, data, id, pub = false }) {
@@ -521,7 +525,7 @@ export function lessonEvents(data) {
   for (const l of v.lessons) {
     if (DAY.test(String(l.last_touched))) out.push({ at: l.last_touched, kind: 'changed', l })
     const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) && DAY.test(String(l.confirmed.date)) ? l.confirmed : null
-    if (c) out.push({ at: c.date, kind: 'confirmed', l, c })
+    if (c) out.push({ at: c.date, kind: 'confirmed', l, c, own: byOwn(l) })
     const r = reproduced(l)
     if (r && DAY.test(String(r.date))) out.push({ at: r.date, kind: 'reproduced', l, r })
   }
@@ -534,10 +538,10 @@ export function lessonsFeed({ base, data, n = 60 }) {
   const events = lessonEvents(data).slice(0, n)
   const updated = `${events[0]?.at || '2026-11-19'}T00:00:00Z`
   const url = (l) => `${xml(base)}/learned/${xml(l.id)}`
-  const entry = ({ at, kind, l, c, r }) => {
-    const title = kind === 'confirmed' ? `Confirmed by @${c.by}: ${l.title}` : kind === 'reproduced' ? `Reproduced by a test: ${l.title}` : l.title
+  const entry = ({ at, kind, l, c, r, own }) => {
+    const title = kind === 'confirmed' ? (own ? `Checked by the owner (@${c.by}): ${l.title}` : `Confirmed by @${c.by}: ${l.title}`) : kind === 'reproduced' ? `Reproduced by a test: ${l.title}` : l.title
     const id = kind === 'changed' ? url(l) : `${url(l)}#${kind}-${at}`
-    const said = kind === 'confirmed' ? `Confirmed by @${c.by}, ${c.role === 'owner' ? 'who owns' : c.role === 'author' ? 'who wrote' : 'who is a public member of the organisation that owns'} a source of this lesson. ${l.lesson}`
+    const said = kind === 'confirmed' ? `${own ? 'Checked' : 'Confirmed'} by @${c.by}${own ? ', who also publishes these lessons' : ''}, ${c.role === 'owner' ? 'who owns' : c.role === 'author' ? 'who wrote' : 'who is a public member of the organisation that owns'} a source of this lesson. ${l.lesson}`
       : kind === 'reproduced' ? `${r.covers === 'all' ? 'A public test runs this lesson' : `A public test runs a part of this lesson (${r.covers.slice(6)})`} on ${r.library} ${r.version}: https://github.com/${r.repo}/blob/${r.commit}/${r.test}. ${l.lesson}`
         : l.lesson
     return `<entry><title>${xml(title)}</title><id>${id}</id><link href="${url(l)}"/><updated>${at}T00:00:00Z</updated><summary>${xml(said)}</summary></entry>`
@@ -572,8 +576,8 @@ const text = (v, name, max = 200) => { if (v === undefined || v === null || v ==
 const TOOLS = [
   {
     name: 'search_lessons',
-    description: 'Search what CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each with the commits it came from. Every word of the query must match (words like "how" and "the" are left out). Use it before writing CKB code that builds transactions, handles witnesses, locks, Fiber channels or indexer queries. count is how many lessons match, not how many came back: when nextOffset is present, call again with it as offset. evidence keeps one level of proof: L3 reproduced by a public test, L2 confirmed by someone who maintains the project, L1 seen in two or more projects, L0 one fix checked against its commit; best is L2 and L3.',
-    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words, e.g. "witness lock args"' }, area: { type: 'string', description: 'an area id from list_areas' }, evidence: { type: 'string', enum: ['L0', 'L1', 'L2', 'L3', 'best'], description: 'keep only lessons with this proof' }, limit: { type: 'integer', minimum: 1, maximum: 50 }, offset: { type: 'integer', minimum: 0, description: 'skip this many matches (the nextOffset of the last answer)' } } },
+    description: 'Search what CKB projects learned from their own fixes: pitfalls, bugs and protocol rules, each with the commits it came from. Every word of the query must match (words like "how" and "the" are left out). Use it before writing CKB code that builds transactions, handles witnesses, locks, Fiber channels or indexer queries. count is how many lessons match, not how many came back: when nextOffset is present, call again with it as offset. evidence keeps one level of proof: L3 reproduced by a public test, L2 confirmed by someone who maintains the project and is not the publisher, OWN checked by the owner who is also the publisher, L1 seen in two or more projects, L0 one fix checked against its commit; best is L2 and L3.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'words, e.g. "witness lock args"' }, area: { type: 'string', description: 'an area id from list_areas' }, evidence: { type: 'string', enum: ['L0', 'L1', 'L2', 'L3', 'OWN', 'best'], description: 'keep only lessons with this proof' }, limit: { type: 'integer', minimum: 1, maximum: 50 }, offset: { type: 'integer', minimum: 0, description: 'skip this many matches (the nextOffset of the last answer)' } } },
     run: (a, { data, base, at }) => {
       const v = visible(data()), limit = Number.isInteger(a.limit) ? Math.min(50, Math.max(1, a.limit)) : 10, offset = Number.isInteger(a.offset) ? Math.max(0, a.offset) : 0
       const found = searchLessons(v.lessons, { q: text(a.query, 'query'), area: text(a.area, 'area', 40), evidence: text(a.evidence, 'evidence', 4), limit: 400 })
