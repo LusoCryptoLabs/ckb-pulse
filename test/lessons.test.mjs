@@ -530,3 +530,19 @@ test('a public lesson page says what the check against its commit found', () => 
   assert.ok(!page({ date: '2026-11-19', verdict: '<b>x</b>' }).includes('Check against the commit'), 'a verdict that is not one of the four is not shown')
   assert.ok(!page(null).includes('Check against the commit'))
 })
+
+test('a public lesson page links the test that reproduces it, and shows nothing for a record that is not ours or not well formed', () => {
+  const l = PUB.lessons[0]
+  const good = { repo: 'LusoCryptoLabs/ckb-lesson-tests', test: 'tests/ccc/keep-the-change.test.mjs', commit: '27ec5fdaeb', library: '@ckb-ccc/core', version: '1.23.1', covers: 'all', date: '2026-11-20' }
+  const page = (reproduced, lang = 'en', pub = true) => lessonPage({ lang, base: 'https://pulse.example', url: 'u', data: { ...PUB, lessons: [{ ...l, evidence: 'L3', reproduced }] }, id: l.id, pub })
+  const html = page(good)
+  assert.ok(html.includes('<h2>Reproduced by a test</h2>'))
+  assert.ok(html.includes('on @ckb-ccc/core 1.23.1, with no node'))
+  assert.ok(html.includes('href="https://github.com/LusoCryptoLabs/ckb-lesson-tests/blob/27ec5fdaeb/tests/ccc/keep-the-change.test.mjs"'))
+  assert.ok(!html.includes('It covers a part'))
+  assert.ok(page({ ...good, covers: 'part: the size rule, not the node count' }).includes('It covers a part of the lesson: the size rule, not the node count.'))
+  assert.ok(page(good, 'pt').includes('Reproduzida por um teste'))
+  for (const bad of [null, { ...good, repo: 'mallory/tests' }, { ...good, test: '../../x' }, { ...good, commit: '"><script>' }, { ...good, version: '^1.23.1' }, { ...good, covers: 'all <b>' }, { ...good, library: 'a b' }]) {
+    assert.ok(!page(bad).includes('Reproduced by a test'), JSON.stringify(bad))
+  }
+})
