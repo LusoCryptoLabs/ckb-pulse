@@ -1289,7 +1289,8 @@ function openPerson(a) {
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}${lastAt ? ` · ${esc(t('p.last', { ago: ago(lastAt) }))}` : ''}</p></div></div>
 ${kindPills ? `<div class="pills kinds">${kindPills}</div>` : ''}
 ${badgesFor(login, ['people', 'peopleCommits', 'reviewers', 'merged'])}<div class="actions"><a class="gh" href="https://github.com/${esc(login)}" target="_blank" rel="noopener">${esc(t('p.profile'))} ↗</a>${followBtn('person', login)}<button type="button" class="share-btn" data-share-person="${esc(login)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>${badgeRow('person', login)}
-<h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li><button type="button" class="row" data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></button></li>`).join('')}</ol>`
+<h3>${esc(t('p.where'))}</h3><ol class="where">${list.map(([r, n]) => `<li><button type="button" class="row" data-repo="${r}"><span>${esc(short(repos[r].name))}<small>${esc(gname(repos[r].group))}</small></span><b>${n}</b></button></li>`).join('')}</ol>
+<p class="sub fix">${esc(t('p.fix'))} <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new?title=${encodeURIComponent(`Person: ${login}`)}&amp;body=${encodeURIComponent(`${location.origin}/?person=${login}\n\nWhat is wrong, or ask to be left out:\n`)}" target="_blank" rel="noopener">${esc(t('p.fix.a'))}</a> · <a href="privacy?lang=${LANG}#leave">${esc(t('p.fix.privacy'))}</a></p>`
   focusDrawer()
   // dated facts about this person, from the server: the first commit seen here, months with commits, reviews, accepted
   // pull requests, the last release. Facts, not levels

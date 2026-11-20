@@ -681,3 +681,49 @@ test('a language chosen once is applied to a page reached without one, and never
   assert.deepEqual(run({ search: '?x=1' }).calls, ['/use?x=1&lang=pt#ai'], 'the rest of the address stays')
   assert.deepEqual(run({ search: '?lang=pt' }).calls, [], 'once the language is in the address there is nothing left to do, so it cannot loop')
 })
+
+// batch 3: the feed says what happened, /learned says what is new
+import { lessonEvents } from '../lessons.mjs'
+const REPRO = { repo: 'LusoCryptoLabs/ckb-lesson-tests', test: 'tests/ccc/pass-config.test.mjs', commit: 'abc1234def', library: '@ckb-ccc/core', version: '1.23.1', covers: 'all', date: '2026-11-20' }
+const FD = { ...PUB, generated: '2026-11-20T05:34:00Z', lessons: [
+  EV('plain', 'L0', { title: 'A plain one', lesson: 'Plain rule.', first_seen: '2026-11-02', last_touched: '2026-11-03' }),
+  EV('fresh', 'L0', { title: 'Brand new <one>', lesson: 'Fresh rule.', first_seen: '2026-11-18', last_touched: '2026-11-18' }),
+  EV('proved', 'L2', { title: 'Confirmed by alice', lesson: 'Confirmed rule.', first_seen: '2026-10-01', last_touched: '2026-10-05', confirmed: { by: 'alice', role: 'owner', date: '2026-11-17' } }),
+  EV('tested', 'L3', { title: 'Run by a test', lesson: 'Tested rule.', first_seen: '2026-10-02', last_touched: '2026-10-06', reproduced: REPRO }),
+  EV('part', 'L1', { title: 'Tested in part', lesson: 'Part rule.', first_seen: '2026-10-03', last_touched: '2026-10-07', reproduced: { ...REPRO, covers: 'part: the size rule', date: '2026-11-19' } }),
+  EV('forged', 'L3', { title: 'Not our test', lesson: 'Forged.', first_seen: '2026-10-04', last_touched: '2026-10-08', reproduced: { ...REPRO, repo: 'mallory/tests' }, confirmed: { by: '"><x', role: 'owner', date: '2026-11-20' } }),
+  EV('old', 'L2', { title: 'Confirmed long ago', lesson: 'Old rule.', first_seen: '2026-09-01', last_touched: '2026-09-02', confirmed: { by: 'bob', role: 'author', date: '2026-10-01' } })] }
+
+test('the feed has an entry for every confirmation and every reproduction, newest first, and none for a proof that does not pass the patterns', () => {
+  const ev = lessonEvents(FD).map((e) => `${e.at} ${e.kind} ${e.l.id}`)
+  assert.deepEqual(ev.slice(0, 5), ['2026-11-20 reproduced ccc/tested', '2026-11-19 reproduced ccc/part', '2026-11-18 changed ccc/fresh', '2026-11-17 confirmed ccc/proved', '2026-11-03 changed ccc/plain'])
+  assert.ok(!ev.some((e) => /forged/.test(e) && /reproduced|confirmed/.test(e)), 'a test repository that is not ours and a login that is not a login make no event')
+  const xml = lessonsFeed({ base: 'https://pulse.example', data: FD })
+  assert.ok(xml.includes('<title>Reproduced by a test: Run by a test</title><id>https://pulse.example/learned/ccc/tested#reproduced-2026-11-20</id>'))
+  assert.ok(xml.includes('<title>Confirmed by @alice: Confirmed by alice</title><id>https://pulse.example/learned/ccc/proved#confirmed-2026-11-17</id>'))
+  assert.ok(xml.includes('<id>https://pulse.example/learned/ccc/plain</id>'), 'a lesson that changed keeps the address it had as its id')
+  assert.ok(xml.includes('https://github.com/LusoCryptoLabs/ckb-lesson-tests/blob/abc1234def/tests/ccc/pass-config.test.mjs') && xml.includes('on @ckb-ccc/core 1.23.1'))
+  assert.ok(xml.includes('A public test runs a part of this lesson (the size rule)'))
+  assert.ok(xml.includes('Brand new &lt;one&gt;') && !xml.includes('Brand new <one>'), 'escaped')
+  assert.ok(!xml.includes('mallory') && !xml.includes('"><x'))
+  assert.ok(xml.indexOf('#reproduced-2026-11-20') < xml.indexOf('#reproduced-2026-11-19') && xml.includes('<updated>2026-11-20T00:00:00Z</updated>'))
+  assert.equal((lessonsFeed({ base: 'b', data: FD, n: 2 }).match(/<entry>/g) || []).length, 2)
+})
+
+test('/learned says what is new this week: lessons that appeared, were confirmed or were reproduced, and nothing when nothing did', () => {
+  const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: FD, pub: true })
+  assert.ok(html.includes('New and newly proven this week'))
+  const block = html.slice(html.indexOf('id="new"'), html.indexOf('</section>', html.indexOf('id="new"')))
+  assert.ok(block.includes('Run by a test') && block.includes('reproduced by a test · 2026-11-20') && block.includes('confirmed by @alice (owner of the project) · 2026-11-17') && block.includes('Brand new &lt;one&gt;') && block.includes('new · 2026-11-18'))
+  assert.ok(!block.includes('Confirmed long ago') && !block.includes('A plain one') && !block.includes('Not our test'), 'older, unproved and forged ones are not in it')
+  assert.ok(block.includes('evidence=best&amp;sort=proof'))
+  assert.ok(!lessonsPage({ lang: 'en', base: 'b', url: 'u', data: { ...FD, generated: '2026-12-31T00:00:00Z' }, pub: true }).includes('id="new"'), 'a quiet week shows no block')
+  assert.ok(!lessonsPage({ lang: 'en', base: 'b', url: 'u', data: FD, pub: true, q: 'rule' }).includes('id="new"'), 'not over a search')
+  assert.ok(lessonsPage({ lang: 'pt', base: 'b', url: 'u', data: FD, pub: true }).includes('Novas e mais provadas esta semana') && lessonsPage({ lang: 'zh', base: 'b', url: 'u', data: FD, pub: true }).includes('本周新增和新近验证'))
+})
+
+test('the public lesson pages point to the feed, the private ones do not', () => {
+  const pub = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: FD, pub: true })
+  assert.ok(pub.includes('<link rel="alternate" type="application/atom+xml" title="CKB lessons" href="https://pulse.example/learned.xml">'))
+  assert.ok(!lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: V2 }).includes('learned.xml'))
+})
