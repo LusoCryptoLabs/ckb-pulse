@@ -24,7 +24,7 @@ import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 import { impactPage, impactNow, impactOf, loadImpact, startImpact, shownLibs, LIBS } from './impact.mjs'
-import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, notFoundPage, confirmedByOthers, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, visible, access, cookieOf, loadLessons } from './lessons.mjs'
+import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, notFoundPage, confirmedByOthers, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, CHECK_LIMIT, visible, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
 
@@ -335,7 +335,8 @@ function handle(req, res) {
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, privacyPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/privacy` }))
   }
   // the lessons for the lines a pull request changed, for the GitHub Action (LusoCryptoLabs/ckb-pulse-action):
-  // POST {chunks: [{path, start, code}]}. The code is read and dropped, never stored or logged. 30 calls a minute an address.
+  // POST {chunks: [{path, start, code}], limit?}. The code is read and dropped, never stored or logged. 30 calls a minute an address.
+  // limit 1 to 20, three when absent (the Action v1.0.0 sends none).
   if (url.pathname === '/api/check' && req.method === 'POST') {
     const ip = ipOf(req), now = Date.now(), r = checkRate.get(ip)
     if (r && now - r.t < 60e3 && r.n >= 30) { res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '60' }); return res.end('{"error":"too many checks, wait a minute"}') }
@@ -345,7 +346,7 @@ function handle(req, res) {
       const chunks = Array.isArray(j?.chunks) ? j.chunks.slice(0, 200).filter((c) => c && typeof c.code === 'string' && typeof c.path === 'string').map((c) => ({ path: c.path.slice(0, 300), start: Number.isInteger(c.start) ? c.start : 1, code: c.code.slice(0, 30000) })) : null
       if (!chunks) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end('{"error":"send {chunks: [{path, start, code}]}"}') }
       const data = loadLessons(DATA_DIR, 'public-lessons.json'), b = baseOf(req)
-      const lessons = data?.version === 1 && Array.isArray(data.lessons) ? checkChunks(visible(data).lessons, chunks).map((x) => ({ ...x, url: `${b}/learned/${x.id}` })) : []
+      const lessons = data?.version === 1 && Array.isArray(data.lessons) ? checkChunks(visible(data).lessons, chunks, Number.isInteger(j.limit) ? Math.min(20, Math.max(1, j.limit)) : CHECK_LIMIT).map((x) => ({ ...x, url: `${b}/learned/${x.id}` })) : []
       count('api_check', req.headers['user-agent'])
       sendJson(req, res, { about: 'Lessons that apply to the changed lines. Hints to read, not proof: nothing is run, and the code is not stored.', count: lessons.length, lessons })
     })

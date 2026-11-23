@@ -194,41 +194,64 @@ function lessonIndex(lessons) {
   indexFor = lessons; indexOf = { items, df, n: items.length }
   return indexOf
 }
-/** The lessons that apply to a piece of code: those that name what the code uses, best first, and above all those whose
- * "avoid" pattern the code repeats. A list of hints to read, not a finding: nothing is run or proven. */
-export function checkCode(lessons, code, limit = 8) {
+// Comments name things the code does not use (a comment that mentions JoyID is not a JoyID call). Blanked, not removed,
+// so line numbers stay. `#` starts a comment only where the language says so (in Rust and C it starts an attribute or
+// a directive).
+const HASH_COMMENTS = /\.(py|rb|sh|toml|ya?ml)$/i
+export function stripComments(code, path = '') {
+  const s = String(code || '').replace(/\/\*[\s\S]*?(\*\/|$)/g, (m) => m.replace(/[^\n]/g, ' '))
+  return s.split('\n').map((ln) => {
+    const t = ln.trimStart()
+    if (t.startsWith('//') || /^\*(\s|\/|$)/.test(t) || (HASH_COMMENTS.test(path) && t.startsWith('#'))) return ''
+    return ln.replace(/(^|[^:"'`\\])\/\/.*$/, '$1') // a trailing comment; not the // of a URL
+  }).join('\n')
+}
+// Test code builds fixtures that look like the mistake on purpose (a zero code hash, a stubbed call).
+export const isTestPath = (p) => /(^|\/)(tests?|__tests__|spec|e2e|fixtures?|mocks?)\//i.test(p) || /[._-](test|spec)\.[a-z]+$/i.test(p) || /(^|\/)test_[^/]*\.py$/i.test(p)
+
+/** The lessons that apply to a piece of code: those that name what the code uses, rarest names first, and above all those
+ * whose "avoid" pattern the code repeats. A list of hints to read, not a finding: nothing is run or proven.
+ * The "avoid" label needs two names of the pattern on the code's side (and half of them, since local names differ):
+ * one name is a call any project makes (on 2026-11-22 the bare word codeHash raised it in 8 of 73 pull requests, all
+ * wrong). `avoid: false` never raises it (test code). */
+export function checkCode(lessons, code, limit = 8, { avoid = true } = {}) {
   const { items, df, n } = lessonIndex(lessons)
   const mine = codeNames(code)
   const idf = (w) => Math.log((n + 1) / (df.get(w) || 1))
   const out = []
   for (const it of items) {
     const shared = [...it.names].filter((w) => mine.has(w) && (df.get(w) || 0) <= Math.max(3, n * 0.15))
-    if (!shared.length) continue
-    const avoidHit = it.avoid.some((a) => { const have = [...a].filter((w) => mine.has(w)); return have.length >= Math.max(1, Math.ceil(a.size * 0.5)) }) // local names in a pattern differ from code to code
+    // One name ties a lesson to code only when the lesson is about it (its title) or it is a constant: a name that is
+    // only in a lesson's example (startsWith, listOf, map_err) tied lessons to any code on 2026-11-22.
+    if (!shared.length || (shared.length === 1 && !it.title.has(shared[0]) && !/^0x/.test(shared[0]))) continue
+    const avoidHit = avoid && it.avoid.some((a) => { const have = [...a].filter((w) => mine.has(w)); return have.length >= 2 && have.length >= Math.ceil(a.size * 0.5) })
     const score = shared.reduce((x, w) => x + idf(w) * (it.title.has(w) ? 2 : 1) * (it.pat.has(w) ? 1.5 : 1), 0) + (avoidHit ? 100 : 0) // what a lesson is about is in its title and its pattern
     out.push({ score, it, shared, avoidHit })
   }
   out.sort((a, b) => b.score - a.score)
-  return out.slice(0, limit).map(({ it, shared, avoidHit }) => ({ id: it.l.id, title: it.l.title, lesson: it.l.lesson, why: it.l.why || '', level: it.l.level || '',
+  return out.slice(0, limit).map(({ it, shared, avoidHit, score }) => ({ id: it.l.id, title: it.l.title, lesson: it.l.lesson, why: it.l.why || '', level: it.l.level || '',
     match: avoidHit ? 'your code repeats the pattern this lesson says to avoid' : 'your code uses what this lesson is about', uses: shared.slice(0, 6),
-    prefer: it.prefer.slice(0, 2), sources: it.l.sources }))
+    prefer: it.prefer.slice(0, 2), sources: it.l.sources, score }))
 }
 
 /** The lessons for the lines a pull request changed: chunks [{path, start, code}], each a run of new lines that starts
- * at line `start` of `path`. Each lesson comes once, with where it applies first (path and line). For the GitHub Action. */
-export function checkChunks(lessons, chunks, limit = 10) {
+ * at line `start` of `path`. Each lesson comes once, with where it applies first (path and line). For the GitHub Action.
+ * Three by default, best first: a comment with ten lessons on a one-line change was the usual case on 2026-11-22. */
+export const CHECK_LIMIT = 3
+export function checkChunks(lessons, chunks, limit = CHECK_LIMIT) {
   const best = new Map()
   for (const c of chunks) {
-    const lines = String(c.code).split('\n')
-    for (const x of checkCode(lessons, c.code, 20)) {
+    const code = stripComments(c.code, c.path)
+    const lines = code.split('\n')
+    for (const x of checkCode(lessons, code, 20, { avoid: !isTestPath(c.path) })) {
       const at = lines.findIndex((ln) => { const have = codeNames(ln); return x.uses.some((w) => have.has(w)) })
       const hit = { ...x, path: c.path, line: (c.start || 1) + Math.max(0, at) }
       const old = best.get(x.id)
-      const rank = (h) => (h.match.includes('avoid') ? 1000 : 0) + h.uses.length
+      const rank = (h) => (h.match.includes('avoid') ? 1000 : 0) + h.score
       if (!old || rank(hit) > rank(old)) best.set(x.id, hit)
     }
   }
-  return [...best.values()].sort((a, b) => (b.match.includes('avoid') - a.match.includes('avoid')) || b.uses.length - a.uses.length).slice(0, limit)
+  return [...best.values()].sort((a, b) => (b.match.includes('avoid') - a.match.includes('avoid')) || b.score - a.score).slice(0, limit).map(({ score, ...x }) => x)
 }
 
 // ---------------------------------------------------------------- pages
@@ -600,7 +623,7 @@ const TOOLS = [
     name: 'check_code',
     description: 'Check CKB code against the lessons. Paste the code (TypeScript, Rust, Go, Python, any language): it returns the lessons about the functions, RPC methods and constants the code uses, best match first, and marks code that repeats a pattern a lesson says to avoid. Hints to read, not proof: nothing is run, and the code is not stored. Use it after writing code that builds, signs or reads CKB transactions.',
     inputSchema: { type: 'object', properties: { code: { type: 'string', description: 'the code, up to 30,000 characters' }, limit: { type: 'integer', minimum: 1, maximum: 20 } }, required: ['code'] },
-    run: (a, { data, base, at }) => { const code = text(a.code, 'code', 30000); if (!code) throw told('code is empty'); const found = checkCode(visible(data()).lessons, code, Number.isInteger(a.limit) ? Math.min(20, Math.max(1, a.limit)) : 8); return { about: 'Lessons that apply to what this code uses. Read each one and its source before changing anything.', count: found.length, lessons: found.map((x) => ({ ...x, url: `${base}${at || '/lessons'}/${x.id}` })) } },
+    run: (a, { data, base, at }) => { const code = text(a.code, 'code', 30000); if (!code) throw told('code is empty'); const found = checkCode(visible(data()).lessons, stripComments(code), Number.isInteger(a.limit) ? Math.min(20, Math.max(1, a.limit)) : 8); return { about: 'Lessons that apply to what this code uses. Read each one and its source before changing anything.', count: found.length, lessons: found.map(({ score, ...x }) => ({ ...x, url: `${base}${at || '/lessons'}/${x.id}` })) } },
   },
   {
     name: 'list_areas',

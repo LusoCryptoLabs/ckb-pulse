@@ -449,16 +449,19 @@ test('check_code returns the lessons about what the code uses, flags a repeated 
     { id: 'node/live', area: 'node', title: 'get_live_cell may say unknown', lesson: 'get_live_cell returns unknown for a spent cell it no longer knows.', patterns: [], sources: [{ repo: 'a/e', hash: '4' }] },
   ]
   const fee = checkCode(L, ['await tx.completeInputsByCapacity(signer);', 'await tx.completeFeeBy(signer);'].join('\n'))
-  assert.equal(fee[0].id, 'ccc/fee'); assert.match(fee[0].match, /avoid/); assert.deepEqual(fee[0].prefer, ['await tx.completeFeeChangeToOutput(signer, 0);'])
+  assert.equal(fee[0].id, 'ccc/fee'); assert.match(fee[0].match, /uses what/, 'one name of an avoid pattern is a call, not the mistake'); assert.deepEqual(fee[0].prefer, ['await tx.completeFeeChangeToOutput(signer, 0);'])
+  assert.match(checkCode(L, 'let (ty, inner_value) = since.extract_metric().unwrap();')[0].match, /avoid/, 'both names of the pattern: the mistake')
   const since = checkCode(L, 'let (ty, value) = since.extract_metric().unwrap();')
-  assert.equal(since[0].id, 'scripts/since'); assert.match(since[0].match, /avoid/, 'a local name in the pattern differs from the code: still a hit')
+  assert.equal(since[0].id, 'scripts/since'); assert.match(since[0].match, /uses what/, 'a two name pattern needs both')
+  const L3 = [{ id: 'x/three', area: 'x', title: 'Three names', lesson: 'x', patterns: ['avoid: let out_point = cell_input.previous_output(); load_cell_data(out_point)'], sources: [] }]
+  assert.match(checkCode(L3, 'let op = cell_input.previous_output(); load_cell_data(op)')[0].match, /avoid/, 'two of three: a local name in the pattern differs from the code, still a hit')
   assert.equal(checkCode(L, 'const F = 0x2000_0000_0000_0000n')[0].id, 'other/epoch', 'hex constants match with or without underscores')
   const live = checkCode(L, 'r = rpc.call("get_live_cell", [op, False])')
   assert.equal(live[0].id, 'node/live'); assert.match(live[0].match, /uses what/)
   assert.deepEqual(checkCode(L, "import React, { useState } from 'react'; export const C = () => { const [n, setN] = useState(0); return n }"), [], 'no CKB, no lesson')
   assert.ok(agentRule('https://p.example').includes('call check_code') && agentRule('https://p.example').includes('https://p.example/mcp') && !/[\u2013\u2014]/.test(agentRule('x')))
-  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [{ ...PUB.lessons[0], patterns: ['avoid: drop_change_output(tx)'] }] }) }, async (port) => {
-    const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'check_code', arguments: { code: 'drop_change_output(tx)' } } })
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [{ ...PUB.lessons[0], patterns: ['avoid: drop_change_output(tx_builder)'] }] }) }, async (port) => {
+    const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'check_code', arguments: { code: 'drop_change_output(tx_builder)' } } })
     const r = await new Promise((resolve, reject) => { const q = http.request({ host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' } }, (res) => { let b = ''; res.on('data', (c) => { b += c }); res.on('end', () => resolve(JSON.parse(b.slice(b.indexOf('{'))))) }); q.on('error', reject); q.end(body) })
     const out = JSON.parse(r.result.content[0].text)
     assert.equal(out.lessons[0].url.endsWith('/learned/ccc/keep-the-change'), true); assert.match(out.lessons[0].match, /avoid/)
@@ -471,10 +474,10 @@ test('POST /api/check: the lessons for changed lines, with the file and line, on
   const L = [{ id: 'ccc/fee', area: 'ccc', title: 'completeFeeBy adds change', lesson: 'x', patterns: ['avoid: await tx.completeFeeBy(signer);'], sources: [{ repo: 'a/b', hash: '1' }] }]
   const r = checkChunks(L, [{ path: 'src/a.ts', start: 40, code: ['const x = 1', 'await tx.completeFeeBy(signer);'].join('\n') }, { path: 'src/b.ts', start: 3, code: 'tx.completeFeeBy(s)' }])
   assert.equal(r.length, 1, 'a lesson comes once')
-  assert.deepEqual([r[0].path, r[0].line], ['src/a.ts', 41], 'where the avoid pattern is repeated, at its own line')
-  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [{ ...PUB.lessons[0], patterns: ['avoid: drop_change_output(tx)'] }] }) }, async (port) => {
+  assert.deepEqual([r[0].path, r[0].line], ['src/a.ts', 41], 'where the lesson applies, at its own line')
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(V2), 'public-lessons.json': JSON.stringify({ ...PUB, lessons: [{ ...PUB.lessons[0], patterns: ['avoid: drop_change_output(tx_builder)'] }] }) }, async (port) => {
     const post = (body) => new Promise((resolve, reject) => { const q = http.request({ host: '127.0.0.1', port, path: '/api/check', method: 'POST', headers: { 'content-type': 'application/json' } }, (res) => { let b = ''; res.on('data', (c) => { b += c }); res.on('end', () => resolve({ status: res.statusCode, body: b })) }); q.on('error', reject); q.end(body) })
-    const ok = await post(JSON.stringify({ chunks: [{ path: 'lib/tx.rs', start: 10, code: 'let a = 1;\ndrop_change_output(tx);' }] }))
+    const ok = await post(JSON.stringify({ chunks: [{ path: 'lib/tx.rs', start: 10, code: 'let a = 1;\ndrop_change_output(tx_builder);' }] }))
     assert.equal(ok.status, 200)
     const j = JSON.parse(ok.body)
     assert.deepEqual([j.count, j.lessons[0].id, j.lessons[0].path, j.lessons[0].line], [1, 'ccc/keep-the-change', 'lib/tx.rs', 11])
@@ -763,4 +766,47 @@ test('the feed calls it a check by the owner, and what is new this week does not
   const html = lessonsPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: OD, pub: true })
   const block = html.slice(html.indexOf('id="new"'), html.indexOf('</section>', html.indexOf('id="new"')))
   assert.ok(block.includes('confirmed by @alice') && !block.includes('Checked by us') && !block.includes('LusoCryptoLabs'))
+})
+
+// precision of /api/check, after a replay on 73 outside pull requests (2026-11-22): every strong label was wrong
+test('check: the avoid label needs the shape of the mistake, not a name any code has', async () => {
+  const { checkChunks } = await import('../lessons.mjs')
+  const L = [{ id: 'wallets/omni', area: 'wallets', title: 'Lock code hashes differ between testnet and mainnet', lesson: 'x', patterns: ['avoid: if (lock.codeHash === OMNILOCK_CODE_HASH) {'], sources: [] }]
+  const at = (path, code) => checkChunks(L, [{ path, start: 1, code }])
+  assert.deepEqual(at('src/a.ts', 'const s = { codeHash: SOME_HASH, hashType: "type" }'), [], 'codeHash alone is not the lesson, and one name outside its title ties nothing')
+  assert.match(at('src/a.ts', 'if (script.codeHash === OMNILOCK_CODE_HASH) return true')[0].match, /avoid/, 'control: the comparison itself')
+  assert.match(at('src/a.test.ts', 'if (script.codeHash === OMNILOCK_CODE_HASH) return true')[0].match, /uses what/, 'test code builds the mistake on purpose: never the avoid label')
+  assert.match(at('test/fixtures/x.ts', 'if (script.codeHash === OMNILOCK_CODE_HASH) return true')[0].match, /uses what/)
+  assert.deepEqual(at('src/a.ts', '// if (script.codeHash === OMNILOCK_CODE_HASH) was wrong'), [], 'a comment is not code')
+  assert.deepEqual(at('src/a.ts', '/** codeHash and OMNILOCK\n * explained */'), [])
+})
+
+test('check: comments are blanked with lines kept, and URLs and Rust attributes are code', async () => {
+  const { stripComments, isTestPath } = await import('../lessons.mjs')
+  assert.equal(stripComments('a()\n// b()\nc() // d()\n/* e()\n f() */ g()'), 'a()\n\nc() \n      \n        g()')
+  assert.equal(stripComments('fetch("https://x.example/y")'), 'fetch("https://x.example/y")')
+  assert.equal(stripComments('#[derive(Debug)]\n*count += 1;', 'src/lib.rs'), '#[derive(Debug)]\n*count += 1;')
+  assert.equal(stripComments('# note\nx = load_cell()', 'a.py'), '\nx = load_cell()')
+  assert.deepEqual(['src/a.test.ts', 'tests/x.rs', 'pkg/foo_test.go', 'test_a.py', 'src/__tests__/a.js', 'e2e/a.ts'].map(isTestPath), [true, true, true, true, true, true])
+  assert.deepEqual(['src/contest.ts', 'src/testnet.ts', 'src/latest.rs'].map(isTestPath), [false, false, false], 'test inside a word is not a test file')
+})
+
+test('check: three lessons by default, rarest first, and the limit the Action sends', async () => {
+  const { checkChunks, CHECK_LIMIT } = await import('../lessons.mjs')
+  const mk = (i) => ({ id: `x/l${i}`, area: 'x', title: `about name_${i} and common_name`, lesson: 'x', patterns: [], sources: [] })
+  const L = [0, 1, 2, 3, 4, 5].map(mk)
+  const code = [0, 1, 2, 3, 4, 5].map((i) => `name_${i}(common_name)`).join('\n')
+  assert.equal(CHECK_LIMIT, 3)
+  assert.equal(checkChunks(L, [{ path: 'a.ts', start: 1, code }]).length, 3)
+  assert.equal(checkChunks(L, [{ path: 'a.ts', start: 1, code }], 5).length, 5)
+  assert.ok(!('score' in checkChunks(L, [{ path: 'a.ts', start: 1, code }])[0]), 'the score stays inside')
+  const rare = [{ id: 'x/rare', area: 'x', title: 'about rare_call', lesson: 'x', patterns: [], sources: [] }, ...[0, 1, 2].map((i) => ({ id: `x/c${i}`, area: 'x', title: 'about often_call', lesson: 'x', patterns: [], sources: [] }))]
+  assert.equal(checkChunks(rare, [{ path: 'a.ts', start: 1, code: 'often_call()\nrare_call()' }])[0].id, 'x/rare', 'the rarer name first')
+})
+
+test('check: a name only in a lesson example ties nothing', async () => {
+  const { checkCode } = await import('../lessons.mjs')
+  const L = [{ id: 'x/ex', area: 'x', title: 'Light client set scripts', lesson: 'x', patterns: ['avoid: setScripts(listOf(a) + b)'], sources: [] }]
+  assert.deepEqual(checkCode(L, 'val xs = listOf(1, 2)'), [])
+  assert.equal(checkCode(L, 'client.setScripts(listOf(s))').length, 1, 'control: two names of the lesson')
 })
