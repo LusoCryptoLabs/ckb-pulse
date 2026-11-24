@@ -81,6 +81,7 @@ export function visible(data) {
   for (const l of lessons) {
     l.related = (l.related || []).filter((i) => ids.has(i))
     if (l.superseded_by && !ids.has(l.superseded_by)) l.superseded_by = null
+    if ('official' in l) l.official = official(l)
   }
   return { ...n, lessons }
 }
@@ -262,7 +263,7 @@ nav.ls{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 18px}nav.ls a{padding:8
 section.lt{margin:22px 0 8px;overflow-wrap:anywhere}section.lt h2{margin:0 0 4px;font:600 21px var(--font-ui,sans-serif);color:var(--fg);text-transform:none;letter-spacing:-.01em}section.lt>p{margin:4px 0 10px;color:var(--mut)}
 article.ln{background:var(--surface);border:1px solid var(--edge);padding:12px 16px;margin:8px 0;overflow-wrap:anywhere;min-width:0}article.ln h3{margin:0 0 4px;font:600 16px var(--font-ui,sans-serif)}article.ln h3 a{color:var(--fg);text-decoration:none}article.ln h3 a:hover{text-decoration:underline}article.ln p{margin:4px 0}
 article.ln.old{opacity:.7}.ln .tg,.lp .tg{font-size:12px;color:var(--mut)}.ln .nt,.lp .nt{font-size:14px;color:var(--f-talk)}.bd{font:400 11px/1 var(--font-num);padding:3px 7px;border:1px solid var(--edge);color:var(--mut);margin-left:6px;vertical-align:middle;white-space:nowrap}.bd.old{color:var(--f-talk);border-color:var(--f-talk)}
-.lp{overflow-wrap:anywhere}.lp .big{font-size:19px;line-height:1.5;margin:8px 0 14px}.lp h2{font:600 15px var(--font-ui,sans-serif);margin:22px 0 8px;text-transform:none;letter-spacing:0;color:var(--fg)}.lp ul{padding-left:18px}.lp li{margin:4px 0;font-size:14px}.lp li a{color:var(--lime)}.lp dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px;margin:10px 0}.lp dt{color:var(--mut)}.lp dd{margin:0}.lp code{font-size:13px;overflow-wrap:anywhere}.lp .back{font-size:14px}`
+.lp{overflow-wrap:anywhere}.lp .big{font-size:19px;line-height:1.5;margin:8px 0 14px}.lp h2{font:600 15px var(--font-ui,sans-serif);margin:22px 0 8px;text-transform:none;letter-spacing:0;color:var(--fg)}.lp ul{padding-left:18px}.lp li{margin:4px 0;font-size:14px}.lp li a{color:var(--lime)}.lp dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px;margin:10px 0}.lp dt{color:var(--mut)}.lp dd{margin:0}.lp code{font-size:13px;overflow-wrap:anywhere}.lp .back{font-size:14px}.lp blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid var(--line,#888);font-size:14px;border-radius:0 8px 8px 0}`
 
 const head = (t, { lang, base, title, desc, pub, img, canonical }) => `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">${pub ? `${canonical ? `<link rel="canonical" href="${esc(canonical)}">` : ''}<link rel="alternate" type="application/atom+xml" title="CKB lessons" href="${esc(base)}/learned.xml">` : '<meta name="robots" content="noindex">'}${img ? `<meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
@@ -381,6 +382,27 @@ function reproBlock(t, l) {
   const part = r.covers === 'all' ? '' : ` ${esc(t('ls.repro.part'))} ${esc(r.covers.slice(6))}.`
   return `<h2>${esc(t('ls.repro'))}</h2><p>${esc(t('ls.repro.text', { lib: r.library, ver: r.version }))}${part}</p><p><a href="https://github.com/${TESTS_REPO}/blob/${esc(r.commit)}/${esc(r.test)}" rel="noreferrer"><code>${esc(r.test)}</code></a></p>`
 }
+// The official documentation on the same subject (ckb-lessons, pipeline/official.py): the section a model read next to the
+// lesson, at the commit it was read. Only the sources named here are linked, and every field is matched to a pattern before
+// it is shown: the record travels through a public JSON file. "agrees" shows the section's own sentence; "topic only" is a
+// pointer, not proof (measured 2026-11-24: one of two lessons that are not about CKB came back as same subject).
+const OFFICIAL_REPOS = new Set(['nervosnetwork/rfcs', 'nervosnetwork/docs.nervos.org', 'nervosnetwork/ckb', 'nervosnetwork/ckb-light-client', 'nervosnetwork/ckb-cli', 'nervosnetwork/ckb-std', 'ckb-devrel/ccc'])
+const OFFICIAL_PATH = /^[A-Za-z0-9_@-][A-Za-z0-9_.@-]*(\/[A-Za-z0-9_@-][A-Za-z0-9_.@-]*){0,12}$/
+export function official(l) {
+  const o = l.official
+  if (!o || !['agrees', 'topic only'].includes(o.relation) || !OFFICIAL_REPOS.has(o.repo) || !/^[0-9a-f]{40}$/.test(String(o.commit)) || typeof o.path !== 'string' || o.path.length > 200 || !OFFICIAL_PATH.test(o.path)
+    || !Number.isInteger(o.line) || o.line < 1 || o.line > 999999) return null
+  const section = typeof o.section === 'string' && o.section.trim() ? o.section.trim().slice(0, 120) : o.path.split('/').pop()
+  const quote = o.relation === 'agrees' && typeof o.quote === 'string' ? o.quote.trim().slice(0, 300) : ''
+  // a markdown file opens as its source, so that the line is the one that was read
+  return { relation: o.relation, repo: o.repo, commit: o.commit, path: o.path, line: o.line, section, ...(quote ? { quote } : {}), ...(DAY.test(String(o.date)) ? { date: o.date } : {}),
+    url: `https://github.com/${o.repo}/blob/${o.commit}/${o.path}${/\.md$/.test(o.path) ? '?plain=1' : ''}#L${o.line}` }
+}
+function officialBlock(t, l) {
+  const o = official(l)
+  if (!o) return ''
+  return `<h2>${esc(t('ls.off'))}</h2><p class="nt">${esc(t(o.quote ? 'ls.off.agrees' : 'ls.off.topic'))}</p>${o.quote ? `<blockquote>${esc(o.quote)}</blockquote>` : ''}<p><a href="${esc(o.url)}" rel="noreferrer">${esc(o.repo)}: ${esc(o.section)}</a>${o.date ? ` · ${esc(t('ls.off.read', { date: o.date }))}` : ''}</p>`
+}
 function confirmBlock(t, base, l) {
   const c = l.confirmed && LOGIN_OK.test(String(l.confirmed.by || '')) && ['owner', 'author', 'member'].includes(l.confirmed.role) ? l.confirmed : null
   const by = c ? `<p class="nt">${esc(t(byOwn(l) ? 'ls.conf.by.own' : 'ls.conf.by'))} <a href="https://github.com/${esc(c.by)}" rel="noreferrer">@${esc(c.by)}</a> (${esc(t('ls.conf.role.' + c.role))})${c.date ? `, ${esc(c.date)}` : ''}.</p>` : ''
@@ -410,6 +432,7 @@ ${l.superseded_by ? `<p class="nt">${esc(t('ls.replaced'))} ${link(l.superseded_
 ${(l.patterns || []).length ? `<h2>${esc(t('ls.pattern'))}</h2>${patternBlock(t, l.patterns)}` : ''}
 ${(l.tests || []).length ? `<h2>${esc(t('ls.tests'))}</h2><p class="nt">${esc(t('ls.tests.note'))}</p><ul>${l.tests.map((x) => `<li><a href="https://github.com/${esc(x.repo)}/commit/${esc(x.hash)}" rel="noreferrer">${esc(x.repo)}</a>: ${x.files.map((f) => `<code>${esc(f)}</code>`).join(', ')}</li>`).join('')}</ul>` : ''}
 ${pub ? reproBlock(t, l) : ''}
+${pub ? officialBlock(t, l) : ''}
 <dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(t('ls.ev.short.' + evidenceOf(l)))}: ${esc(t('ls.evidence.' + evidenceOf(l)))}</dd>
@@ -639,7 +662,7 @@ const INSTRUCTIONS = 'What CKB projects learned from their own fixes, read from 
 export const publicLessonTools = (data) => TOOLS.map((t) => ({
   ...t,
   description: t.name === 'get_lesson'
-    ? 'One released lesson in full: the rule, the code pattern, its sources (repository, commit, date), the test files its commits changed, related lessons, and how it was checked (checked: date, verdict, against_commit, and problem when the verdict is not right). Licence CC BY 4.0.'
+    ? 'One released lesson in full: the rule, the code pattern, its sources (repository, commit, date), the test files its commits changed, related lessons, and how it was checked (checked: date, verdict, against_commit, and problem when the verdict is not right), and the section of the official documentation on the same subject when one was found (official: relation "agrees" with the section\'s own sentence as quote, or "topic only" when the section is the reference for the subject without the lesson\'s point; repo, path, line, url). Licence CC BY 4.0.'
     : t.description,
   run: (a, ctx) => t.run(a, { data, base: ctx.base, at: '/learned' }),
 }))
