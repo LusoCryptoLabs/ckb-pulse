@@ -539,6 +539,27 @@ test('a public lesson page says what the check against its commit found', () => 
   assert.ok(!page(null).includes('Check against the commit'))
 })
 
+test('a public lesson links the official documentation section that was read, and only a record that fits the patterns', () => {
+  const l = PUB.lessons[0]
+  const page = (official, lang = 'en', pub = true) => lessonPage({ lang, base: 'https://pulse.example', url: 'u', data: { ...PUB, lessons: [{ ...l, official }] }, id: l.id, pub })
+  const o = { relation: 'agrees', repo: 'nervosnetwork/rfcs', commit: 'a'.repeat(40), path: 'rfcs/0017-tx-valid-since/0017-tx-valid-since.md', line: 42, section: 'How to <Specify> the Since', quote: 'The highest bit is the <relative> flag.', date: '2026-11-24' }
+  const html = page(o)
+  assert.ok(html.includes('<h2>Official documentation</h2>') && html.includes('The official documentation states this rule. In its own words:'))
+  assert.ok(html.includes('<blockquote>The highest bit is the &lt;relative&gt; flag.</blockquote>'), 'the sentence of the section, escaped')
+  assert.ok(html.includes(`href="https://github.com/nervosnetwork/rfcs/blob/${'a'.repeat(40)}/rfcs/0017-tx-valid-since/0017-tx-valid-since.md?plain=1#L42" rel="noreferrer">nervosnetwork/rfcs: How to &lt;Specify&gt; the Since</a> · read on 2026-11-24`), 'the commit and the line that were read')
+  assert.ok(page(o, 'pt').includes('A documentação oficial diz esta regra.') && page(o, 'zh').includes('官方文档'))
+  const topic = page({ ...o, relation: 'topic only', repo: 'ckb-devrel/ccc', path: 'packages/core/src/client/client.ts', section: '' })
+  assert.ok(topic.includes('It does not state the specific point of this lesson.') && !topic.includes('<blockquote>'), 'same subject is a pointer: no sentence, even if one came')
+  assert.ok(topic.includes('/packages/core/src/client/client.ts#L42" rel="noreferrer">ckb-devrel/ccc: client.ts</a>'), 'code opens at the line, and a section with no heading is named by its file')
+  assert.ok(page({ ...o, quote: '' }).includes('It does not state the specific point'), 'an agreement without its sentence is shown as a pointer')
+  for (const bad of [{ relation: 'contradicts' }, { relation: 'silent' }, { repo: 'mallory/docs' }, { commit: 'abc' }, { path: '../x.md' }, { path: 'a/"><x' }, { path: 'a//b.md' }, { line: 0 }, { line: '7' }, { line: 1.5 }])
+    assert.ok(!page({ ...o, ...bad }).includes('Official documentation'), JSON.stringify(bad))
+  assert.ok(!page(null).includes('Official documentation') && !page(o, 'en', false).includes('Official documentation'), 'nothing without a record, and not on the private pages')
+  assert.equal(official({ official: { ...o, date: 'soon' } }).date, undefined)
+  const tool = publicLessonTools(() => ({ ...PUB, lessons: [{ ...l, official: o }, { ...l, id: 'ccc/forged', official: { ...o, repo: 'mallory/docs' } }] })).find((x) => x.name === 'get_lesson')
+  assert.ok(/official: relation/.test(tool.description))
+})
+
 test('a public lesson page links the test that reproduces it, and shows nothing for a record that is not ours or not well formed', () => {
   const l = PUB.lessons[0]
   const good = { repo: 'LusoCryptoLabs/ckb-lesson-tests', test: 'tests/ccc/keep-the-change.test.mjs', commit: '27ec5fdaeb', library: '@ckb-ccc/core', version: '1.23.1', covers: 'all', date: '2026-11-20' }
@@ -737,7 +758,7 @@ test('the public lesson pages point to the feed, the private ones do not', () =>
 })
 
 // a confirmation by the publisher's own account is a check by the owner, not a confirmation
-import { confirmedByOthers, evidenceOf } from '../lessons.mjs'
+import { confirmedByOthers, evidenceOf, official } from '../lessons.mjs'
 const MINE = { by: 'LusoCryptoLabs', role: 'owner', date: '2026-11-19' }
 const OD = { ...FD, lessons: [...FD.lessons,
   EV('ours', 'L2', { title: 'Checked by us', lesson: 'Our rule.', first_seen: '2026-10-09', last_touched: '2026-10-10', confirmed: MINE }),
