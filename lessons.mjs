@@ -413,7 +413,7 @@ ${pub ? reproBlock(t, l) : ''}
 <dl><dt>${esc(t('ls.concepts'))}</dt><dd>${(l.concepts || []).map((c) => `<a href="${esc(base)}${pre}?q=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a>`).join(', ')}</dd>
 ${(l.applies_to || []).length ? `<dt>${esc(t('ls.applies'))}</dt><dd>${l.applies_to.map(esc).join(', ')}</dd>` : ''}
 <dt>${esc(t('ls.evidence'))}</dt><dd>${esc(t('ls.ev.short.' + evidenceOf(l)))}: ${esc(t('ls.evidence.' + evidenceOf(l)))}</dd>
-<dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.checked?.date || l.last_checked)}</dd>${pub && l.checked?.verdict && VERDICTS.includes(l.checked.verdict) ? `<dt>${esc(t('ls.verdict'))}</dt><dd>${esc(t('ls.verdict.' + VERDICTS.indexOf(l.checked.verdict)))}</dd>` : ''}</dl>
+<dt>${esc(t('ls.first'))}</dt><dd>${date(l.first_seen)}</dd><dt>${esc(t('ls.touched'))}</dt><dd>${date(l.last_touched)}</dd><dt>${esc(t('ls.checked'))}</dt><dd>${date(l.checked?.date || l.last_checked)}</dd>${pub && l.checked?.verdict && VERDICTS.includes(l.checked.verdict) ? `<dt>${esc(t('ls.verdict'))}</dt><dd>${esc(t('ls.verdict.' + VERDICTS.indexOf(l.checked.verdict)))}${l.checked.verdict !== 'right' && typeof l.checked.problem === 'string' && l.checked.problem.trim() ? `<br><span class="tg">${esc(t('ls.verdict.found'))}</span> ${esc(l.checked.problem.trim().slice(0, 400))}` : ''}</dd>` : ''}</dl>
 <h2>${esc(t('ls.sources', { n: l.sources.length }))}</h2><ul>${l.sources.map((s) => `<li>${s.date ? `${esc(s.date)} · ` : ''}<a href="https://github.com/${esc(s.repo)}/commit/${esc(s.hash)}" rel="noreferrer">${esc(s.repo)}</a>${s.subject ? `: ${esc(s.subject)}` : ''} · <a href="${esc(base)}${pre}?repo=${encodeURIComponent(s.repo)}&amp;lang=${lang}">${esc(t('ls.repo.more'))}</a></li>`).join('')}</ul>
 ${l.related.length ? `<h2>${esc(t('ls.related'))}</h2><ul>${l.related.map((i) => `<li>${link(i)}</li>`).join('')}</ul>` : ''}
 ${more.length ? `<h2>${esc(t('ls.more.topic', { topic: v.areas[l.area]?.name || l.area }))}</h2><ul>${more.map((x) => `<li>${link(x.id)}</li>`).join('')}</ul><p><a href="${esc(base)}${pre}?area=${esc(l.area)}&amp;lang=${lang}">${esc(t('ls.topic.all', { n: sameArea.length + 1 }))}</a></p>` : ''}
@@ -639,7 +639,7 @@ const INSTRUCTIONS = 'What CKB projects learned from their own fixes, read from 
 export const publicLessonTools = (data) => TOOLS.map((t) => ({
   ...t,
   description: t.name === 'get_lesson'
-    ? 'One released lesson in full: the rule, the code pattern, its sources (repository, commit, date), the test files its commits changed, related lessons, and how it was checked (checked: date, verdict, against_commit). Licence CC BY 4.0.'
+    ? 'One released lesson in full: the rule, the code pattern, its sources (repository, commit, date), the test files its commits changed, related lessons, and how it was checked (checked: date, verdict, against_commit, and problem when the verdict is not right). Licence CC BY 4.0.'
     : t.description,
   run: (a, ctx) => t.run(a, { data, base: ctx.base, at: '/learned' }),
 }))
