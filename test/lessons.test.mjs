@@ -531,6 +531,11 @@ test('a public lesson page says what the check against its commit found', () => 
   assert.ok(page({ date: '2026-11-19', verdict: 'partly right', against_commit: true }, 'pt').includes('em parte certa: um núcleo verdadeiro'))
   assert.ok(page({ date: '2026-11-19', verdict: 'wrong', against_commit: true }).includes('did not agree with this lesson'))
   assert.ok(!page({ date: '2026-11-19', verdict: '<b>x</b>' }).includes('Check against the commit'), 'a verdict that is not one of the four is not shown')
+  const loose = page({ date: '2026-11-19', verdict: 'partly right', against_commit: true, problem: 'The margin of <100> CKB is this project\'s choice.' })
+  assert.ok(loose.includes('What the check found:</span> The margin of &lt;100&gt; CKB is this project'), 'which part was loose, escaped')
+  assert.ok(page({ date: '2026-11-19', verdict: 'partly right', against_commit: true, problem: 'x' }, 'pt').includes('O que a verificação encontrou:'))
+  assert.ok(!page({ date: '2026-11-19', verdict: 'partly right', against_commit: true }).includes('What the check found'), 'nothing when the check kept no finding')
+  assert.ok(!page({ date: '2026-11-19', verdict: 'right', against_commit: true, problem: 'x' }).includes('What the check found'), 'never on a right verdict')
   assert.ok(!page(null).includes('Check against the commit'))
 })
 
