@@ -73,7 +73,8 @@ function markAI() {
 export const isOperator = (login) => OPERATORS.has(String(login).toLowerCase())
 // who is at the top of the lists, and has no bio on file from the last 14 days: read it once, and keep what it says
 async function aiScan() {
-  const now = Date.now(), L = leaders(state.events.filter((e) => followedNow(now)(e.repo)), now), todo = new Set()
+  // the followed set is built once: built again for every stored event, it held the whole server for three minutes at each start (measured 2026-11-25)
+  const now = Date.now(), followed = followedNow(now), L = leaders(state.events.filter((e) => followed(e.repo)), now), todo = new Set()
   for (const p of ['day', 'week', 'month']) for (const c of ['people', 'peopleCommits', 'reviewers', 'merged']) for (const [login] of L[p][c] || []) {
     const k = login.toLowerCase(), have = state.profiles[k]
     if (!isAI(login) && !isOperator(login) && (!have || now - have.at > 14 * DAY)) todo.add(login)
