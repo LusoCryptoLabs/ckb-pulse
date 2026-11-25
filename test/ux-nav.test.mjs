@@ -50,7 +50,7 @@ test('on a phone the trail is one back link to the parent, and a mouse keeps the
   assert.match(css, /@media \(pointer:coarse\)\{nav\.crumbs a\{padding:13px 0\}/, 'a finger gets a 44 px link')
   assert.ok(css.includes('nav.crumbs li{display:inline-flex;align-items:center;min-width:0;padding:0;border:0}'), 'the generic list style of the reading pages (a line under each item) is reset')
   assert.match(css, /@media print\{nav\.crumbs\{display:none\}/)
-  assert.ok(css.indexOf('@media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}}') > css.indexOf('nav.p{display:flex'), 'the chips are enlarged after their own rule, so the rule wins and the text is centred')
+  assert.ok(css.indexOf('@media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}footer a{display:inline-block;min-width:44px;padding:13px 6px;text-align:center}}') > css.indexOf('nav.p{display:flex'), 'the chips are enlarged after their own rule, so the rule wins and the text is centred')
 })
 
 const LESSON = { title: 'Example lesson one', lesson: 'Do the example thing.', concepts: ['Example concept'], status: 'current', note: '', sources: [{ repo: 'owner/repo', hash: 'abc1234', subject: 'fix: an example' }] }

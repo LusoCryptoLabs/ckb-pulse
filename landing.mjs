@@ -47,7 +47,7 @@ a.card{display:block;background:var(--surface);border:1px solid var(--edge);bord
 body{overflow-x:clip}
 .win{width:100vw;max-width:none;margin:26px 0 0 calc(50% - 50vw);border-width:1px 0;aspect-ratio:1/1;max-height:70svh}
 @media(min-width:560px){.win{aspect-ratio:16/9}}@media(min-width:1000px){.win{aspect-ratio:21/9;max-height:max(380px,calc(100svh - 372px))}}
-.win .hud{position:absolute;left:0;right:0;bottom:0;z-index:1;pointer-events:none;padding:56px max(16px,calc((100vw - 860px)/2 + 16px)) 14px;background:linear-gradient(transparent,color-mix(in srgb,var(--bg) 82%,transparent) 48%,var(--bg))}
+.win .hud{position:absolute;left:0;right:0;bottom:0;z-index:1;pointer-events:none;padding:56px max(16px,calc((100vw - 860px)/2 + 16px)) 14px;background:linear-gradient(transparent,color-mix(in srgb,var(--bg) 90%,transparent) 54px,var(--bg) 110px)}
 .ecg{display:block;width:100%;height:clamp(40px,7vw,64px);margin:0 0 10px;overflow:visible}.ecg path{fill:none;stroke:var(--signal);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px var(--signal))}
 @media(prefers-reduced-motion:no-preference){.ecg path{stroke-dasharray:1;stroke-dashoffset:1;animation:beat 2.4s cubic-bezier(.3,.6,.2,1) .4s forwards}@keyframes beat{to{stroke-dashoffset:0}}}
 .nums{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px clamp(18px,4.5vw,52px)}.nums div{display:flex;flex-direction:column;gap:2px}
@@ -64,7 +64,10 @@ a.fcard b{font-size:19px;letter-spacing:-.01em}a.fcard span{color:var(--mut);fon
 .fvis strong{font:800 clamp(44px,7vw,60px)/1 var(--font-num,monospace);letter-spacing:-.04em;font-variant-numeric:tabular-nums}.fvis em{font-style:normal;font-size:14px;color:var(--mut)}.fvis small{font:12px var(--font-num,monospace);color:var(--lime)}
 .doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0 22px;margin:0 0 6px}
 a.card{border-radius:0;border-width:0 0 1px;background:none;padding:13px 2px}a.card:hover{border-color:var(--lime)}a.card b{font-size:16px;margin-bottom:2px}a.card span{font-size:13.5px}
-@media(max-width:559px){.win .hud{padding-top:40px}}`
+/* on a phone the picture is a window of its own and the numbers, the pulse and the last update sit under it, on the page: laid over
+   the scene they met its labels */
+@media(max-width:559px){.win{aspect-ratio:auto;max-height:none;padding-top:75vw}.win .shot,.win iframe,.win a.open{inset:0 0 auto 0;height:75vw}.win .shot{object-position:62% 50%}
+.win .hud{position:static;background:none;padding:14px 16px 16px}.ecg{height:44px;margin:0 0 12px}p.plain{font-size:16px;color:var(--mut)}}`
 
 // [id, path, title word, line word]: the doors, by who they are for. The digest, the forum and the lessons are the three big
 // cards, each with a picture made of the week's real numbers; without numbers they are doors like the others.
