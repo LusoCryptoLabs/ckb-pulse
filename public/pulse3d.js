@@ -5,7 +5,7 @@
 import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
 import { menuHtml, viewsHtml, shareTargets } from './menu.js'
 import { softwareRenderer } from './quality.js'
-import { cardUrl, pullCloses } from './nav.js'
+import { cardUrl, pullAction, handleTap } from './nav.js'
 
 const DAY = 864e5
 const IDLE_MS = 15000
@@ -1223,7 +1223,7 @@ let cardStep = false
 let linkCard = false
 function setCardUrl(kind, value) { if (EMBED) return; try { history.replaceState(history.state, '', cardUrl(location.href, kind, value)) } catch {} }
 function showDrawer() {
-  if ($('drawer').hidden) { drawerFrom = document.activeElement; $('drawer').hidden = false }
+  if ($('drawer').hidden) { drawerFrom = document.activeElement; $('drawer').hidden = false; $('drawer').classList.remove('tall') }
   if (!cardStep && !linkCard) { try { history.pushState({ pulseCard: 1 }, '', location.href); cardStep = true } catch {} }
   setCardUrl()
 }
@@ -1237,13 +1237,22 @@ function closeDrawer() {
   // closed by hand: take the step back out of the history (the popstate it causes finds nothing left to close)
   if (cardStep) { cardStep = false; try { history.back() } catch {} } else setCardUrl()
 }
-// on a phone the card covers most of the screen: a pull down from its top edge closes it
+// On a phone the card is a sheet from the bottom, half the screen high: a tap on its handle or a pull up opens it fully, a
+// pull down takes a full one back to half and closes a half one. A pull down closes it where there is no sheet.
 {
   let start = null
-  const d = $('drawer')
-  d.addEventListener('touchstart', (e) => { start = e.touches.length === 1 ? { startY: e.touches[0].clientY, top: d.getBoundingClientRect().top } : null }, { passive: true })
-  d.addEventListener('touchmove', (e) => { if (start && pullCloses({ ...start, y: e.touches[0].clientY, scrollTop: d.scrollTop })) { start = null; closeDrawer() } }, { passive: true })
-  d.addEventListener('touchend', () => { start = null }, { passive: true })
+  const d = $('drawer'), sheetMode = () => matchMedia('(max-width: 860px) and (min-height: 561px)').matches
+  const point = (e) => ({ startY: start.startY, y: e.changedTouches?.[0]?.clientY ?? e.touches[0].clientY, top: start.top, scrollTop: d.scrollTop, tall: d.classList.contains('tall'), sheet: sheetMode() })
+  d.addEventListener('touchstart', (e) => { start = e.touches.length === 1 ? { startY: e.touches[0].clientY, top: d.getBoundingClientRect().top, target: e.target, moved: false } : null }, { passive: true })
+  d.addEventListener('touchmove', (e) => {
+    if (!start) return
+    start.moved = start.moved || Math.abs(e.touches[0].clientY - start.startY) >= 10
+    const act = pullAction(point(e))
+    if (!act) return
+    start = null
+    if (act === 'close') closeDrawer(); else d.classList.toggle('tall', act === 'expand')
+  }, { passive: true })
+  d.addEventListener('touchend', (e) => { if (start && sheetMode() && !start.moved && handleTap({ ...point(e), target: start.target })) d.classList.toggle('tall'); start = null }, { passive: true })
 }
 addEventListener('popstate', () => { if (cardStep) { cardStep = false; if (!$('drawer').hidden) closeDrawer() } })
 // the heading takes the focus, so a keyboard or a screen reader carries on inside; not while the welcome card is up,

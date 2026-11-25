@@ -495,6 +495,12 @@ body.bars .now .ticker { white-space: nowrap; }
 .drawer ul.lessons small { display: block; color: var(--mut); font-size: 12px; margin-top: 1px; }
 @media (pointer: coarse) { .drawer::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 3px; background: color-mix(in srgb, var(--fg) 30%, transparent); margin: -6px auto 12px; } }
 @media (pointer: coarse) and (max-width: 360px) { .icon, .top .pm-btn { min-width: 40px; height: 40px; } }
+/* the card on a phone is a sheet from the bottom, half the screen high, so the list or the scene stays in view above it */
+@media (max-width: 860px) and (min-height: 561px) {
+  .drawer { top: auto; height: min(56dvh, calc(100dvh - var(--top) - 150px - var(--sab))); animation: sheet 0.28s ease-out; }
+  .drawer.tall { top: var(--top); height: auto; }
+}
+@keyframes sheet { from { transform: translateY(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .live.on, .feed li.new, .drawer, .intro, .p-live.ping::before, .updot { animation: none; } }
 
 /* Cellula's look (2026-11-02): numbers and small labels in mono, switches as pills; sizes stay where they were */
