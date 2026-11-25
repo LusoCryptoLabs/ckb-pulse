@@ -73,9 +73,9 @@ export function barsInfo(t, period, bars, now = Date.now()) {
   const ticks = period === 'week' ? bars.map((v, i) => [label(i), v]) : n ? [0, Math.round((n - 1) / 2), n - 1].map((i) => [period === 'day' ? hour(i) : fmt(endOf(i), { day: 'numeric', month: 'short' }), null]) : []
   return { titles, ticks, peak: n && bars[top] > 0 ? t('dg.peak', { when: titles[top] }) : '', note: t(period === 'day' ? 'dg.note.hour' : 'dg.note.day'), summary: `${t('dg.chart', { unit: t('dg.unit.' + period) })} ${titles.join('; ')}` }
 }
-export function barsHtml(t, period, bars, now = Date.now()) {
+export function barsHtml(t, period, bars, now = Date.now(), max = Math.max(1, ...bars)) {
   if (!bars.length) return '<div hidden></div>'
-  const info = barsInfo(t, period, bars, now), max = Math.max(1, ...bars)
+  const info = barsInfo(t, period, bars, now)
   const axis = period === 'week' ? `<div class="axis" aria-hidden="true">${info.ticks.map(([l, v]) => `<span><b>${v}</b>${esc(l)}</span>`).join('')}</div>` : `<div class="axis ticks" aria-hidden="true">${info.ticks.map(([l]) => `<span>${esc(l)}</span>`).join('')}</div>`
   return `<div class="bars" role="img" aria-label="${esc(info.summary)}">${bars.map((v, i) => `<i title="${esc(info.titles[i])}" style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>${axis}<p class="sub no-print">${esc([info.peak, info.note].filter(Boolean).join(' '))}</p>`
 }
