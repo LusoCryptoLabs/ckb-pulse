@@ -199,6 +199,9 @@ function readJson(req, max, done) {
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
 const lessonsMcpHandle = lessonsMcp(() => loadLessons(DATA_DIR))
+// what the landing page draws of the forum and of the lessons: the technical topics of the week, and how many lessons are public
+const forumTech = () => { const d = forumNow(); return d?.stats?.tech ? { topics: d.stats.tech.topics, fresh: d.stats.tech.fresh, people: d.stats.tech.people } : null }
+const publicLessonCount = () => { const data = loadLessons(DATA_DIR, 'public-lessons.json'); return data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length ? visible(data).lessons.length : 0 }
 // one project as the compare page and its API need it: the card's detail and the forum topics that link it
 const detailFor = (name) => { const d = repoDetail(name); return d ? { d, forum: forumOf(forumNow(), d.name) } : null }
 const compare = (x, y) => { const a = detailFor(x), b = detailFor(y); return a && b ? compareJson(metricsOf(a.d, { forum: a.forum }), metricsOf(b.d, { forum: b.forum })) : null }
@@ -227,8 +230,8 @@ function handle(req, res) {
   }
   if (url.pathname === '/' && !DEEP.some((k) => url.searchParams.has(k))) {
     hit('landing', ipOf(req), req.headers['user-agent'])
-    const lang = langOf(url.searchParams, req), b = baseOf(req), day = highlightsNow().day
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, landingPage({ lang, base: b, url: `${b}/`, stats: day.stats, last: latestUpdates({ limit: 1 })[0] || null, img: `${b}${withStamp(`/og/highlights.png?p=day`, day)}&lang=${lang}` }))
+    const lang = langOf(url.searchParams, req), b = baseOf(req), hl = highlightsNow(), day = hl.day
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, landingPage({ lang, base: b, url: `${b}/`, stats: day.stats, dayBars: day.bars, week: { bars: hl.week.bars, kinds: hl.week.stats.kinds }, forum: forumTech(), lessons: publicLessonCount(), last: latestUpdates({ limit: 1 })[0] || null, img: `${b}${withStamp(`/og/highlights.png?p=day`, day)}&lang=${lang}` }))
   }
   if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/live') { hit('pulse', ipOf(req), req.headers['user-agent']); return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' }, page(req, url)) }
   // the Fiber map is paused: its address goes to the live page for now, its API and stream answer 503 (menu.js, FIBER_PAUSED)
