@@ -19,6 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { forumPage, forumJson, forumNow, loadForum, startForum } from './forum.mjs'
 import { landingPage, lastLine } from './landing.mjs'
 import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
@@ -178,10 +179,12 @@ initPush(DATA_DIR)
 initVisits(DATA_DIR)
 loadDigests(DATA_DIR)
 loadImpact(DATA_DIR)
+loadForum(DATA_DIR)
 // PULSE_OFFLINE=1 serves what is on disk and polls nothing (the HTTP tests)
 const OFFLINE = process.env.PULSE_OFFLINE === '1'
 if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
 if (!OFFLINE) startImpact({ repos: () => snapshot().repos, dir: DATA_DIR })
+if (!OFFLINE) startForum({ dir: DATA_DIR, known: knownRepos })
 // the app icon, drawn once: four cells, two lit
 const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#121212"/><rect x="1.5" y="1.5" width="6.2" height="6.2" fill="#F4F1EB"/><rect x="8.3" y="1.5" width="6.2" height="6.2" fill="#5a5a56"/><rect x="1.5" y="8.3" width="6.2" height="6.2" fill="#5a5a56"/><rect x="8.3" y="8.3" width="6.2" height="6.2" fill="#E10600"/></svg>'
 const icons = {}
@@ -256,7 +259,7 @@ function handle(req, res) {
   }
   if (url.pathname === '/sitemap.xml') {
     const b = baseOf(req), data = loadLessons(DATA_DIR, 'public-lessons.json'), many = data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length ? visible(data).lessons : []
-    const pages = ['/', '/live', '/digest?p=week', '/impact', '/use', '/method', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
+    const pages = ['/', '/live', '/digest?p=week', '/forum', '/impact', '/use', '/method', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
     const loc = (p, at) => `<url><loc>${(b + p).replace(/&/g, '&amp;')}</loc>${at ? `<lastmod>${at}</lastmod>` : ''}</url>`
     res.writeHead(200, { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' })
     return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => loc(p)).join('\n')}\n${many.map((l) => loc(`/learned/${l.id}`, /^\d{4}-\d{2}-\d{2}$/.test(String(l.last_touched)) ? l.last_touched : '')).join('\n')}\n</urlset>\n`)
@@ -325,6 +328,11 @@ function handle(req, res) {
     return res.end(JSON.stringify(r ? { ...r, libs: shownLibs(impactNow()).map((l) => ({ id: l.id, name: l.name })) } : { status: 'counting' })) // libs: the libraries listed now, most active first
   }
   // what is counted and what is not
+  if (url.pathname === '/forum') {
+    hit('forum', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, forumPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/forum`, data: forumNow(), group: url.searchParams.get('c') }))
+  }
+  if (url.pathname === '/api/forum') { const d = forumNow(); if (!d) { res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end('{"status":"reading"}') } return sendJson(req, res, forumJson(d, url.searchParams.get('c'))) }
   if (url.pathname === '/method') {
     hit('method', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, methodPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/method` }))

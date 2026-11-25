@@ -12,7 +12,7 @@ import { FIBER_PAUSED, today } from './public/menu.js'
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const install = (base) => `claude mcp add --transport http ckb-pulse ${base}/mcp`
 const API = [
-  ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'], ['/api/impact?lib=ccc', 'use.api.impact'],
+  ['/api/state', 'use.api.state'], ['/api/repo?name=owner/repo', 'use.api.repo'], ['/api/impact?lib=ccc', 'use.api.impact'], ['/api/forum?c=tech', 'use.api.forum'],
   ...(FIBER_PAUSED ? [] : [['/api/fiber?net=mainnet|testnet', 'use.api.fiber']]), ['/api/stream', 'use.api.stream'],
   ['/learned.json', 'use.api.learned'], ['/learned.xml', 'use.api.atom'],
 ]
@@ -34,6 +34,7 @@ export function usePage({ lang, base, url, img = '' }) {
     ['follow', `<p>${esc(t('use.follow.p'))}</p>${go([[`${base}/digest?p=week&${L}`, 'use.follow.digest'], [`${base}/?tab=new&${L}`, 'use.follow.notify', 1], [`${base}/feed?${L}`, 'use.follow.feed', 1]])}`],
     ['learn', `<p>${esc(t('use.learn.p'))}</p>${go([[`${base}/learned?${L}`, 'use.learn.a'], [`${base}/learned/start?${L}`, 'use.learn.start', 1], [`${base}/learned/glossary?${L}`, 'use.learn.gloss', 1]])}`],
     ['badge', `<p>${esc(t('use.badge.p'))}</p><div class="badge"><img src="${esc(base)}/badge/ckb.svg?${L}" alt="CKB Pulse" height="20"></div><pre><code>${esc(`[![CKB Pulse](${base}/badge/ckb.svg)](${base}/)`)}</code></pre>`],
+    ['forum', `<p>${esc(t('use.forum.p'))}</p>${go([[`${base}/forum?${L}`, 'use.forum.a']])}`],
     ['impact', `<p>${esc(t('use.impact.p'))}</p>${go([[`${base}/impact?${L}`, 'use.impact.a']])}`],
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
     ...(FIBER_PAUSED ? [] : [['fiber', `<p>${esc(t('use.fiber.p'))}</p>${go([[`${base}/fiber`, 'use.fiber.a']])}`]]),
@@ -47,7 +48,7 @@ export function usePage({ lang, base, url, img = '' }) {
   ]
   // what is for anyone first, what is for people who write code after: the page used to run them together
   const have = new Set(parts.map(([id]) => id))
-  const groups = [['all', ['watch', 'follow', 'add', 'fiber']], ['dev', ['learn', 'badge', 'impact', 'data', 'ai', 'rule', 'action']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
+  const groups = [['all', ['watch', 'follow', 'forum', 'add', 'fiber']], ['dev', ['learn', 'badge', 'impact', 'data', 'ai', 'rule', 'action']]].map(([g, ids]) => [g, ids.filter((id) => have.has(id))])
   const byId = new Map(parts)
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
@@ -100,6 +101,7 @@ ${agentRule(base)}
 - [Digest](${base}/digest?p=week): the highlights of a day, week or month (p=day|week|month)
 ${FIBER_PAUSED ? '' : `- [Fiber map](${base}/fiber): Fiber nodes and public channels on mainnet and testnet
 `}- [Who builds on what](${base}/impact?lib=ccc): which of the projects Pulse follows use each CKB library (CCC, ckb-std, ckb-testtool, Molecule and more), listed by use; /api/impact gives the list in libs
+- [The forum this week](${base}/forum): the topics of Nervos Talk with a post in the last seven days, with replies, people and the projects they name (c=tech|funding|other|all); /api/forum gives the same as JSON
 - [What you can do](${base}/use): every feature, for people
 - [How Pulse counts](${base}/method): what an update is, the caps, what is left out
 
@@ -108,6 +110,7 @@ ${FIBER_PAUSED ? '' : `- [Fiber map](${base}/fiber): Fiber nodes and public chan
 - [State](${base}/api/state): repositories, highlights and 7 days of history (send If-None-Match)
 - ${base}/api/repo?name=owner/repo: one repository over 30 days
 - ${base}/api/impact?lib=ccc: the projects that use a library, with their last activity
+- ${base}/api/forum?c=tech|funding|other|all: the forum week, topics with replies, people and projects named
 ${FIBER_PAUSED ? '' : `- ${base}/api/fiber?net=mainnet|testnet: the Fiber map
 `}- ${base}/api/stream${FIBER_PAUSED ? '' : ` and ${base}/api/fiber/stream`}: Server-Sent Events
 - [Feed](${base}/feed.xml): Atom
