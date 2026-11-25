@@ -5,6 +5,7 @@
 import { WORDS, FAMILY, KIND_FAMILY, TAGS, groupName } from './words.js'
 import { menuHtml, viewsHtml, shareTargets } from './menu.js'
 import { softwareRenderer } from './quality.js'
+import { cardUrl, pullCloses } from './nav.js'
 
 const DAY = 864e5
 const IDLE_MS = 15000
@@ -711,11 +712,11 @@ function notFollowed(login, name) {
 function openFromLink() {
   const q = new URLSearchParams(location.search)
   const repo = q.get('repo'), person = q.get('person'), h = q.get('h'), tab = q.get('tab')
-  if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; openRepo(i) } else notFollowed(repo.split('/')[0], repo) }
+  if (repo) { const i = repos.findIndex((r) => r.name.toLowerCase() === repo.toLowerCase()); if (i >= 0) { T.chosen = true; linkCard = true; try { openRepo(i) } finally { linkCard = false } } else notFollowed(repo.split('/')[0], repo) }
   else if (person) {
     // GitHub logins ignore case, and so does the link preview: ?person=raheemjnr is RaheemJnr
     const key = [...actorIdx.keys()].find((k) => k.toLowerCase() === person.toLowerCase())
-    if (key) { T.chosen = true; openPerson(actorIdx.get(key)) } else notFollowed(person, person)
+    if (key) { T.chosen = true; linkCard = true; try { openPerson(actorIdx.get(key)) } finally { linkCard = false } } else notFollowed(person, person)
   }
   else if (['day', 'week', 'month'].includes(h)) {
     hlPeriod = h
@@ -1215,16 +1216,32 @@ let drawerFrom = null
 // An open card is one step in the browser's history: Back (or the phone's back gesture) closes it and stays on the page.
 // It used to leave the site, with the card open and the whole scene behind it
 let cardStep = false
+// A card opened by the address the page loaded with is the page itself, not a step on top of it: one Back leaves it
+// (from the digest, two were needed). The address always names the card that is open, and only that one.
+let linkCard = false
+function setCardUrl(kind, value) { if (EMBED) return; try { history.replaceState(history.state, '', cardUrl(location.href, kind, value)) } catch {} }
 function showDrawer() {
   if ($('drawer').hidden) { drawerFrom = document.activeElement; $('drawer').hidden = false }
-  if (!cardStep) { try { history.pushState({ pulseCard: 1 }, '', location.href); cardStep = true } catch {} }
+  if (!cardStep && !linkCard) { try { history.pushState({ pulseCard: 1 }, '', location.href); cardStep = true } catch {} }
+  setCardUrl()
 }
 function closeDrawer() {
   const inside = $('drawer').contains(document.activeElement)
   $('drawer').hidden = true; listShown = false
-  if (inside && drawerFrom?.isConnected && drawerFrom.getClientRects().length) drawerFrom.focus({ preventScroll: true })
+  if (inside) {
+    if (drawerFrom?.isConnected && drawerFrom.getClientRects().length) drawerFrom.focus({ preventScroll: true })
+    else { const home = document.querySelector('.brand h1'); if (home) { home.tabIndex = -1; home.focus({ preventScroll: true }) } } // what opened it is gone: the focus goes to the top, not to nowhere
+  }
   // closed by hand: take the step back out of the history (the popstate it causes finds nothing left to close)
-  if (cardStep) { cardStep = false; try { history.back() } catch {} }
+  if (cardStep) { cardStep = false; try { history.back() } catch {} } else setCardUrl()
+}
+// on a phone the card covers most of the screen: a pull down from its top edge closes it
+{
+  let start = null
+  const d = $('drawer')
+  d.addEventListener('touchstart', (e) => { start = e.touches.length === 1 ? { startY: e.touches[0].clientY, top: d.getBoundingClientRect().top } : null }, { passive: true })
+  d.addEventListener('touchmove', (e) => { if (start && pullCloses({ ...start, y: e.touches[0].clientY, scrollTop: d.scrollTop })) { start = null; closeDrawer() } }, { passive: true })
+  d.addEventListener('touchend', () => { start = null }, { passive: true })
 }
 addEventListener('popstate', () => { if (cardStep) { cardStep = false; if (!$('drawer').hidden) closeDrawer() } })
 // the heading takes the focus, so a keyboard or a screen reader carries on inside; not while the welcome card is up,
@@ -1247,7 +1264,7 @@ async function openRepo(i) {
   const r = repos[i]; if (!r) return
   const back = backTo; backTo = null; listShown = false
   const c = cell[i]; if (c) flyTo(c.x, c.z, 26)
-  showDrawer()
+  showDrawer(); setCardUrl('repo', r.name)
   $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
   focusDrawer()
   const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>${followBtn('repo', r.name)}<button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>`
@@ -1263,12 +1280,12 @@ async function openRepo(i) {
     $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(d.name))}</h2><p class="owner">${esc(d.name)}</p>
 ${badgesFor(d.name, ['repos', 'commits', 'pushes'], fresh)}${statusPill(d.daily)}<p class="sub">${sub}</p>
 <p class="desc">${esc(d.desc || t('d.noDesc'))}</p>${gh(d.url)}${badgeRow('repo', d.name)}
+${Array.isArray(d.forum) && d.forum.length ? `<h3>${esc(t('d.forum'))} <span class="n">${d.forum.length}</span></h3><ul class="lessons">${d.forum.filter((x) => Number.isInteger(x.id)).map((x) => `<li><a href="https://talk.nervos.org/t/${x.id}" target="_blank" rel="noopener">${esc(x.title)}</a> <small>${esc(cnt('rep', x.replies))}</small></li>`).join('')}</ul>` : ''}
 ${d.daily.people.some(Boolean) || d.daily.bots.some(Boolean) ? `<h3>${esc(t('d.month'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
 <p class="key"><i class="h"></i>${esc(t('people'))} <i class="b"></i>${esc(t('automatic'))}</p>` : `<p class="sub quiet">${esc(t('d.monthNone'))}</p>`}
 ${onchainBlock(d.onchain)}
 ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => actorIdx.has(p.login) ? `<button type="button" data-person="${actorIdx.get(p.login)}"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></button>` : `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
-${Array.isArray(d.forum) && d.forum.length ? `<h3>${esc(t('d.forum'))}</h3><ul class="lessons">${d.forum.filter((x) => Number.isInteger(x.id)).map((x) => `<li><a href="https://talk.nervos.org/t/${x.id}" target="_blank" rel="noopener">${esc(x.title)}</a> <small>${esc(cnt('rep', x.replies))}</small></li>`).join('')}</ul>` : ''}
 ${d.lessons?.count ? `<h3>${esc(t(d.lessons.area ? 'd.lessons.lib' : 'd.lessons'))}</h3><ul class="lessons">${d.lessons.top.map((l) => `<li><a href="learned/${esc(l.id)}?lang=${LANG}">${esc(l.title)}</a></li>`).join('')}</ul>${d.lessons.count > d.lessons.top.length ? `<p class="sub"><a href="learned?${d.lessons.area ? `area=${encodeURIComponent(d.lessons.area)}` : `repo=${encodeURIComponent(d.name)}`}&amp;lang=${LANG}">${esc(t('d.lessons.all', { n: d.lessons.count }))}</a></p>` : ''}` : ''}
 <h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kvar(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
 ${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`
@@ -1285,7 +1302,7 @@ function openPerson(a) {
   // what kind of work, and when it last happened: a count of updates alone reads the same for a review and a push
   const kindPills = [...kinds].sort((x, y) => y[1] - x[1]).map(([k, n]) => `<span>${esc(`${n} ${t('kn.' + k)}`)}</span>`).join('')
   const back = backTo; backTo = null; listShown = false
-  showDrawer()
+  showDrawer(); setCardUrl('person', login)
   $('drawer-body').innerHTML = `${backBtn(back)}<div class="person"><img src="${esc(avatarUrl(a))}" alt=""><div><h2 tabindex="-1">${esc(login)}${tagOf(flag)}</h2>
 <p class="sub">${esc(t('p.sum', { updates: cnt('upd', list.reduce((s, x) => s + x[1], 0)), projects: cnt('prj', list.length) }))}${lastAt ? ` · ${esc(t('p.last', { ago: ago(lastAt) }))}` : ''}</p></div></div>
 ${kindPills ? `<div class="pills kinds">${kindPills}</div>` : ''}
@@ -1714,6 +1731,8 @@ function backdropInert(on) { for (const el of document.body.children) if (el.id 
 function openIntro() {
   introFrom = document.activeElement
   introOpen = true; $('intro').hidden = false
+  // room to read the rest on a big screen; on a phone the button comes first and the rest is one tap away
+  $('intro-more').open = matchMedia('(min-width: 861px) and (min-height: 700px)').matches
   backdropInert(true)
   $('intro-go').focus({ preventScroll: true }) // the button is at the foot of a long card: focusing it must not scroll the title away
   $('intro').querySelector('.card').scrollTop = 0

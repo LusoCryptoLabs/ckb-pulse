@@ -193,6 +193,7 @@ body.drawer-open .side { visibility: hidden; }
 .drawer .pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 14px; }
 .drawer .pills span { font-size: 11.5px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--mut); }
 .drawer h3 { font-size: 13px; color: var(--mut); margin: 18px 0 6px; font-weight: 600; }
+.drawer h3 .n { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: color-mix(in srgb, var(--lime) 18%, transparent); color: var(--lime); font-size: 11.5px; text-align: center; }
 .drawer svg.bars { width: 100%; height: 64px; display: block; }
 .drawer .key { margin: 4px 0 0; font-size: 12px; color: var(--mut); display: flex; align-items: center; gap: 6px; }
 .drawer .key i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
@@ -323,7 +324,10 @@ body.drawer-open .side { visibility: hidden; }
 @keyframes fade { from { opacity: 0; } }
 .intro .card { position: relative; width: min(540px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; background: var(--glass2); border: 1px solid color-mix(in srgb, var(--lime) 25%, transparent); border-radius: 18px; padding: 24px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 20px 60px var(--shade); }
 .intro h2 { margin: 0 0 10px; font-size: 23px; line-height: 1.25; }
-.intro .lead { margin: 0 0 16px; color: var(--fg); font-size: 15px; line-height: 1.55; }
+.intro details.more { margin: 0 0 16px; }
+.intro details.more > summary { cursor: pointer; font-size: 14px; color: var(--mut); padding: 10px 0; min-height: 24px; }
+.intro details.more[open] > summary { margin-bottom: 8px; }
+.intro .lead { margin: 0 0 8px; color: var(--fg); font-size: 15px; line-height: 1.55; }
 .intro .how { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 12px; }
 .intro .how li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; font-size: 14.5px; line-height: 1.45; }
 .intro .how svg { width: 34px; height: 34px; }
@@ -476,6 +480,21 @@ body.bars .now .ticker { white-space: nowrap; }
   .periods button { padding: 5px 8px; font-size: 12.5px; }
   .intro .card { padding: 18px; } .intro h2 { font-size: 20px; } .intro .lead, .intro .how li { font-size: 14px; }
 }
+@media (pointer: coarse) {
+  .icon, .top .pm-btn { min-width: 44px; height: 44px; }
+  .drawer .close { width: 48px; height: 48px; top: 2px; right: 4px; }
+  .drawer .actions > *, .drawer .gh, .drawer .back, .drawer .more, .news-toast button, .toast .go { min-height: 44px; }
+  .timeline button, .timeline .seg button, .tl-btn { min-height: 44px; }
+  #btn-side, #btn-play, .toast .x, .newhere .x { min-width: 44px; min-height: 44px; }
+  .vb-seg button { min-width: 44px; }
+  /* the faces on a bar are 26 px and overlap: the tap area grows up and down, not across */
+  .bvr-faces button { position: relative; overflow: visible; } .bvr-faces img { border-radius: 50%; } .bvr-faces button::after { content: ""; position: absolute; inset: -10px -2px; }
+  .tabs button, .seg button { min-height: 44px; }
+  .drawer h2 { margin-right: 52px; }
+}
+.drawer ul.lessons small { display: block; color: var(--mut); font-size: 12px; margin-top: 1px; }
+@media (pointer: coarse) { .drawer::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 3px; background: color-mix(in srgb, var(--fg) 30%, transparent); margin: -6px auto 12px; } }
+@media (pointer: coarse) and (max-width: 360px) { .icon, .top .pm-btn { min-width: 40px; height: 40px; } }
 @media (prefers-reduced-motion: reduce) { .live.on, .feed li.new, .drawer, .intro, .p-live.ping::before, .updot { animation: none; } }
 
 /* Cellula's look (2026-11-02): numbers and small labels in mono, switches as pills; sizes stay where they were */

@@ -3,7 +3,7 @@
 // more than the code does.
 import { words } from './cards.mjs'
 import { today } from './public/menu.js'
-import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const PARTS = ['source', 'update', 'window', 'rank', 'bots', 'impact', 'follow', 'forum', 'own', 'limits']
@@ -14,7 +14,7 @@ export function methodPage({ lang, base, url }) {
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
 ${menuHead(base)}<style>${CSS}${READING_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/method', share: { url: `${url}?lang=${lang}&d=${today()}`, title } })}
-${pageHead({ eyebrow: t('me.nav'), title: t('me.h1'), lede: esc(desc) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('me.nav'), null]] }), eyebrow: t('me.nav'), title: t('me.h1'), lede: esc(desc) })}
 ${PARTS.map((id) => `<section class="me" id="${id}"><h2>${esc(t(`me.${id}.h`))}</h2><p>${esc(t(`me.${id}.p`))}</p></section>`).join('\n')}
 <section class="me" id="privacy"><h2>${esc(t('pv.nav'))}</h2><p><a href="${esc(base)}/privacy?lang=${lang}">${esc(t('pv.title'))}</a></p></section>
 <section class="me" id="wrong"><h2>${esc(t('me.wrong.h'))}</h2><p>${esc(t('me.wrong.p'))}</p><p class="go"><a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('me.wrong.a'))}</a></p></section>

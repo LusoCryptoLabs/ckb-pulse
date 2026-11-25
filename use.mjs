@@ -2,7 +2,7 @@
 // watched the scene and left; the digest, the feed, notices, badges, the Fiber map, the API and
 // the MCP server could only be found by knowing their address (2026-11-02).
 import { words } from './cards.mjs'
-import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
 import { TOOL_INFO } from './mcp.mjs'
 import { LESSON_TOOL_INFO, agentRule } from './lessons.mjs'
 // what a CKB project copies to .github/workflows/ckb-lessons.yml (LusoCryptoLabs/ckb-pulse-action)
@@ -54,7 +54,7 @@ export function usePage({ lang, base, url, img = '' }) {
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">${img ? `<meta property="og:image" content="${esc(img)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">` : ''}
 <link rel="alternate" type="text/plain" title="llms.txt" href="${esc(base)}/llms.txt">${menuHead(base)}<style>${CSS}${PAGE_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/use', share: { url: `${url}?lang=${lang}&d=${today()}`, title, image: img || undefined } })}
-${pageHead({ eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('use.nav'), null]] }), eyebrow: t('use.nav'), title: t('use.h1'), lede: esc(desc) })}
 <nav class="jump">${groups.map(([g, ids]) => `<div class="jg"><span class="jl">${esc(t('use.group.' + g))}</span>${ids.map((id) => `<a href="#${id}">${esc(t(`use.${id}.h`))}</a>`).join('')}</div>`).join('')}</nav>
 ${groups.map(([g, ids]) => `<h2 class="grp" id="for-${g}">${esc(t('use.group.' + g))}</h2>
 ${ids.map((id) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${byId.get(id)}</section>`).join('\n')}`).join('\n')}

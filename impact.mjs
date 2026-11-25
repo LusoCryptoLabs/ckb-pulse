@@ -5,7 +5,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
-import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
 import { isOptedOut } from './config.mjs'
 import { today } from './public/menu.js'
 
@@ -194,7 +194,7 @@ ${list(t('im.active'), active)}${list(t('im.quiet'), quiet)}
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">${r ? `<meta property="og:image" content="${esc(`${base}/og/impact.png?lib=${lib.id}&lang=${lang}&v=2-${r.using}-${r.active}`)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(`${base}/og/impact.png?lib=${lib.id}&lang=${lang}&v=2-${r.using}-${r.active}`)}">` : ''}
 ${menuHead(base)}<style>${CSS}ol li small{display:inline;margin-left:8px}nav.p{margin-bottom:20px;display:flex;flex-wrap:wrap;gap:6px 14px}p.plain{font-size:19px;color:var(--fg);max-width:60ch;margin:0 0 18px}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: `/impact?lib=${lib.id}`, share: { url: `${base}/impact?lib=${lib.id}&lang=${lang}&d=${today()}`, title } })}
-${pageHead({ eyebrow: t('im.nav'), title: t('im.h1', { lib: lib.name }), lede: esc(desc) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('im.nav'), null]] }), eyebrow: t('im.nav'), title: t('im.h1', { lib: lib.name }), lede: esc(desc) })}
 ${chips}
 ${body}
 <footer>${maker(t)}

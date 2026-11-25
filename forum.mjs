@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
 import { today } from './public/menu.js'
-import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 export const FORUM = 'https://talk.nervos.org'
@@ -198,7 +198,7 @@ ${all.length ? '' : `<p>${esc(t('fo.none'))}</p>`}${sec(t('fo.hot'), all.filter(
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
 <link rel="alternate" type="application/atom+xml" title="${esc(title)}" href="${esc(base)}/forum.xml?c=${g}&amp;lang=${lang}">${menuHead(base)}<style>${CSS}${READING_CSS}${FORUM_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'forum', here: g === 'tech' ? '/forum' : `/forum?c=${g}`, share: { url: `${url}?c=${g}&lang=${lang}&d=${today()}`, title } })}
-${pageHead({ eyebrow: t('fo.nav'), title: t('fo.h1'), lede: esc(desc) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('fo.nav'), null]] }), eyebrow: t('fo.nav'), title: t('fo.h1'), lede: esc(desc) })}
 ${body}
 ${pageFoot(t, url)}
 </main>${menuScript(base)}</body></html>`
