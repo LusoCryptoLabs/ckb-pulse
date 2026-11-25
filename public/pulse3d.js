@@ -48,6 +48,8 @@ let famCache = null
 const famColors = () => famCache || (famCache = Object.fromEntries(FAMS.map((f) => [f, tok(`--f-${f}`, FAMILY[f])])))
 const kcol = (k) => famColors()[fam(k)]
 const kvar = (k) => `var(--f-${fam(k)})` // in a page of HTML the colour is the token itself, so it follows the look without a redraw
+// a kind of work is also a shape and a pattern, not the colour alone: data-f names the family for the stylesheet
+const dataF = (k) => `data-f="${fam(k)}"`
 const short = (name) => String(name || '').split('/').pop()
 const gname = (g) => groupName(g, { ...WORDS.en, ...WORDS[LANG] })
 const fmtClock = (x) => new Date(x).toLocaleTimeString(t('locale'), { hour: '2-digit', minute: '2-digit' })
@@ -449,7 +451,7 @@ function kpis() {
 // built once per language, so an open topic list is never rebuilt under the finger; the counts update in place
 function buildFilters() {
   $('fams').innerHTML = `<button type="button" data-fam="">${esc(t('f.all'))}</button>` +
-    FAMS.map((f) => `<button type="button" data-fam="${f}"><i style="background:var(--f-${f})"></i>${esc(t('fam.' + f))}<b></b></button>`).join('')
+    FAMS.map((f) => `<button type="button" data-fam="${f}"><i data-f="${f}" style="background-color:var(--f-${f})"></i>${esc(t('fam.' + f))}<b></b></button>`).join('')
   $('topic').innerHTML = `<option value="">${esc(t('topic.all'))}</option>` + TAGS.map((g) => `<option value="${esc(g)}">${esc(t('tag.' + g))}</option>`).join('')
   $('topic').value = filt.tag || ''
   syncFilters(); filterCounts()
@@ -509,7 +511,7 @@ function feedItem(w, isNew) {
   const r = repos[w.r]
   const title = w.title ? `<div class="title">${w.url ? `<a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a>` : esc(w.title)}</div>` : ''
   const did = t('v.' + w.k, { repo: `<button type="button" class="repo" data-repo="${w.r}">${esc(short(r.name))}</button>` })
-  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" style="background:${kvar(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
+  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" ${dataF(w.k)} style="background-color:${kvar(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
 }
 $('feed').addEventListener('click', (e) => { const r = e.target.closest('[data-repo]'); if (r) openRepo(+r.dataset.repo) })
 function showTab(name) {
@@ -586,7 +588,7 @@ function renderHighlights() {
     const items = (L[k]?.[cat] || []).filter((x) => x[1] > 0).map(([name, n, av], i) => {
       const rk = `<span class="rk">${i === 0 ? MEDAL : i + 1}</span>`
       const said = (label) => `aria-label="${esc(`${i + 1}. ${label}: ${n}`)}"`
-      if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" style="background:${kvar(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
+      if (type === 'repo') return `<li><button type="button" class="row" data-repo-name="${esc(name)}" ${said(`${short(name)}, ${gname(stateRepo(name)?.group || '')}`)}>${rk}<i class="sw" ${dataF(stateRepo(name)?.lastKind)} style="background-color:${kvar(stateRepo(name)?.lastKind)}"></i><span>${esc(short(name))}<small>${esc(gname(stateRepo(name)?.group || ''))}</small></span><b>${n}</b></button></li>`
       if (type === 'person') return `<li><button type="button" class="row" data-login="${esc(name)}" data-avatar="${esc(av || '')}" ${said(name)}>${rk}<img src="${esc(ghAvatar(name, av, 48))}" alt="" loading="lazy"><span>${esc(name)}${tagOf(cat === 'ai' ? 'ai' : cat === 'operators' ? 'op' : flagOfLogin(name))}</span><b>${n}</b></button></li>`
       return `<li><button type="button" class="row" data-group="${esc(name)}" ${said(gname(name))}>${rk}<i class="sw"></i><span>${esc(gname(name))}</span><b>${n}</b></button></li>`
     }).join('')
@@ -1287,7 +1289,7 @@ ${onchainBlock(d.onchain)}
 ${d.months?.some((x) => x.commits) ? `<h3>${esc(t('d.months'))}</h3><svg class="bars" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">${monthBars(d.months, 'commits', d.months.length - 1)}</svg><div class="t-axis"><span>${esc(monthName(d.months[0].month))}</span><span>${esc(monthName(d.months[d.months.length - 1].month))}</span></div>` : ''}
 ${d.contributors.length ? `<h3>${esc(t('d.who'))}</h3><div class="people">${d.contributors.map((p) => actorIdx.has(p.login) ? `<button type="button" data-person="${actorIdx.get(p.login)}"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></button>` : `<a href="https://github.com/${esc(p.login)}" target="_blank" rel="noopener"><img src="${esc(ghAvatar(p.login, p.avatar, 48))}" alt="">${esc(p.login)} <b>${p.n}</b></a>`).join('')}</div>` : ''}
 ${d.lessons?.count ? `<h3>${esc(t(d.lessons.area ? 'd.lessons.lib' : 'd.lessons'))}</h3><ul class="lessons">${d.lessons.top.map((l) => `<li><a href="learned/${esc(l.id)}?lang=${LANG}">${esc(l.title)}</a></li>`).join('')}</ul>${d.lessons.count > d.lessons.top.length ? `<p class="sub"><a href="learned?${d.lessons.area ? `area=${encodeURIComponent(d.lessons.area)}` : `repo=${encodeURIComponent(d.name)}`}&amp;lang=${LANG}">${esc(t('d.lessons.all', { n: d.lessons.count }))}</a></p>` : ''}` : ''}
-<h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" style="background:${kvar(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
+<h3>${esc(t('d.latest'))}</h3><ol>${d.events.slice(0, 20).map((e) => `<li><i class="k" ${dataF(e.kind)} style="background-color:${kvar(e.kind)}"></i><b>${esc(e.actor)}</b> ${esc(t('v.' + e.kind, { repo: short(d.name) }))}${e.title ? `<a class="t" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : ''}<small>${ago(Date.parse(e.at))}</small></li>`).join('') || `<li>${esc(t(d.daily.bots.some(Boolean) ? 'd.onlyBots' : 'd.empty'))}</li>`}</ol>
 ${d.topics.length ? `<div class="pills">${d.topics.slice(0, 10).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`
     focusDrawer(true)
   } catch { $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(r.name))}</h2><p class="owner">${esc(r.name)}</p>${badgesFor(r.name, ['repos', 'commits', 'pushes'], fresh)}<p class="sub">${esc(t('d.error'))}</p>${gh(`https://github.com/${r.name}`)}`; focusDrawer(true) }
@@ -1335,7 +1337,7 @@ function openList(kind) {
 const repoRow = (i) => {
   const r = repos[i], n = W.n[i], b = W.b[i]
   const label = `${short(r.name)}, ${gname(r.group)}: ${[n ? cnt('upd', n) : t('l.noUpd'), b ? cnt('auto', b) : ''].filter(Boolean).join(', ')}`
-  return `<li><button type="button" class="row" data-repo="${i}" data-key="${esc(r.name)}" aria-label="${esc(label)}"><i class="sw" style="background:${n ? kvar(W.last[i]) : b ? 'var(--bot)' : 'var(--dormant)'}"></i><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${n || ''}${b ? `<i>${b}</i>` : ''}</b></button></li>`
+  return `<li><button type="button" class="row" data-repo="${i}" data-key="${esc(r.name)}" aria-label="${esc(label)}"><i class="sw" ${n ? dataF(W.last[i]) : b ? 'data-f="auto"' : ''} style="background-color:${n ? kvar(W.last[i]) : b ? 'var(--bot)' : 'var(--dormant)'}"></i><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${n || ''}${b ? `<i>${b}</i>` : ''}</b></button></li>`
 }
 const personRow = ([a, n]) => `<li><button type="button" class="row" data-person="${a}" data-key="${esc(actors[a][0])}" aria-label="${esc(`${actors[a][0]}: ${cnt('upd', n)}`)}"><img src="${esc(avatarUrl(a))}" alt="" loading="lazy"><span>${esc(actors[a][0])}</span><b>${n}</b></button></li>`
 function renderList() {
@@ -1395,7 +1397,7 @@ function setRow(li, i, n, max, medal) {
   q('.bvr-main').setAttribute('aria-label', `${name}, ${group}: ${cnt('upd', n)}${medal ? `, ${t(`b.repos.${medal}`)}` : ''}`)
   const segs = filt.fam ? [[filt.fam, n]] : FAMS.map((f, k) => [f, W.fc[i]?.[k] || 0]).filter((x) => x[1])
   const segSig = segs.join()
-  if (li.dataset.segs !== segSig) { li.dataset.segs = segSig; q('.bvr-bar').innerHTML = segs.map(([f, c]) => `<i style="flex:${c};background:var(--f-${f})"></i>`).join('') }
+  if (li.dataset.segs !== segSig) { li.dataset.segs = segSig; q('.bvr-bar').innerHTML = segs.map(([f, c]) => `<i data-f="${f}" style="flex:${c};background-color:var(--f-${f})"></i>`).join('') }
   const sr = stateRepo(r.name)
   const tags = (medal ? `<span class="t-medal" title="${esc(t(`b.repos.${medal}`))}">${MEDAL}</span>` : '') + (sr?.isNew ? `<span class="t-new">${esc(t('new.repo'))}</span>` : '') + (sr?.onchain ? `<span class="t-chain">${esc(t('oc.tag'))}</span>` : '') + (followsRepo(r.name) ? '<span class="t-star">★</span>' : '')
   if (li.dataset.tags !== tags) { li.dataset.tags = tags; q('.bvr-tags').innerHTML = tags }
@@ -1498,7 +1500,7 @@ $('q').addEventListener('input', () => {
   if (q.length < 2) { $('results').hidden = true; return }
   const rs = repos.map((r, i) => [i, r]).filter(([, r]) => r.name.toLowerCase().includes(q)).slice(0, 8)
   const ps = actors.map((p, i) => [i, p]).filter(([, p]) => p[0].toLowerCase().includes(q)).slice(0, 6)
-  $('results').innerHTML = rs.map(([i, r]) => `<li><button type="button" class="row" data-repo="${i}"><span class="sw" style="background:${W.n[i] ? kvar(W.last[i]) : 'var(--dormant)'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></button></li>`).join('') +
+  $('results').innerHTML = rs.map(([i, r]) => `<li><button type="button" class="row" data-repo="${i}"><span class="sw" ${W.n[i] ? dataF(W.last[i]) : ''} style="background-color:${W.n[i] ? kvar(W.last[i]) : 'var(--dormant)'}"></span><span>${esc(short(r.name))}<small>${esc(gname(r.group))}</small></span><b>${W.n[i] || ''}</b></button></li>`).join('') +
     ps.map(([i, p]) => `<li><button type="button" class="row" data-person="${i}"><img src="${esc(avatarUrl(i))}" alt=""><span>${esc(p[0])}</span><b>${W.people.get(i) || ''}</b></button></li>`).join('') || `<li class="none">${esc(t('nothing'))}</li>`
   const typed = $('q').value.trim().slice(0, 80)
   $('results').insertAdjacentHTML('beforeend', `<li class="none"><a href="learned?q=${encodeURIComponent(typed)}&amp;lang=${LANG}">${esc(t('s.lessons', { q: typed }))}</a></li>`)
@@ -1701,7 +1703,7 @@ function applyLang() {
   $('menu-slot').innerHTML = menuHtml(t, { lang: LANG, current: 'live', looks: true }); document.dispatchEvent(new Event('pm:drawn'))
   $('views-slot').innerHTML = viewsHtml(t, { lang: LANG, current: 'live' })
   for (const b of document.querySelectorAll('[data-lang]')) b.setAttribute('aria-pressed', String(b.dataset.lang === LANG))
-  $('legend').innerHTML = FAMS.map((f) => `<span><i style="background:var(--f-${f})"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i style="background:var(--mut)"></i>${esc(t('automaticLong'))}</span>`
+  $('legend').innerHTML = FAMS.map((f) => `<span><i data-f="${f}" style="background-color:var(--f-${f})"></i>${esc(t('famLong.' + f))}</span>`).join('') + `<span><i data-f="auto" style="background-color:var(--mut)"></i>${esc(t('automaticLong'))}</span>`
   for (const b of document.querySelectorAll('.kpi')) b.title = t('l.see.' + b.dataset.list)
   for (const o of groupLabels) labelText(o.element)
   for (const o of subLabels) subText(o.element)

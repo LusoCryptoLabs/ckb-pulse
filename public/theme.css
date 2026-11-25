@@ -57,7 +57,7 @@ html[lang] h1 em { color: var(--signal-text); }
 html[lang] .eyebrow { background: transparent; letter-spacing: 0.14em; }
 html[lang] .eyebrow::before { background: var(--signal); border-radius: 50%; }
 html[lang] main h2 { letter-spacing: 0.14em; } /* the small labels of the reading pages; the live page's card titles keep their own */
-html[lang] .bars i { background: linear-gradient(var(--fg), var(--mut)); border-radius: 0; }
+html[lang] div.bars > i { background: linear-gradient(var(--fg), var(--mut)); border-radius: 0; } /* the day bars of the reading pages; body.bars is the live page's list view, whose swatches keep their own colour */
 html[lang] blockquote { border-left-color: var(--signal); }
 html[lang] .go a { background: var(--signal); color: #fff; }
 html[lang] .go a.alt { background: none; color: var(--fg); border-color: var(--mut); }
@@ -81,3 +81,22 @@ html[lang] .pm-row:hover, html[lang] .ps-panel a:hover, html[lang] .ps-panel but
 html[lang] .pm-row[aria-current="page"] { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
 html[lang] .pm-tile, html[lang] .pm-fiber, html[lang] .pm-ai, html[lang] .pm-notices { background: color-mix(in srgb, var(--fg) 12%, transparent); color: var(--fg); }
 html[lang] .pm-live { background: var(--signal); color: #fff; }
+
+/* A shape and a pattern beside every colour of a kind of work, so the kinds differ for eyes that cannot tell the colours
+   apart (red and gold look alike in deuteranopia). Code is the plain square, proposed changes a diamond with diagonal
+   stripes, problems and ideas a circle with dots, versions a triangle with upright stripes, stars and copies a hexagon
+   with a cross hatch, automatic a square with level stripes. The bars carry the patterns, the small swatches both. */
+:root { --pat: color-mix(in srgb, var(--bg) 70%, transparent); }
+[data-f="change"] { background-image: repeating-linear-gradient(135deg, var(--pat) 0 2px, transparent 2px 5px); }
+[data-f="talk"] { background-image: radial-gradient(var(--pat) 1.4px, transparent 1.9px); background-size: 5px 5px; }
+[data-f="version"] { background-image: repeating-linear-gradient(90deg, var(--pat) 0 2px, transparent 2px 4px); }
+[data-f="interest"] { background-image: repeating-linear-gradient(45deg, var(--pat) 0 1.5px, transparent 1.5px 5px), repeating-linear-gradient(-45deg, var(--pat) 0 1.5px, transparent 1.5px 5px); }
+[data-f="auto"] { background-image: repeating-linear-gradient(0deg, var(--pat) 0 2px, transparent 2px 4px); }
+:is(.seg i, .sw, .k, .intro .legend i)[data-f] { width: 12px; height: 12px; }
+.intro .legend i[data-f] { width: 15px; height: 15px; }
+:is(.seg i, .sw, .k, .intro .legend i)[data-f="change"] { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
+:is(.seg i, .sw, .k, .intro .legend i)[data-f="talk"] { clip-path: circle(50%); }
+:is(.seg i, .sw, .k, .intro .legend i)[data-f="version"] { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
+:is(.seg i, .sw, .k, .intro .legend i)[data-f="interest"] { clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%); border-radius: 0; }
+:is(.seg i, .sw, .k, .intro .legend i)[data-f="auto"] { border-radius: 2px; }
+.feed .meta .k[data-f], .drawer ol li .k[data-f] { width: 11px; height: 11px; }

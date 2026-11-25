@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
+import { KIND_FAMILY } from './public/words.js'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
 import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, TEXT_SEARCHES, README_CKB, isNoiseActor, isAutomaticAuthor, isOptedOut, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
@@ -969,10 +970,10 @@ function leaders(ev, now) {
     const slots = key === 'day' ? 24 : Math.round(ms / DAY), slot = ms / slots, bars = new Array(slots).fill(0)
     // the counts on the cards are the page's own: every update by people
     let updates = 0
-    const who = new Set(), where = new Set()
-    for (const e of ev) { if (e.bot || e.at < from) continue; updates++; who.add(e.actor); where.add(e.repo); const i = Math.floor((Date.parse(e.at) - (now - ms)) / slot); if (i >= 0 && i < slots) bars[i]++ }
+    const who = new Set(), where = new Set(), kinds = { code: 0, change: 0, talk: 0, version: 0, interest: 0 }
+    for (const e of ev) { if (e.bot || e.at < from) continue; updates++; kinds[KIND_FAMILY[e.kind] || 'code']++; who.add(e.actor); where.add(e.repo); const i = Math.floor((Date.parse(e.at) - (now - ms)) / slot); if (i >= 0 && i < slots) bars[i]++ }
     out[key] = {
-      stats: { updates, people: who.size, projects: where.size, ai: aiUpdates }, bars,
+      stats: { updates, people: who.size, projects: where.size, ai: aiUpdates, kinds }, bars,
       repos: top(m.repos), commits: top(m.commits), pushes: top(m.pushes), orgs: top(m.orgs),
       people: top(m.people).map(([l, n]) => [l, n, avatar.get(l) || '']), peopleCommits: top(m.peopleCommits).map(([l, n]) => [l, n, avatar.get(l) || '']),
       reviewers: top(m.reviewers).map(([l, n]) => [l, n, avatar.get(l) || '']), merged: top(m.merged).map(([l, n]) => [l, n, avatar.get(l) || '']), ai: top(m.ai).map(([l, n]) => [l, n, avatar.get(l) || '']), operators: top(m.operators).map(([l, n]) => [l, n, avatar.get(l) || '']),
