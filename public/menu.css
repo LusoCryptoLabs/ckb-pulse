@@ -73,6 +73,14 @@
   .pm-group { padding-bottom: 4px; }
   .pm-group p { margin: 3px 8px 2px; }
 }
+/* a finger needs 44 px; a mouse keeps the compact size. Last in the file, so it wins over the phone rules above */
+@media (pointer: coarse) {
+  .pm-btn, .pm-bar .ps-btn { min-width: 44px; height: 44px; }
+  .pm-panel .pm-row { min-height: 44px; }
+  .pm-foot a, .pm-foot button { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; padding-left: 8px; padding-right: 8px; box-sizing: border-box; }
+  .pm-by-lcl { position: relative; } .pm-by-lcl::after { content: ""; position: absolute; inset: -8px -6px; }
+}
+@media (pointer: coarse) and (max-width: 360px) { .pm-btn, .pm-bar .ps-btn { min-width: 40px; height: 40px; } }
 @media print { .pmenu, .pm-views { display: none; } }
 
 /* sharing (shareHtml in menu.js): a pill that opens a small list of where to share */

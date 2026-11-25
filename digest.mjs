@@ -34,7 +34,27 @@ export const LANG_SCRIPT = `<script>try{var q=new URLSearchParams(location.searc
 export const menuHead = (base) => `${LANG_SCRIPT}${LOOK_META}${iconLinks(base)}${fontLinks(base)}<link rel="stylesheet" href="${esc(base)}/theme.css"><link rel="stylesheet" href="${esc(base)}/menu.css">${MIGRATE_SCRIPT}${THEME_SCRIPT}`
 export const menuScript = (base) => `<script type="module" src="${esc(base)}/menu.js"></script>`
 // a reading page opens with a small label, a large title whose *starred* words are lit, and one line under it
-export const pageHead = ({ eyebrow, title, lede }) => `<header class="hero"><span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
+export const pageHead = ({ eyebrow, title, lede, crumbs = '' }) => `<header class="hero">${crumbs}<span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title).replace(/\*([^*]+)\*/g, '<em>$1</em>')}</h1>${lede ? `<p class="lede">${lede}</p>` : ''}</header>`
+// Where this page sits, and the way back: Live > Forum, Live > Lessons > Topic > Title. On reading pages only: the live
+// page and its cards are one screen with their own close. The root goes to the live view. On a phone only the parent
+// shows, as a back link. The last item is the page itself, not a link.
+export const CRUMB_CSS = `nav.crumbs{font:12.5px var(--font-num,monospace);letter-spacing:.02em;color:var(--mut);margin:0 0 -4px}
+nav.crumbs ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:center}
+nav.crumbs li{display:inline-flex;align-items:center;min-width:0;padding:0;border:0}nav.crumbs li+li::before{content:"\\203A";margin:0 9px;opacity:.55}
+nav.crumbs a{color:var(--mut);text-decoration:none;padding:6px 0;display:inline-block}nav.crumbs a:hover,nav.crumbs a:focus-visible{color:var(--fg);text-decoration:underline}
+nav.crumbs li[aria-current]{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46ch}
+@media (max-width:600px){nav.crumbs li{display:none}nav.crumbs li:nth-last-child(2){display:inline-flex}nav.crumbs li:nth-last-child(2) a::before{content:"\\2039\\00a0"}nav.crumbs li+li::before{content:none}}
+@media (pointer:coarse){nav.crumbs a{padding:13px 0}details>summary{padding:11px 0}}
+@media print{nav.crumbs{display:none}}
+`
+export function crumbs(t, { base, lang, trail }) {
+  const at = (p) => `${base}${p}${p.includes('?') ? '&' : '?'}lang=${lang}`
+  const items = [[t('bc.live'), '/live'], ...trail]
+  const last = items.length - 1
+  const li = ([label, p], i) => (i === last || !p ? `<li aria-current="page">${esc(label)}</li>` : `<li><a href="${esc(at(p))}">${esc(label)}</a></li>`)
+  const ld = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map(([label, p], i) => ({ '@type': 'ListItem', position: i + 1, name: String(label), ...(i < last && p ? { item: at(p) } : {}) })) }
+  return `<nav class="crumbs" aria-label="${esc(t('bc.label'))}"><ol>${items.map(li).join('')}</ol><script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script></nav>`
+}
 // the page that lists everything Pulse does, linked from the other pages' footers
 export const useLink = (t, base, lang) => `<p><a href="${esc(base)}/use?lang=${lang}">${esc(t('use.nav'))}</a> · <a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p>`
 export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
@@ -115,7 +135,7 @@ async function telegram(w, groupOf, publicUrl) {
 }
 
 // ---------- the page ----------
-export const CSS = `body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif)}body{overflow-wrap:break-word}pre,pre code{overflow-wrap:normal}
+export const CSS = `${CRUMB_CSS}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--font-ui,system-ui,sans-serif)}body{overflow-wrap:break-word}pre,pre code{overflow-wrap:normal}
 a{color:var(--lime)}main{max-width:860px;margin:0 auto;padding:28px 16px 56px}
 .hero{display:grid;gap:14px;margin:6px 0 26px}.eyebrow{justify-self:start;display:inline-flex;align-items:center;gap:8px;font:11px var(--font-num,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);border:1px solid var(--edge);border-radius:999px;padding:5px 12px;background:rgba(20,18,14,.7)}.eyebrow::before{content:"";width:7px;height:7px;background:var(--lime)}
 h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:0;text-wrap:balance}h1 em{font-style:normal;color:var(--lime)}em.tag{margin-left:6px;padding:1px 7px;border-radius:6px;font:700 11px var(--font-num,monospace);letter-spacing:.04em;background:#2b2a4a;color:#c9c6ff;border:1px solid #5b57b0}.lede{color:var(--mut);font-size:17px;margin:0;max-width:62ch}
@@ -125,13 +145,14 @@ nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{dis
 .bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:var(--surface);border:1px solid var(--edge);border-radius:18px;padding:10px}.bars i{flex:1;background:var(--fg);border-radius:3px 3px 0 0;min-height:2px}
 ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--edge-soft)}ol li span{min-width:0;overflow-wrap:anywhere}ol li b{color:var(--lime);white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:var(--mut);margin-left:8px}
 .medals li{border:1px solid var(--edge);background:var(--surface);border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:var(--mut);margin:0}.medals strong{font-size:18px}
-details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summary{cursor:pointer;display:inline-block;padding:3px 0;color:var(--mut);list-style:none}details.words summary::-webkit-details-marker{display:none}details.words summary::before{content:"▸";display:inline-block;margin-right:6px;color:var(--lime)}details.words[open] summary::before{content:"▾"}details.words ul{margin:6px 0 4px;padding-left:18px}details.words li{margin:4px 0;color:var(--fg)}details.words p{margin:4px 0 0}
+details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summary{cursor:pointer;display:inline-block;padding:3px 0;color:var(--mut);list-style:none}@media (pointer:coarse){details.words summary{padding:11px 0}}details.words summary::-webkit-details-marker{display:none}details.words summary::before{content:"▸";display:inline-block;margin-right:6px;color:var(--lime)}details.words[open] summary::before{content:"▾"}details.words ul{margin:6px 0 4px;padding-left:18px}details.words li{margin:4px 0;color:var(--fg)}details.words p{margin:4px 0 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:44px;color:var(--mut);font-size:14px;border-top:1px solid var(--edge-soft);padding-top:16px}footer img{max-width:100%;height:auto}code{font-family:var(--font-num,monospace);background:var(--surface);border:1px solid var(--edge);border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
 .langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}.lede{font-size:16px}}
-@media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
+@media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}
+@media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
-export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [], forum = null }) {
+export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [], forum = null, now = Date.now() }) {
   const t = words(lang), L = leaders[period], s = L.stats
   const q = (p, l) => (fixed ? `${url.replace(/\/digest.*$/, '')}/digest/${fixed.label}?lang=${l}` : `${url}?p=${p}&lang=${l}`)
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
@@ -157,9 +178,9 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="article"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(img)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${esc(img)}">
 <link rel="alternate" type="application/atom+xml" title="CKB Pulse" href="${esc(base)}/feed.xml">${menuHead(base)}<style>${CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'digest', here: fixed ? `/digest/${fixed.label}` : `/digest?p=${period}`, share: { url: `${q(period, lang)}&d=${today()}`, title, image: img } })}
-${pageHead({ eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${plain}<br><a href="${esc(base)}/live?lang=${lang}">${esc(t('dg.live'))}</a>` })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: fixed ? [[t('tab.top'), '/digest?p=week'], [fixed.label, null]] : [[t('tab.top'), null]] }), eyebrow: t('tab.top'), title: t('dg.h1.' + period), lede: `${plain}<br><a href="${esc(base)}/live?lang=${lang}">${esc(t('dg.live'))}</a>` })}
 <nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
-<p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : ''}
+<p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : `<p class="sub no-print">${esc(t('dg.asof', { when: new Date(now).toLocaleString(t('locale'), { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) }))}${kept.length && period === 'week' ? ` ${esc(t('dg.cite'))} <a href="${esc(base)}/digest/${esc(kept[0])}?lang=${lang}">${esc(kept[0])}</a>` : ''}</p>`}
 <details class="words"><summary>${esc(t('dg.words.h'))}</summary><ul>${['update', 'commit', 'pr', 'review'].map((k) => `<li>${esc(t('dg.words.' + k))}</li>`).join('')}</ul><p><a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p></details>
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
 ${L.bars.length ? `<div class="bars" role="img" aria-label="${esc(t('h.note'))}">` : '<div hidden>'}${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>

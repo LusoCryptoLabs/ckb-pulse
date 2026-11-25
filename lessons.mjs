@@ -9,7 +9,7 @@ import { withStamp } from './og.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
-import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, maker, langLinks } from './digest.mjs'
+import { CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, maker, langLinks, crumbs } from './digest.mjs'
 import { isOptedOut, OWN_ACCOUNTS } from './config.mjs'
 import { rpcServer } from './mcp.mjs'
 
@@ -319,7 +319,7 @@ export function lessonsPage({ lang, base, url, data, q = '', area = '', concept 
   const canonical = pub ? `${base}${pre}${keep.size || pg > 1 ? `?${new URLSearchParams([...keep, ...(pg > 1 ? [['page', String(pg)]] : [])])}` : ''}` : ''
   return `${head(t, { lang, base, title, desc, pub, canonical, img: pub ? `${base}${withStamp('/og/learned.png', [v.lessons.length, v.lessons.filter(confirmedByOthers).length])}&lang=${lang}` : '' })}
 ${pageBar(t, { base, lang, current: '', here })}
-${pageHead({ eyebrow: t('ls.nav'), title: t('ls.h1'), lede: searching ? '' : esc(desc) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('ls.nav'), null]] }), eyebrow: t('ls.nav'), title: t('ls.h1'), lede: searching ? '' : esc(desc) })}
 ${searching ? '' : `<p>${esc(pub ? t('ls.pub.count', { n: v.lessons.length, m: new Set(v.lessons.flatMap((l) => l.sources.map((s) => s.repo))).size }) : t('ls.week', { from: v.from, to: v.to, read: v.read, lessons: v.lessons.length }))}</p>`}
 <p class="lk"><a href="${esc(base)}${pre}/start?lang=${lang}"><b>${esc(t('ls.start.nav'))}</b></a> · <a href="${esc(base)}${pre}/glossary?lang=${lang}">${esc(t('ls.gloss.link'))}</a> · <a href="${esc(base)}${pre}/review?lang=${lang}">${esc(t('ls.rev.link'))}</a>${pub ? ` · <a href="${esc(base)}/learned.xml">${esc(t('ls.feed'))}</a>` : ''}</p>
 ${!searching && pub ? `<p class="nt">${esc(t('ls.pub.notice'))}</p>` : ''}${!searching && !pub && v.checked ? `<p class="nt">${esc(t('ls.sample', { sample: v.checked.sample, of: v.checked.of, right: v.checked.right, partly: v.checked.partly_right, notckb: v.checked.not_ckb, wrong: v.checked.wrong }))}</p>` : ''}
@@ -421,8 +421,9 @@ export function lessonPage({ lang, base, url, data, id, pub = false }) {
     .sort((a, b) => b[0] - a[0] || RANK[evidenceOf(b[1])] - RANK[evidenceOf(a[1])] || a[1].title.localeCompare(b[1].title)).slice(0, 3).map(([, x]) => x)
   return `${head(t, { lang, base, title: `${l.title} · CKB Pulse`, desc: l.lesson, pub, canonical: pub ? `${base}/learned/${l.id}` : '', img: pub ? `${base}${withStamp(`/og/lesson.png?id=${encodeURIComponent(l.id)}`, [l.title, l.lesson, l.level])}&lang=${lang}` : '' })}
 ${pageBar(t, { base, lang, current: '', here: `${pre}/${l.id}` })}
+${crumbs(t, { base, lang, trail: [[t('ls.nav'), pre], [v.areas[l.area]?.name || l.area, `${pre}?area=${encodeURIComponent(l.area)}`], [l.title, null]] })}
 <article class="lp">
-<p class="back"><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}${pre}?area=${esc(l.area)}&amp;lang=${lang}">${esc(v.areas[l.area]?.name || l.area)}</a> · <a href="${esc(base)}${pre}/start?lang=${lang}">${esc(t('ls.start.nav'))}</a> · <a href="${esc(base)}${pre}/glossary?lang=${lang}">${esc(t('ls.gloss.link'))}</a></p>
+<p class="back"><a href="${esc(base)}${pre}/start?lang=${lang}">${esc(t('ls.start.nav'))}</a> · <a href="${esc(base)}${pre}/glossary?lang=${lang}">${esc(t('ls.gloss.link'))}</a></p>
 <h1>${esc(l.title)}${lvl(t, l)}${badges(t, l)}</h1>
 <p class="tg st">${esc(t('ls.ev.short.' + evidenceOf(l)))}${l.checked?.verdict && VERDICTS.includes(l.checked.verdict) && pub ? ` · ${esc(t('ls.status.check', { v: t('ls.verdict.' + VERDICTS.indexOf(l.checked.verdict)).split(/[:\uFF1A]/)[0] }))}` : ''} · ${(l.checked?.date || l.last_checked) ? esc(t('ls.status.checked', { date: l.checked?.date || l.last_checked })) : esc(t('ls.status.never'))}</p>
 <p class="big">${esc(l.lesson)}</p>
@@ -502,7 +503,7 @@ export function glossaryPage({ lang, base, url, data, pub = false }) {
   const letters = [...new Set(terms.map(([c]) => c[0].toUpperCase()))]
   return `${head(t, { lang, base, title: `${t('ls.gloss.h')} · CKB Pulse`, desc: t('ls.gloss.p'), pub, canonical: pub ? `${base}/learned/glossary` : '' })}
 ${pageBar(t, { base, lang, current: '', here: `${pre}/glossary` })}
-${pageHead({ eyebrow: t('ls.nav'), title: t('ls.gloss.h'), lede: esc(t('ls.gloss.p')) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('ls.nav'), pre], [t('ls.gloss.link'), null]] }), eyebrow: t('ls.nav'), title: t('ls.gloss.h'), lede: esc(t('ls.gloss.p')) })}
 <p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>
 <nav class="ls">${letters.map((x) => `<a href="#g-${esc(x)}">${esc(x)}</a>`).join('')}</nav>
 <div class="gl">${letters.map((x) => `<h2 id="g-${esc(x)}">${esc(x)}</h2>${terms.filter(([c]) => c[0].toUpperCase() === x).map(([c, ls]) => `<div class="tm"><h3><a href="${esc(base)}${pre}?concept=${encodeURIComponent(c)}&amp;lang=${lang}">${esc(c)}</a> <span class="tg">${esc(t('ls.gloss.n', { n: ls.length }))}</span></h3><p><a href="${esc(href(base, ls[0].id, lang, pre))}">${esc(ls[0].title)}</a></p></div>`).join('')}`).join('')}</div>
@@ -519,7 +520,7 @@ export function reviewPage({ lang, base, url, data, pub = false }) {
   const json = (o) => JSON.stringify(o).replace(/</g, '\\u003c')
   return `${head(t, { lang, base, title: `${t('ls.rev.h')} · CKB Pulse`, desc: t('ls.rev.p'), pub, canonical: pub ? `${base}/learned/review` : '' })}
 ${pageBar(t, { base, lang, current: '', here: `${pre}/review` })}
-${pageHead({ eyebrow: t('ls.nav'), title: t('ls.rev.h'), lede: esc(t('ls.rev.p')) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('ls.nav'), pre], [t('ls.rev.h'), null]] }), eyebrow: t('ls.nav'), title: t('ls.rev.h'), lede: esc(t('ls.rev.p')) })}
 <p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a></p>
 <div id="rv" aria-live="polite"></div>
 <script>(function(){var C=${json(cards)},U=${json(ui)},K='lessons.review.${pub ? 'pub' : 'priv'}',DAY=864e5,NEW=5,box=document.getElementById('rv');
@@ -552,7 +553,7 @@ export function startPage({ lang, base, url, data, pub = false }) {
   const none = v.lessons.filter((l) => !l.level).length
   return `${head(t, { lang, base, title, desc: t('ls.start.p'), pub, canonical: pub ? `${base}/learned/start` : '' })}
 ${pageBar(t, { base, lang, current: '', here: `${pre}/start` })}
-${pageHead({ eyebrow: t('ls.nav'), title: t('ls.start.h'), lede: esc(t('ls.start.p')) })}
+${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('ls.nav'), pre], [t('ls.start.nav'), null]] }), eyebrow: t('ls.nav'), title: t('ls.start.h'), lede: esc(t('ls.start.p')) })}
 <p><a href="${esc(base)}${pre}?lang=${lang}">${esc(t('ls.back'))}</a> · <a href="${esc(base)}${pre}/glossary?lang=${lang}">${esc(t('ls.gloss.link'))}</a> · <a href="${esc(base)}${pre}/review?lang=${lang}">${esc(t('ls.rev.link'))}</a></p>
 ${order.map((x) => by[x].length ? `<section class="lt" id="${x}"><h2>${esc(t('ls.level.' + x))} <span class="tg">${by[x].length}</span></h2><p>${esc(t('ls.start.' + x))}</p>
 ${by[x].slice(0, x === 'basic' ? 40 : 25).map((l) => `<article class="ln"><h3><a href="${esc(href(base, l.id, lang, pre))}">${esc(l.title)}</a></h3><p>${esc(l.lesson)}</p>${l.why ? `<p class="nt">${esc(t('ls.why'))} ${esc(l.why)}</p>` : ''}</article>`).join('\n')}
