@@ -138,6 +138,19 @@ const TOOLS = [
     },
   },
   {
+    name: 'compare_projects',
+    title: 'Compare two projects',
+    description: 'Two followed projects side by side over the last 30 days: updates by people and automatic ones, days with work, the share of the busiest day and of the top person, people, developers and commits in the last whole month, and forum topics this week. A bigger number is more work, not a better project; a high share says the work was concentrated.',
+    inputSchema: { type: 'object', properties: { a: { type: 'string', description: 'the first project, owner/repo' }, b: { type: 'string', description: 'the second project, owner/repo' } }, required: ['a', 'b'] },
+    run: (args, { api, base }) => {
+      const x = repoArg(args.a), y = repoArg(args.b)
+      if (x.toLowerCase() === y.toLowerCase()) throw told('give two different projects')
+      const r = api.compare?.(x, y)
+      if (!r) throw told(`Pulse does not follow ${x} or ${y}: find_projects lists the projects it follows`)
+      return { about: ABOUT, ...r, pulse: `${base}/compare?a=${encodeURIComponent(x)}&b=${encodeURIComponent(y)}` }
+    },
+  },
+  {
     name: 'new_builders',
     title: 'Who joined recently',
     description: 'People whose first commit in a project Pulse follows is from the last days (30 by default), in alphabetical order. This is a list of arrivals, not a ranking. From GitHub statistics, so someone new to GitHub and someone new to these projects look the same.',

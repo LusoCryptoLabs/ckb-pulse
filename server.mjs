@@ -20,6 +20,7 @@ import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
 import { forumPage, forumJson, forumNow, forumBrief, forumOf, forumFeed, loadForum, startForum } from './forum.mjs'
+import { comparePage, compareJson, metricsOf, REPO } from './compare.mjs'
 import { landingPage, lastLine } from './landing.mjs'
 import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
@@ -198,7 +199,10 @@ function readJson(req, max, done) {
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
 const lessonsMcpHandle = lessonsMcp(() => loadLessons(DATA_DIR))
-const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks, forum: (g) => { const d = forumNow(); return d ? forumJson(d, g) : null } },
+// one project as the compare page and its API need it: the card's detail and the forum topics that link it
+const detailFor = (name) => { const d = repoDetail(name); return d ? { d, forum: forumOf(forumNow(), d.name) } : null }
+const compare = (x, y) => { const a = detailFor(x), b = detailFor(y); return a && b ? compareJson(metricsOf(a.d, { forum: a.forum }), metricsOf(b.d, { forum: b.forum })) : null }
+const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks, compare, forum: (g) => { const d = forumNow(); return d ? forumJson(d, g) : null } },
   { extra: publicLessonTools(() => loadLessons(DATA_DIR, 'public-lessons.json')), note: PUBLIC_LESSONS_NOTE })
 
 function handle(req, res) {
@@ -331,6 +335,17 @@ function handle(req, res) {
   if (url.pathname === '/forum') {
     hit('forum', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, forumPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/forum`, data: forumNow(), group: url.searchParams.get('c') }))
+  }
+  if (url.pathname === '/compare') {
+    hit('compare', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, comparePage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/compare`, a: url.searchParams.get('a') || '', b: url.searchParams.get('b') || '', detail: detailFor, names: knownRepos() }))
+  }
+  if (url.pathname === '/api/compare') {
+    const a = url.searchParams.get('a') || '', b = url.searchParams.get('b') || ''
+    if (!REPO.test(a) || !REPO.test(b) || a.toLowerCase() === b.toLowerCase()) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end('{"error":"give two different projects as owner/repo in a and b"}') }
+    const r = compare(a, b)
+    if (!r) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }
+    return sendJson(req, res, r)
   }
   if (url.pathname === '/forum.xml') {
     hit('forum', ipOf(req), req.headers['user-agent'])

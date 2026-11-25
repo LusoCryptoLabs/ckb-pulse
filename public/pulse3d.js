@@ -1278,7 +1278,7 @@ async function openRepo(i) {
   showDrawer(); setCardUrl('repo', r.name)
   $('drawer-body').innerHTML = `${backBtn(back)}<h2 tabindex="-1">${esc(short(r.name))}</h2><p class="sub">${esc(t('d.loading'))}</p>`
   focusDrawer()
-  const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>${followBtn('repo', r.name)}<button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button></div>`
+  const gh = (url) => `<div class="actions"><a class="gh" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('d.github'))} ↗</a>${followBtn('repo', r.name)}<button type="button" class="share-btn" data-share-repo="${esc(r.name)}">${SHARE_ICON}${esc(t('sh.share'))}</button><a class="gh cmp-link" href="compare?a=${encodeURIComponent(r.name)}&lang=${LANG}">${esc(t('d.compare'))}</a></div>`
   const fresh = stateRepo(r.name)?.isNew ? `<span class="badge new">${esc(t('new.repo'))}</span>` : ''
   try {
     const res = await fetch(`api/repo?name=${encodeURIComponent(r.name)}`)
