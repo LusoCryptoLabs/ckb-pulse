@@ -28,23 +28,25 @@ test('the landing says what Pulse is, in each language, with the last day in a s
   for (const [lang, sentence] of Object.entries(want)) {
     const html = page(lang), t = words(lang)
     assert.ok(html.includes(`<p class="plain">${sentence}</p>`), lang)
-    assert.match(html, /<div class="kpis"><div><b>221<\/b>/)
+    assert.match(html, /<div class="nums"><div><b data-n="221">221<\/b>/)
     assert.ok(text(html).includes(t('ld.lead')), lang)
     assert.doesNotMatch(text(html), /\b(ld|m|use|k)\.[a-z]+(\.[a-z]+)?\b/, `${lang}: a word shows its key`)
   }
 })
 
-test('one way into the live view, the week and the lessons, and nine doors in two groups', () => {
+test('one way into the live view, the week and the lessons, and eleven doors in two groups when there are no numbers to draw', () => {
   for (const lang of ['en', 'pt', 'zh']) {
     const html = page(lang)
     assert.ok(html.includes(`<a href="${base}/live?lang=${lang}">${words(lang)('ld.cta')}</a>`), `${lang}: the way in`)
-    assert.equal((html.match(/<a class="card"/g) || []).length, 9, lang)
+    assert.equal((html.match(/<a class="card"/g) || []).length, 11, lang)
+    assert.equal((html.match(/class="fcard"/g) || []).length, 0, `${lang}: no big cards without numbers to draw`)
     assert.ok(html.includes(`<a class="alt" href="${base}/learned?lang=${lang}">${words(lang)('m.learned')}</a>`), `${lang}: the lessons are in the first screen`)
     const all = html.indexOf(`<h2>${words(lang)('use.group.all')}</h2>`), dev = html.indexOf(`<h2>${words(lang)('use.group.dev')}</h2>`)
     assert.ok(all > 0 && dev > all, `${lang}: for everyone first`)
-    for (const id of ['live', 'digest', 'screen', 'add']) assert.ok(html.indexOf(`id="d-${id}"`) > all && html.indexOf(`id="d-${id}"`) < dev, id)
+    for (const id of ['live', 'digest', 'forum', 'compare', 'screen', 'add']) assert.ok(html.indexOf(`id="d-${id}"`) > all && html.indexOf(`id="d-${id}"`) < dev, id)
     for (const id of ['learned', 'impact', 'badge', 'data', 'method']) assert.ok(html.indexOf(`id="d-${id}"`) > dev, id)
     assert.ok(html.indexOf('id="d-learned"') < html.indexOf('id="d-impact"'), `${lang}: the lessons come first for developers`)
+    for (const id of ['live', 'digest', 'forum', 'compare', 'screen', 'add', 'learned', 'impact', 'badge', 'data', 'method']) assert.equal((html.match(new RegExp(`id="d-${id}"`, 'g')) || []).length, 1, `${lang}: ${id} once`)
   }
 })
 
@@ -66,7 +68,7 @@ test('the landing carries a share button, preview tags and language links that k
 
 test('without numbers there is no sentence and no tiles, and nothing is made up', () => {
   const html = page('en', { stats: { updates: 0, people: 0, projects: 0 } }), none = page('en', { stats: null })
-  for (const h of [html, none]) assert.ok(!h.includes('class="plain"') && !h.includes('class="kpis"'))
+  for (const h of [html, none]) assert.ok(!h.includes('class="plain"') && !h.includes('class="nums"') && !h.includes('class="ecg"'))
 })
 
 const run = ({ search = '', hash = '', seen = false, throws = false } = {}) => {
@@ -178,7 +180,7 @@ test('on a running server: / is the landing, a link to something and /live are t
   const child = spawn(process.execPath, ['server.mjs'], { env: { ...process.env, PORT: String(port), DATA_DIR: dir, PULSE_OFFLINE: '1', GITHUB_TOKEN: 'offline' }, stdio: 'ignore' })
   try {
     for (let i = 0; i < 100; i++) { try { if ((await get(port, '/health')).status === 200) break } catch {} await new Promise((r) => setTimeout(r, 100)) }
-    const isLanding = (b) => b.includes('<div class="made">') && b.includes('class="cards"')
+    const isLanding = (b) => b.includes('<div class="made">') && b.includes('class="doors"')
     const isLive = (b) => b.includes('id="stage"') && b.includes('id="intro"')
     for (const p of ['/', '/?lang=pt', '/?landing=1', '/?d=2026-11-18&lang=en', '/?theme=light']) { const r = await get(port, p); assert.equal(r.status, 200, p); assert.ok(isLanding(r.body) && !isLive(r.body), `${p} is the landing`) }
     for (const p of ['/live', '/live?lang=pt', '/index.html', '/?repo=nervosnetwork/ckb', '/?person=alice', '/?h=week', '/?tab=notices', '/?about=1', '/?ui=next', '/?lang=pt&repo=a/b']) { const r = await get(port, p); assert.equal(r.status, 200, p); assert.ok(isLive(r.body) && !isLanding(r.body), `${p} is the live view`) }
