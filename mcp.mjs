@@ -125,6 +125,19 @@ const TOOLS = [
     },
   },
   {
+    name: 'forum_week',
+    title: 'The forum this week',
+    description: 'The topics of the Nervos forum (Nervos Talk) that had a post in the last seven days, with replies, people, who opened each one and the followed projects it links. group is tech (the default), funding, other or all; project keeps the topics that link one project. Counts and titles only, the text of a post stays on the forum.',
+    inputSchema: { type: 'object', properties: { group: { type: 'string', enum: ['tech', 'funding', 'other', 'all'], description: 'tech by default' }, project: { type: 'string', description: 'owner/repo, to see the topics that link it' }, limit: { type: 'integer', minimum: 1, maximum: 50, description: '10 by default' } } },
+    run: (a, { api, base }) => {
+      const w = api.forum?.(a.group ? String(a.group) : 'tech')
+      if (!w) throw told('the forum has not been read yet: try again in a few minutes')
+      const repo = a.project ? repoArg(a.project).toLowerCase() : '', limit = int(a.limit, 1, 50, 10)
+      const topics = w.topics.filter((x) => !repo || x.projects.some((p) => p.toLowerCase() === repo))
+      return { about: 'From the public list of posts of Nervos Talk, the posts made in the last seven days; hidden and deleted posts left out. Technical, funding and general are the categories of the forum, as each author chose them.', read: w.at, group: w.group, stats: w.stats, project: repo, matching: topics.length, topics: topics.slice(0, limit), pulse: `${base}/forum?c=${w.group}` }
+    },
+  },
+  {
     name: 'new_builders',
     title: 'Who joined recently',
     description: 'People whose first commit in a project Pulse follows is from the last days (30 by default), in alphabetical order. This is a list of arrivals, not a ranking. From GitHub statistics, so someone new to GitHub and someone new to these projects look the same.',

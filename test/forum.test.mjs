@@ -152,3 +152,43 @@ test('a kept week with the forum shows it in the feed, and a week kept before do
   assert.ok(!e[1].html.includes('On the forum'), 'the older week has no forum record')
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+import { forumOf, forumFeed } from '../forum.mjs'
+import { makeMcp } from '../mcp.mjs'
+
+test('a project page lists the topics of the week that link it, newest activity first', () => {
+  const d = weekOf([post({ topic_id: 10, post_number: 1, raw: 'https://github.com/nervosnetwork/ckb', created_at: new Date(NOW - 5 * H).toISOString() }), post({ topic_id: 11, post_number: 1, raw: 'github.com/NervosNetwork/CKB/issues/2', created_at: new Date(NOW - 2 * H).toISOString() }), post({ topic_id: 12, post_number: 1, raw: 'github.com/other/else' })], { now: NOW, known: ['nervosnetwork/ckb'], names: NAMES })
+  assert.deepEqual(forumOf(d, 'nervosnetwork/ckb', NOW).map((x) => x.id), [11, 10])
+  assert.deepEqual(Object.keys(forumOf(d, 'NervosNetwork/CKB', NOW)[0]), ['id', 'title', 'author', 'replies', 'people', 'new'], 'case does not matter; nothing but what the panel shows')
+  assert.deepEqual([forumOf(d, 'nervosnetwork/fiber', NOW), forumOf(null, 'a/b'), forumOf(d, 'nervosnetwork/ckb', NOW + 3 * DAY)], [[], [], []], 'another project, no data, a reading two days old')
+  const many = weekOf(Array.from({ length: 8 }, (_, i) => post({ topic_id: 20 + i, post_number: 1, raw: 'github.com/nervosnetwork/ckb' })), { now: NOW, known: ['nervosnetwork/ckb'] })
+  assert.equal(forumOf(many, 'nervosnetwork/ckb', NOW).length, 5)
+})
+
+test('the forum feed has one entry per topic, with a stable id, and text from outside is escaped', () => {
+  const feed = (group, lang = 'en') => forumFeed({ lang, base: 'https://pulse.example', data: DATA, group })
+  const x = feed('tech')
+  assert.ok(x.startsWith('<?xml') && x.includes('<feed xmlns="http://www.w3.org/2005/Atom"'))
+  assert.equal((x.match(/<entry>/g) || []).length, DATA.stats.tech.topics)
+  assert.ok(x.includes('<id>tag:pulse.example,2026-11-25:forum/1</id>') && x.includes(`<link href="${FORUM}/t/1"/>`) && x.includes('<title>New lock &lt;script&gt;</title>'))
+  assert.ok(!x.includes('<script>') && x.includes('<author><name>ana</name></author>'))
+  assert.equal((feed('all').match(/<entry>/g) || []).length, DATA.stats.all.topics)
+  assert.ok(!feed('tech').includes('An old topic') && feed('funding').includes('An old topic'))
+  assert.ok(feed('x').includes('forum/tech'), 'a group that does not exist is the technical one')
+  assert.ok(feed('all', 'pt').includes('Tudo') && !feed('tech').includes('undefined'))
+  assert.ok(forumFeed({ lang: 'en', base: 'https://pulse.example', data: null, group: 'tech' }).includes('<updated>1970-01-01'), 'no data: an empty feed, not an error')
+  assert.ok(forumPage({ lang: 'en', base: 'https://pulse.example', url: 'u', data: DATA, group: 'funding' }).includes('<link rel="alternate" type="application/atom+xml" title="CKB Pulse · The forum this week" href="https://pulse.example/forum.xml?c=funding&amp;lang=en">'))
+})
+
+test('the MCP tool gives the forum week, filtered by project, and says so when there is nothing yet', async () => {
+  const mcp = makeMcp({ forum: (g) => forumJson(DATA, g) })
+  const call = async (args) => (await mcp({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'forum_week', arguments: args } }, { base: 'https://pulse.example' })).json.result
+  const all = JSON.parse((await call({})).content[0].text)
+  assert.deepEqual([all.group, all.matching, all.topics.length], ['tech', DATA.stats.tech.topics, 10])
+  const mine = JSON.parse((await call({ group: 'all', project: 'NervosNetwork/CKB', limit: 3 })).content[0].text)
+  assert.ok(mine.matching >= 1 && mine.topics.every((x) => x.projects.includes('nervosnetwork/ckb')) && mine.pulse.endsWith('/forum?c=all'))
+  assert.equal(JSON.parse((await call({ project: 'nobody/nothing' })).content[0].text).matching, 0)
+  const bad = await call({ project: 'not a repo' }); assert.equal(bad.isError, true)
+  const empty = await makeMcp({ forum: () => null })({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'forum_week', arguments: {} } }, { base: 'https://pulse.example' })
+  assert.equal(empty.json.result.isError, true); assert.match(empty.json.result.content[0].text, /not been read yet/)
+})
