@@ -14,7 +14,7 @@ import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage } from '..
 import { landingPage } from '../landing.mjs'
 import { words } from '../cards.mjs'
 import { WORDS } from '../public/words.js'
-import { cardUrl, pullCloses, CARD_KEYS } from '../public/nav.js'
+import { cardUrl, pullAction, handleTap, CARD_KEYS } from '../public/nav.js'
 
 const base = 'https://pulse.example'
 const read = (f) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
@@ -119,25 +119,41 @@ test('the card address names only the card that is open, and keeps what else the
   assert.deepEqual(CARD_KEYS, ['repo', 'person'])
 })
 
-test('a pull down from the top of a card that is not scrolled closes it, nothing else does', () => {
+test('a pull from the top edge of a card: up opens the sheet fully, down closes a half sheet or lowers a full one', () => {
   const ok = { startY: 300, y: 390, top: 280, scrollTop: 0 }
-  assert.equal(pullCloses(ok), true, 'the control: this is the gesture')
-  assert.equal(pullCloses({ ...ok, y: 340 }), false, 'a short pull')
-  assert.equal(pullCloses({ ...ok, scrollTop: 40 }), false, 'a card that is scrolled is being read')
-  assert.equal(pullCloses({ ...ok, startY: 420 }), false, 'a pull that began in the middle of the card')
-  assert.equal(pullCloses({ ...ok, y: 200 }), false, 'a pull up')
+  assert.equal(pullAction(ok), 'close', 'the control: a pull down on a half sheet closes it')
+  assert.equal(pullAction({ ...ok, tall: true }), 'collapse', 'on a full sheet it goes back to half first')
+  assert.equal(pullAction({ ...ok, y: 200 }), 'expand', 'a pull up opens a half sheet fully')
+  assert.equal(pullAction({ ...ok, y: 200, tall: true }), null, 'a full sheet cannot open further')
+  assert.equal(pullAction({ ...ok, sheet: false }), 'close', 'with no sheet (a tablet, a short screen) a pull down closes')
+  assert.equal(pullAction({ ...ok, y: 200, sheet: false }), null, 'and a pull up does nothing')
+  assert.equal(pullAction({ ...ok, tall: true, sheet: false }), 'close', 'a stale full state does not matter where there is no sheet')
+  assert.equal(pullAction({ ...ok, y: 340 }), null, 'a short pull')
+  assert.equal(pullAction({ ...ok, scrollTop: 40 }), null, 'a card that is scrolled is being read')
+  assert.equal(pullAction({ ...ok, startY: 420 }), null, 'a pull that began in the middle of the card')
+})
+
+test('a tap on the handle toggles the sheet, and a tap on a control, or a drag, does not', () => {
+  const tap = { startY: 290, y: 292, top: 280, target: { closest: () => null } }
+  assert.equal(handleTap(tap), true, 'the control: a tap in the top 28 px')
+  assert.equal(handleTap({ ...tap, startY: 330, y: 331 }), false, 'a tap lower down')
+  assert.equal(handleTap({ ...tap, y: 320 }), false, 'a drag')
+  assert.equal(handleTap({ ...tap, target: { closest: (s) => (/button/.test(s) ? {} : null) } }), false, 'the close button sits in that corner')
 })
 
 test('the card client wires the address, one history step, the pull and the focus', () => {
   const js = read('public/pulse3d.js')
-  assert.match(js, /import \{ cardUrl, pullCloses \} from '\.\/nav\.js'/)
+  assert.match(js, /import \{ cardUrl, pullAction, handleTap \} from '\.\/nav\.js'/)
   assert.match(js, /if \(!cardStep && !linkCard\) \{ try \{ history\.pushState/, 'a card opened by the address is not a step on top of it')
   assert.match(js, /showDrawer\(\); setCardUrl\('repo', r\.name\)/)
   assert.match(js, /showDrawer\(\); setCardUrl\('person', login\)/)
   assert.match(js, /linkCard = true; try \{ openRepo\(i\) \} finally \{ linkCard = false \}/)
   assert.match(js, /linkCard = true; try \{ openPerson\(actorIdx\.get\(key\)\) \} finally \{ linkCard = false \}/)
   assert.match(js, /if \(cardStep\) \{ cardStep = false; try \{ history\.back\(\) \} catch \{\} \} else setCardUrl\(\)/)
-  assert.match(js, /pullCloses\(\{ \.\.\.start, y: e\.touches\[0\]\.clientY, scrollTop: d\.scrollTop \}\)/)
+  assert.match(js, /const act = pullAction\(point\(e\)\)/)
+  assert.match(js, /if \(act === 'close'\) closeDrawer\(\); else d\.classList\.toggle\('tall', act === 'expand'\)/)
+  assert.match(js, /handleTap\(\{ \.\.\.point\(e\), target: start\.target \}\)\) d\.classList\.toggle\('tall'\)/)
+  assert.match(js, /\$\('drawer'\)\.hidden = false; \$\('drawer'\)\.classList\.remove\('tall'\)/, 'a card opens at half height')
   assert.match(js, /\.brand h1/, 'when what opened the card is gone, the focus goes to the top')
 })
 
@@ -184,3 +200,12 @@ test('the digest says when it was counted and points to a fixed week to cite', (
   assert.ok(!page({ fixed: { label: '2026-W49', at: 0 }, kept: ['2026-W49'] }).includes('Counted on'), 'a fixed week already says when it was kept')
   assert.ok(t('dg.asof', { when: 'x' }).includes('x UTC'))
 })
+
+test('the card is a sheet from the bottom on a phone, half the screen high, and full when opened out', () => {
+  const live = read('public/pulse3d.css')
+  assert.match(live, /@media \(max-width: 860px\) and \(min-height: 561px\) \{\s*\.drawer \{ top: auto; height: min\(56dvh, calc\(100dvh - var\(--top\) - 150px - var\(--sab\)\)\); animation: sheet 0\.28s ease-out; \}\s*\.drawer\.tall \{ top: var\(--top\); height: auto; \}/)
+  assert.match(live, /@keyframes sheet \{ from \{ transform: translateY\(28px\)/)
+  assert.match(live, /@media \(prefers-reduced-motion: reduce\) \{ [^}]*\.drawer[^}]*animation: none/, 'and it keeps still for those who asked')
+  assert.match(js(), /matchMedia\('\(max-width: 860px\) and \(min-height: 561px\)'\)/, 'the script and the stylesheet agree on when it is a sheet')
+})
+const js = () => read('public/pulse3d.js')

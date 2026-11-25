@@ -55,6 +55,40 @@ export function crumbs(t, { base, lang, trail }) {
   const ld = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map(([label, p], i) => ({ '@type': 'ListItem', position: i + 1, name: String(label), ...(i < last && p ? { item: at(p) } : {}) })) }
   return `<nav class="crumbs" aria-label="${esc(t('bc.label'))}"><ol>${items.map(li).join('')}</ol><script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script></nav>`
 }
+// The day bars of a period, said in words and numbers (UX review of 2026-11-25: bars with no days, no values and a
+// screen reader label that was a sentence about the method). A week gets a value and a weekday under each bar, a day or
+// a month three ticks, and each bar its own title; the busiest slot is named, and the whole chart is read out.
+// Bar i is the slot that ends (n - 1 - i) slots before the time of the count.
+export function barsInfo(t, period, bars, now = Date.now()) {
+  const n = bars.length, slot = period === 'day' ? 36e5 : DAY
+  const endOf = (i) => now - (n - 1 - i) * slot
+  const fmt = (ms, o) => new Date(ms).toLocaleDateString(t('locale'), { timeZone: 'UTC', ...o })
+  const hour = (i) => `${String(new Date(endOf(i)).getUTCHours()).padStart(2, '0')}:00`
+  const abbr = (s) => (s.length > 4 ? s.slice(0, 3) : s).replace(/\.$/, '') // seven columns on a phone: three letters
+  const label = (i) => (period === 'day' ? hour(i) : abbr(fmt(endOf(i), { weekday: 'short' })))
+  const full = (i) => (period === 'day' ? `${fmt(endOf(i), { day: 'numeric', month: 'short' })} ${hour(i)} UTC` : fmt(endOf(i), { weekday: 'short', day: 'numeric', month: 'short' }))
+  const titles = bars.map((v, i) => `${full(i)}: ${t.cnt('upd', v)}`)
+  let top = 0
+  bars.forEach((v, i) => { if (v > bars[top]) top = i })
+  const ticks = period === 'week' ? bars.map((v, i) => [label(i), v]) : n ? [0, Math.round((n - 1) / 2), n - 1].map((i) => [period === 'day' ? hour(i) : fmt(endOf(i), { day: 'numeric', month: 'short' }), null]) : []
+  return { titles, ticks, peak: n && bars[top] > 0 ? t('dg.peak', { when: titles[top] }) : '', note: t(period === 'day' ? 'dg.note.hour' : 'dg.note.day'), summary: `${t('dg.chart', { unit: t('dg.unit.' + period) })} ${titles.join('; ')}` }
+}
+export function barsHtml(t, period, bars, now = Date.now()) {
+  if (!bars.length) return '<div hidden></div>'
+  const info = barsInfo(t, period, bars, now), max = Math.max(1, ...bars)
+  const axis = period === 'week' ? `<div class="axis" aria-hidden="true">${info.ticks.map(([l, v]) => `<span><b>${v}</b>${esc(l)}</span>`).join('')}</div>` : `<div class="axis ticks" aria-hidden="true">${info.ticks.map(([l]) => `<span>${esc(l)}</span>`).join('')}</div>`
+  return `<div class="bars" role="img" aria-label="${esc(info.summary)}">${bars.map((v, i) => `<i title="${esc(info.titles[i])}" style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>${axis}<p class="sub no-print">${esc([info.peak, info.note].filter(Boolean).join(' '))}</p>`
+}
+// What kind of work the period was: the same five kinds, colours, shapes and patterns as the live page
+const MIX = ['code', 'change', 'talk', 'version', 'interest']
+export function mixHtml(t, kinds) {
+  if (!kinds || typeof kinds !== 'object') return ''
+  const rows = MIX.map((f) => [f, Number.isInteger(kinds[f]) && kinds[f] > 0 ? kinds[f] : 0]).filter(([, v]) => v > 0)
+  const total = rows.reduce((a, [, v]) => a + v, 0)
+  if (!total) return ''
+  return `<section class="mix"><h2>${esc(t('dg.mix.h'))}</h2><div class="mixbar" role="img" aria-label="${esc(rows.map(([f, v]) => `${t('famLong.' + f)}: ${v}`).join(', '))}">${rows.map(([f, v]) => `<i data-f="${f}" style="flex:${v};background-color:var(--f-${f})"></i>`).join('')}</div>`
+    + `<ul class="mixkey">${rows.map(([f, v]) => `<li><i class="sw" data-f="${f}" style="background-color:var(--f-${f})"></i><span>${esc(t('famLong.' + f))}</span><b>${Math.round((v / total) * 100)}%</b></li>`).join('')}</ul></section>`
+}
 // the page that lists everything Pulse does, linked from the other pages' footers
 export const useLink = (t, base, lang) => `<p><a href="${esc(base)}/use?lang=${lang}">${esc(t('use.nav'))}</a> · <a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p>`
 export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
@@ -148,6 +182,8 @@ ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:sp
 details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summary{cursor:pointer;display:inline-block;padding:3px 0;color:var(--mut);list-style:none}@media (pointer:coarse){details.words summary{padding:11px 0}}details.words summary::-webkit-details-marker{display:none}details.words summary::before{content:"▸";display:inline-block;margin-right:6px;color:var(--lime)}details.words[open] summary::before{content:"▾"}details.words ul{margin:6px 0 4px;padding-left:18px}details.words li{margin:4px 0;color:var(--fg)}details.words p{margin:4px 0 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 32px}footer{margin-top:44px;color:var(--mut);font-size:14px;border-top:1px solid var(--edge-soft);padding-top:16px}footer img{max-width:100%;height:auto}code{font-family:var(--font-num,monospace);background:var(--surface);border:1px solid var(--edge);border-radius:6px;padding:2px 6px;font-size:13px;overflow-wrap:anywhere}
 .langs a{margin-right:10px}@media (max-width:600px){main{padding-top:18px}.kpis{gap:8px}.kpis div{min-width:0;padding:10px 12px}.kpis b{font-size:26px}.kpis span{font-size:12px}nav.p a,nav.p b{padding:5px 10px;font-size:13px}.bars{height:56px}.lede{font-size:16px}}
+.axis{display:flex;gap:3px;padding:6px 10px 0;font:11px var(--font-num,monospace);color:var(--mut)}.axis span{flex:1;text-align:center;display:flex;flex-direction:column;gap:2px;min-width:0}.axis b{color:var(--fg);font-weight:600}.axis.ticks{justify-content:space-between}.axis.ticks span{flex:none}
+.mixbar{display:flex;gap:2px;height:14px;margin:6px 0 12px}.mixbar i{min-width:3px}.mixkey{list-style:none;margin:0;padding:0;display:grid;gap:8px}.mixkey li{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;font-size:14px}.mixkey b{font:600 13px var(--font-num,monospace);color:var(--fg)}.mixkey .sw{display:inline-block;width:14px;height:14px}
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}
 @media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}}`
 
@@ -158,7 +194,6 @@ export function digestPage({ period, lang, leaders, news, trends, groupOf, base,
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
   const person = (login) => `<a href="${esc(base)}/?person=${encodeURIComponent(login)}&lang=${lang}">${esc(login)}</a>`
   const list = (title, rows, fmt) => rows.length ? `<section><h2>${esc(title)}</h2><ol>${rows.map((r) => `<li><span>${fmt(r)}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''
-  const max = Math.max(1, ...L.bars)
   const medals = [L.repos[0] && ['b.repos.' + period, link(L.repos[0][0])], L.people[0] && ['b.people.' + period, person(L.people[0][0])], L.orgs[0] && ['b.orgs.' + period, esc(t.group(L.orgs[0][0]))]].filter(Boolean)
   // the last whole month, as on the page: the current one has only begun
   const m = trends?.months || [], cur = m.at(-2), ago = m.at(-14)
@@ -183,7 +218,8 @@ ${pageHead({ crumbs: crumbs(t, { base, lang, trail: fixed ? [[t('tab.top'), '/di
 <p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : `<p class="sub no-print">${esc(t('dg.asof', { when: new Date(now).toLocaleString(t('locale'), { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) }))}${kept.length && period === 'week' ? ` ${esc(t('dg.cite'))} <a href="${esc(base)}/digest/${esc(kept[0])}?lang=${lang}">${esc(kept[0])}</a>` : ''}</p>`}
 <details class="words"><summary>${esc(t('dg.words.h'))}</summary><ul>${['update', 'commit', 'pr', 'review'].map((k) => `<li>${esc(t('dg.words.' + k))}</li>`).join('')}</ul><p><a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p></details>
 <div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
-${L.bars.length ? `<div class="bars" role="img" aria-label="${esc(t('h.note'))}">` : '<div hidden>'}${L.bars.map((v) => `<i style="height:${Math.max(3, Math.round((v / max) * 100))}%"></i>`).join('')}</div>
+${barsHtml(t, period, L.bars, now)}
+${mixHtml(t, s.kinds)}
 ${medals.length ? `<section><h2>${esc(t('dg.medals'))}</h2><ol class="medals">${medals.map(([k, v]) => `<li><small>${esc(t(k))}</small><strong>${v}</strong></li>`).join('')}</ol></section>` : `<p>${esc(t('h.empty'))}</p>`}
 <div class="grid">${list(t('h.repos'), L.repos, (r) => link(r[0]))}${list(t('h.people'), L.people, (r) => person(r[0]))}${list(t('h.reviewers'), L.reviewers || [], (r) => person(r[0]))}${list(t('h.merged'), L.merged || [], (r) => person(r[0]))}
 ${L.commits.length ? `<section><h2>${esc(t('h.commits'))}</h2><ol>${L.commits.map((r) => `<li><span>${link(r[0])}</span><b>${r[1]}</b></li>`).join('')}</ol></section>` : ''}
