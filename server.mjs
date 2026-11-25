@@ -19,7 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
-import { forumPage, forumJson, forumNow, loadForum, startForum } from './forum.mjs'
+import { forumPage, forumJson, forumNow, forumBrief, loadForum, startForum } from './forum.mjs'
 import { landingPage, lastLine } from './landing.mjs'
 import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
@@ -182,7 +182,7 @@ loadImpact(DATA_DIR)
 loadForum(DATA_DIR)
 // PULSE_OFFLINE=1 serves what is on disk and polls nothing (the HTTP tests)
 const OFFLINE = process.env.PULSE_OFFLINE === '1'
-if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL })
+if (!OFFLINE) startDigest({ leaders: highlightsNow, news, groupOf, publicUrl: PUBLIC_URL, forum: () => forumBrief(forumNow()) })
 if (!OFFLINE) startImpact({ repos: () => snapshot().repos, dir: DATA_DIR })
 if (!OFFLINE) startForum({ dir: DATA_DIR, known: knownRepos })
 // the app icon, drawn once: four cells, two lit
@@ -242,12 +242,12 @@ function handle(req, res) {
     const w = weekByLabel(dw[1])
     if (!w) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
     hit('digest', ipOf(req), req.headers['user-agent'])
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=3600', vary: LANG_VARY }, digestPage({ period: 'week', lang: langOf(url.searchParams, req), kept: keptWeeks(), leaders: weekLeaders(w), news: w.news.map((n) => ({ ...n, createdAt: new Date(w.at).toISOString() })), trends: null, groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, fixed: { label: dw[1], at: w.at } }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=3600', vary: LANG_VARY }, digestPage({ period: 'week', lang: langOf(url.searchParams, req), kept: keptWeeks(), leaders: weekLeaders(w), news: w.news.map((n) => ({ ...n, createdAt: new Date(w.at).toISOString() })), trends: null, groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, fixed: { label: dw[1], at: w.at }, forum: w.forum }))
   }
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, kept: keptWeeks(), leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest` }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, kept: keptWeeks(), leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, forum: forumBrief(forumNow()) }))
   }
   // the page of the DAO grants was taken out on 2026-11-18: old links go to the live page, the JSON is gone
   if (url.pathname === '/funded') { res.writeHead(301, { location: '/', 'cache-control': 'public, max-age=3600' }); return res.end() }

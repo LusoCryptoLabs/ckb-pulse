@@ -120,6 +120,24 @@ export function startForum({ dir, known }) {
   setTimeout(() => tick().catch((err) => console.warn('forum', err.message)), 120e3).unref()
 }
 
+// what the weekly digest carries: the technical counts and the three most discussed technical topics (the newest ones
+// when none had a reply). Nothing when the forum was not read in the last two days: an old week is not this week.
+export function forumBrief(data, now = Date.now()) {
+  if (!data?.stats?.tech || !Array.isArray(data.topics) || now - data.at > 2 * 864e5 || !data.stats.tech.topics) return null
+  const tech = data.topics.filter((x) => x.group === 'tech')
+  const top = (tech.some((x) => x.replies > 0) ? tech.filter((x) => x.replies > 0) : [...tech].sort((a, b) => b.last - a.last)).slice(0, 3)
+  return { at: data.at, stats: data.stats.tech, top: top.map((x) => ({ id: x.id, title: x.title, replies: x.replies })) }
+}
+// the same lines as HTML, for the digest page and the feed; `f` may come from a week kept on disk
+export function forumBriefHtml(t, f, { base, lang, heading = 'h2' }) {
+  if (!f?.stats || !Array.isArray(f.top)) return ''
+  const n = (v) => (Number.isInteger(v) ? v : 0)
+  const rows = f.top.filter((x) => Number.isInteger(x?.id)).slice(0, 3)
+  return `<section><${heading}>${esc(t('fo.dg.h'))}</${heading}><p>${esc(t('fo.dg.line', { topics: n(f.stats.topics), fresh: n(f.stats.fresh), posts: n(f.stats.posts), people: n(f.stats.people) }))}</p>`
+    + `<ol>${rows.map((x) => `<li><span><a href="${FORUM}/t/${x.id}" rel="noreferrer">${esc(String(x.title || '').slice(0, 200))}</a></span><b>${esc(n(x.replies) ? t.cnt('fo.rep', n(x.replies)) : t('fo.noReply'))}</b></li>`).join('')}</ol>`
+    + `<p><a href="${esc(base)}/forum?lang=${lang}">${esc(t('fo.dg.all'))}</a></p></section>`
+}
+
 // what a program gets: the same week, without what is only kept for the next reading
 export const forumJson = (data, group) => {
   const g = GROUPS.includes(group) ? group : 'tech'

@@ -7,6 +7,7 @@ import { words } from './cards.mjs'
 import { barHtml, today } from './public/menu.js'
 import { withStamp } from './og.mjs'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
+import { forumBriefHtml } from './forum.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const short = (name) => String(name || '').split('/').pop()
@@ -81,12 +82,13 @@ export function digestDue(kept, now = Date.now()) {
   if (d.getUTCDay() !== 1 || d.getUTCHours() < 8) return false
   return kept.at(-1).at < Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 8)
 }
-export function startDigest({ leaders, news, groupOf, publicUrl }) {
+export function startDigest({ leaders, news, groupOf, publicUrl, forum = () => null }) {
   const tick = async () => {
     if (!digestDue(D.weeks)) return
     const L = leaders().week
     if (!D.weeks.length && L.stats.updates < 50) return // not yet a week's worth
     const w = { at: Date.now(), stats: L.stats, repos: L.repos, commits: L.commits, people: L.people.map(([l, n]) => [l, n]), orgs: L.orgs, news: news().slice(0, 10).map((n) => ({ name: n.name, group: n.group, desc: n.desc })) }
+    const f = forum(); if (f) w.forum = f
     D.weeks.push(w); if (D.weeks.length > KEEP) D.weeks.shift()
     save()
     console.log(`digest: week of ${new Date(w.at).toISOString().slice(0, 10)} kept`)
@@ -129,7 +131,7 @@ details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summa
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
-export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [] }) {
+export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [], forum = null }) {
   const t = words(lang), L = leaders[period], s = L.stats
   const q = (p, l) => (fixed ? `${url.replace(/\/digest.*$/, '')}/digest/${fixed.label}?lang=${l}` : `${url}?p=${p}&lang=${l}`)
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
@@ -167,6 +169,7 @@ ${L.commits.length ? `<section><h2>${esc(t('h.commits'))}</h2><ol>${L.commits.ma
 ${L.operators?.length ? `<section><h2>${esc(t('h.operators'))}</h2><p><small>${esc(t('op.list'))}</small></p><ol>${L.operators.map((r) => `<li><span>${person(r[0])} <em class="tag">${esc(t('tag.op'))}</em></span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}
 ${L.ai?.length ? `<section><h2>${esc(t('h.ai'))}</h2><p><small>${esc(t('ai.note'))}</small></p><ol>${L.ai.map((r) => `<li><span>${person(r[0])} <em class="tag">${esc(t('tag.ai'))}</em></span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}
 ${L.orgs.length ? `<section><h2>${esc(t('h.orgs'))}</h2><ol>${L.orgs.map((r) => `<li><span>${esc(t.group(r[0]))}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}</div>
+${period === 'week' ? forumBriefHtml(t, forum, { base, lang }) : ''}
 ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).map((n) => `<li><span>${link(n.name)}${n.desc ? `<br><small>${esc(n.desc.slice(0, 120))}</small>` : ''}</span></li>`).join('')}</ol></section>` : ''}
 ${arrivals.length ? `<section><h2>${esc(t('dg.arrived'))}</h2><p class="names">${arrivals.slice(0, 60).map(person).join(' · ')}${arrivals.length > 60 ? ` · ${esc(t('dg.more', { n: arrivals.length - 60 }))}` : ''}</p><p><small>${esc(t('dg.arrivedNote'))}</small></p></section>` : ''}
 ${rhythm && !fixed ? `<section><h2>${esc(t('rh.title'))}</h2><p>${esc(t('rh.line', { commits: rhythm.commits, median: rhythm.median }))}</p><p><small>${esc(t('rh.note'))}</small></p></section>` : ''}
@@ -191,6 +194,7 @@ export function feedEntries({ lang, news, groupOf, base }) {
     const li = (rows, f) => rows.length ? `<ol>${rows.map((r) => `<li>${f(r[0])}: ${r[1]}</li>`).join('')}</ol>` : ''
     const html = `<p>${esc(sum)}</p>${w.repos[0] ? `<p><b>${esc(t('b.repos.week'))}</b>: ${esc(short(w.repos[0][0]))} (${esc(t.group(groupOf(w.repos[0][0])))})</p>` : ''}${w.people[0] ? `<p><b>${esc(t('b.people.week'))}</b>: ${esc(w.people[0][0])}</p>` : ''}` +
       `<h4>${esc(t('h.repos'))}</h4>${li(w.repos, (n) => `<a href="${esc(base)}/?repo=${encodeURIComponent(n)}">${esc(n)}</a>`)}<h4>${esc(t('h.people'))}</h4>${li(w.people, (n) => `<a href="${esc(base)}/?person=${encodeURIComponent(n)}">${esc(n)}</a>`)}` +
+      forumBriefHtml(t, w.forum, { base, lang, heading: 'h4' }) +
       (w.news.length ? `<h4>${esc(t('n.list'))}</h4><ul>${w.news.map((n) => `<li><a href="https://github.com/${esc(n.name)}">${esc(n.name)}</a>${n.desc ? `: ${esc(n.desc)}` : ''}</li>`).join('')}</ul>` : '') +
       `<p><img src="${esc(base)}/og/digest.png?w=${labelOf(w)}&amp;lang=${lang}" alt=""></p>`
     entries.push({ id: `tag:${host},${day}:digest/week`, title: `${t('mode.week')} · ${day}: ${sum}`, at: w.at, link: `${base}/digest/${labelOf(w)}?lang=${lang}`, html })

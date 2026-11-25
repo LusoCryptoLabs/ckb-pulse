@@ -2,7 +2,12 @@
 // program gets, and what the page shows from data that comes from outside.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekOf, fetchPosts, readForum, forumPage, forumJson, groupOfCat, GROUPS, FORUM } from '../forum.mjs'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { weekOf, fetchPosts, readForum, forumPage, forumJson, forumBrief, forumBriefHtml, groupOfCat, GROUPS, FORUM } from '../forum.mjs'
+import { digestPage, feedEntries, loadDigests, weeks } from '../digest.mjs'
+import { words } from '../cards.mjs'
 import { WORDS } from '../public/words.js'
 
 const NOW = Date.parse('2026-11-25T12:00:00Z'), H = 3600e3, DAY = 24 * H
@@ -104,4 +109,46 @@ test('every forum word exists in each language', () => {
   const keys = Object.keys(WORDS.en).filter((k) => /^(fo\.|m\.forum|use\.forum|use\.api\.forum|me\.forum)/.test(k))
   assert.ok(keys.length > 25)
   for (const lang of ['pt', 'zh']) assert.deepEqual(keys.filter((k) => !WORDS[lang][k]), [], lang)
+})
+
+test('the digest carries the technical counts and the three most discussed technical topics', () => {
+  const b = forumBrief(DATA, NOW)
+  assert.deepEqual(b.stats, DATA.stats.tech)
+  assert.equal(b.top.length, 3)
+  assert.ok(b.top.every((x) => x.replies > 0) && b.top[0].replies >= b.top[2].replies)
+  assert.ok(!b.top.some((x) => x.title === 'An old topic'), 'a funding topic is not technical')
+  assert.equal(forumBrief(DATA, NOW + 3 * DAY), null, 'a reading older than two days is not this week')
+  assert.equal(forumBrief(null), null)
+  assert.equal(forumBrief({ ...DATA, topics: DATA.topics.filter((x) => x.group !== 'tech'), stats: { ...DATA.stats, tech: { topics: 0, fresh: 0, posts: 0, people: 0 } } }, NOW), null, 'a week with no technical topic has no section')
+  const quiet = weekOf([post({ topic_id: 7, post_number: 1, topic_title: 'Alone' })], { now: NOW })
+  assert.deepEqual(forumBrief(quiet, NOW).top, [{ id: 7, title: 'Alone', replies: 0 }], 'with no reply anywhere, the newest topics')
+})
+
+test('the week digest shows the forum, the day and the month do not, and a kept week shows what was kept', () => {
+  const L = { stats: { updates: 5, people: 2, projects: 1 }, repos: [], commits: [], people: [], orgs: [], bars: [] }
+  const page = (o) => digestPage({ period: 'week', lang: 'en', leaders: { day: L, week: L, month: L }, news: [], trends: null, groupOf: () => 'g', base: 'https://pulse.example', url: 'https://pulse.example/digest', ...o })
+  const b = { at: NOW, stats: { topics: 19, fresh: 11, posts: 36, people: 18 }, top: [{ id: 5, title: 'A <b>title</b>', replies: 7 }, { id: 6, title: 'Second', replies: 0 }] }
+  const html = page({ forum: b })
+  assert.ok(html.includes('<h2>On the forum this week</h2><p>Technical topics: 19 · new: 11 · posts: 36 · people: 18</p>'))
+  assert.ok(html.includes(`<a href="${FORUM}/t/5" rel="noreferrer">A &lt;b&gt;title&lt;/b&gt;</a></span><b>7 replies</b>`) && html.includes('<b>no reply yet</b>'))
+  assert.ok(html.includes('href="https://pulse.example/forum?lang=en">The whole forum week</a>'))
+  assert.ok(!page({}).includes('On the forum') && !page({ forum: null }).includes('On the forum'), 'the control: no forum data, no section, and the page still renders')
+  assert.ok(!page({ forum: b, period: 'day' }).includes('On the forum') && !page({ forum: b, period: 'month' }).includes('On the forum'))
+  assert.ok(page({ forum: b, lang: 'pt' }).includes('No fórum esta semana') && page({ forum: b, lang: 'zh' }).includes('技术话题：19'))
+  for (const bad of [{ stats: null, top: [] }, { stats: b.stats, top: 'x' }, {}]) assert.ok(!page({ forum: bad }).includes('On the forum'), JSON.stringify(bad))
+  assert.ok(page({ forum: { stats: { topics: '<i>', fresh: 1, posts: 1, people: 1 }, top: [{ id: 'x', title: 't' }] } }).includes('Technical topics: 0 ·'), 'a kept record is read as numbers')
+  assert.equal(forumBriefHtml(words('en'), null, { base: '', lang: 'en' }), '')
+})
+
+test('a kept week with the forum shows it in the feed, and a week kept before does not break', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pulse-forum-'))
+  const week = (at, extra) => ({ at, stats: { updates: 9, people: 3, projects: 2 }, repos: [['a/b', 5]], commits: [], people: [['ana', 4]], orgs: [], news: [], ...extra })
+  fs.writeFileSync(path.join(dir, 'digests.json'), JSON.stringify({ weeks: [week(NOW - 7 * DAY), week(NOW, { forum: { at: NOW, stats: { topics: 2, fresh: 1, posts: 4, people: 3 }, top: [{ id: 9, title: 'Kept topic', replies: 2 }] } })] }))
+  loadDigests(dir)
+  assert.equal(weeks().length, 2)
+  const e = feedEntries({ lang: 'en', news: [], groupOf: () => 'g', base: 'https://pulse.example' })
+  assert.equal(e.length, 2)
+  assert.ok(e[0].html.includes('<h4>On the forum this week</h4>') && e[0].html.includes('Kept topic') && e[0].html.includes('<b>2 replies</b>'))
+  assert.ok(!e[1].html.includes('On the forum'), 'the older week has no forum record')
+  fs.rmSync(dir, { recursive: true, force: true })
 })
