@@ -106,3 +106,22 @@ test('the compare page and the forum have doors, and every word of the new hero 
   for (const lang of ['en', 'pt', 'zh']) assert.deepEqual(keys.filter((k) => !WORDS[lang][k]), [], lang)
   for (const k of keys) for (const lang of ['pt', 'zh']) assert.equal(holes(WORDS[lang][k]), holes(WORDS.en[k]), `${lang} ${k}`)
 })
+
+test('on a phone the numbers, the pulse and the last update sit under the picture and never over the scene', () => {
+  const html = page()
+  const css = html.match(/<style>([\s\S]*?)<\/style>/)[1]
+  assert.match(css, /@media\(max-width:559px\)\{\.win\{aspect-ratio:auto;max-height:none;padding-top:75vw\}\.win \.shot,\.win iframe,\.win a\.open\{inset:0 0 auto 0;height:75vw\}/, 'the picture keeps its own box, the figure leaves room under it')
+  assert.match(css, /\.win \.hud\{position:static;background:none;padding:14px 16px 16px\}/, 'and the numbers are in the page flow with no veil')
+  assert.match(css, /p\.plain\{font-size:16px;color:var\(--mut\)\}\}/, 'the sentence is a caption under the numbers, not a second headline')
+  assert.match(css, /\.win \.shot\{object-position:62% 50%\}/, 'the crop leans to the side where the labels are')
+  assert.match(css, /background:linear-gradient\(transparent,color-mix\(in srgb,var\(--bg\) 90%,transparent\) 54px,var\(--bg\) 110px\)/, 'on a wide screen the foot is nearly opaque at the numbers')
+  const wide = css.indexOf('.win .hud{position:absolute'), phone = css.indexOf('@media(max-width:559px){.win{aspect-ratio:auto')
+  assert.ok(wide > 0 && phone > wide, 'the phone rules come after the wide ones, so they win')
+  assert.ok(html.includes('padding-top:75vw') && !/\.win \.hud\{padding-top:40px\}/.test(css), 'the old tightening of the veil is gone')
+})
+
+test('a finger gets the footer links and the name in the bar', () => {
+  const html = page(), css = html.match(/<style>([\s\S]*?)<\/style>/)[1]
+  assert.match(css, /@media \(pointer:coarse\)\{nav\.p>a,nav\.p>b\{[^}]*\}footer a\{display:inline-block;min-width:44px;padding:13px 6px;text-align:center\}\}/)
+  assert.ok(css.indexOf('footer a{display:inline-block') > css.indexOf('footer{margin-top:44px'), 'after the footer rule, so it wins')
+})

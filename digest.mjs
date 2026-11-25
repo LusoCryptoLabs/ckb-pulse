@@ -185,7 +185,7 @@ details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summa
 .axis{display:flex;gap:3px;padding:6px 10px 0;font:11px var(--font-num,monospace);color:var(--mut)}.axis span{flex:1;text-align:center;display:flex;flex-direction:column;gap:2px;min-width:0}.axis b{color:var(--fg);font-weight:600}.axis.ticks{justify-content:space-between}.axis.ticks span{flex:none}
 .mixbar{display:flex;gap:2px;height:14px;margin:6px 0 12px}.mixbar i{min-width:3px}.mixkey{list-style:none;margin:0;padding:0;display:grid;gap:8px}.mixkey li{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;font-size:14px}.mixkey b{font:600 13px var(--font-num,monospace);color:var(--fg)}.mixkey .sw{display:inline-block;width:14px;height:14px}
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}
-@media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}}`
+@media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}footer a{display:inline-block;min-width:44px;padding:13px 6px;text-align:center}}`
 
 // the digest page for one period, in one language; news and trends come from the live state
 export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [], forum = null, now = Date.now() }) {

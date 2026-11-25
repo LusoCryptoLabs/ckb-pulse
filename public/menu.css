@@ -78,7 +78,7 @@
   .pm-btn, .pm-bar .ps-btn { min-width: 44px; height: 44px; }
   .pm-panel .pm-row { min-height: 44px; }
   .pm-foot a, .pm-foot button { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; padding-left: 8px; padding-right: 8px; box-sizing: border-box; }
-  .pm-by-lcl { position: relative; } .pm-by-lcl::after { content: ""; position: absolute; inset: -8px -6px; }
+  .pm-by-lcl, .pm-brand { position: relative; } .pm-by-lcl::after { content: ""; position: absolute; inset: -8px -6px; } .pm-brand::after { content: ""; position: absolute; inset: -7px -4px; }
 }
 @media (pointer: coarse) and (max-width: 360px) { .pm-btn, .pm-bar .ps-btn { min-width: 40px; height: 40px; } }
 @media print { .pmenu, .pm-views { display: none; } }
