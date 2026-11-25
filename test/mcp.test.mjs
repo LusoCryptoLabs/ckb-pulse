@@ -66,7 +66,7 @@ test('a batch answers its requests only, and refuses more than 20 messages', asy
 
 test('tools/list: every tool has a schema and says it only reads', async () => {
   const { tools } = (await rpc('tools/list')).json.result
-  assert.deepEqual(tools.map((t) => t.name), ['overview', 'find_projects', 'project', 'person', 'who_works_on', 'recent_updates', 'new_builders', 'trends'])
+  assert.deepEqual(tools.map((t) => t.name), ['overview', 'find_projects', 'project', 'person', 'who_works_on', 'recent_updates', 'forum_week', 'new_builders', 'trends'])
   for (const t of tools) { assert.equal(t.inputSchema.type, 'object'); assert.equal(t.annotations.readOnlyHint, true); assert.equal(t.run, undefined) }
 })
 

@@ -138,6 +138,35 @@ export function forumBriefHtml(t, f, { base, lang, heading = 'h2' }) {
     + `<p><a href="${esc(base)}/forum?lang=${lang}">${esc(t('fo.dg.all'))}</a></p></section>`
 }
 
+// the topics of the week that link a project's repository, for its page. Newest activity first, at most five.
+// Nothing when the forum was not read in the last two days.
+export function forumOf(data, name, now = Date.now()) {
+  if (!data?.stats || !Array.isArray(data.topics) || now - data.at > 2 * 864e5) return []
+  const key = String(name).toLowerCase()
+  return data.topics.filter((x) => Array.isArray(x.repos) && x.repos.some((r) => r.toLowerCase() === key))
+    .sort((a, b) => b.last - a.last).slice(0, 5)
+    .map((x) => ({ id: x.id, title: x.title, author: x.author, replies: x.replies, people: x.people, new: x.isNew }))
+}
+// the week as an Atom feed, one entry per topic, newest activity first. An entry's id is the topic, so a reader shows
+// a topic again, as updated, when it gets a new post.
+const iso = (ms) => new Date(ms).toISOString()
+export function forumFeed({ lang, base, data, group }) {
+  const t = words(lang), g = GROUPS.includes(group) ? group : 'tech', host = base.replace(/^https?:\/\//, '').replace(/[^A-Za-z0-9.-]/g, '')
+  const rows = (data?.topics || []).filter((x) => g === 'all' || x.group === g).sort((a, b) => b.last - a.last).slice(0, 60)
+  const title = `CKB Pulse · ${t('fo.title')} · ${t('fo.g.' + g)}`
+  const self = `${base}/forum.xml?c=${g}&amp;lang=${lang}`
+  const entry = (x) => {
+    const meta = [x.author ? t('fo.by', { name: x.author }) : '', x.isNew ? t('fo.new') : '', x.replies ? t.cnt('fo.rep', x.replies) : t('fo.noReply'), t.cnt('ppl', x.people), x.category].filter(Boolean).join(' · ')
+    const html = `<p>${esc(meta)}</p>${x.repos.length ? `<p>${x.repos.map((r) => `<a href="${esc(base)}/?repo=${encodeURIComponent(r)}&amp;lang=${lang}">${esc(r)}</a>`).join(' · ')}</p>` : ''}`
+    return `<entry><id>tag:${host},2026-11-25:forum/${x.id}</id><title>${esc(x.title)}</title><link href="${FORUM}/t/${x.id}"/><updated>${iso(x.last)}</updated>${x.author ? `<author><name>${esc(x.author)}</name></author>` : '<author><name>Nervos Talk</name></author>'}<content type="html">${esc(html)}</content></entry>`
+  }
+  return `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="${lang === 'zh' ? 'zh-CN' : lang}">
+<title>${esc(title)}</title><subtitle>${esc(t('fo.lead'))}</subtitle><id>tag:${host},2026-11-25:forum/${g}</id><link href="${esc(base)}/forum?c=${g}"/><link rel="self" href="${self}"/><updated>${iso(data?.at || 0)}</updated><icon>${esc(base)}/icon-192.png</icon>
+${rows.map(entry).join('\n')}
+</feed>`
+}
+
 // what a program gets: the same week, without what is only kept for the next reading
 export const forumJson = (data, group) => {
   const g = GROUPS.includes(group) ? group : 'tech'
@@ -164,10 +193,10 @@ export function forumPage({ lang, base, url, data, group }) {
   const read = data ? new Date(data.at).toLocaleString(t('locale'), { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC' : ''
   const body = !data ? `<p>${esc(t('fo.wait'))}</p>` : `${tabs}<div class="kpis four"><div><b>${s.topics}</b><span>${esc(t('fo.k.topics'))}</span></div><div><b>${s.fresh}</b><span>${esc(t('fo.k.new'))}</span></div><div><b>${s.posts}</b><span>${esc(t('fo.k.posts'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div></div>
 ${all.length ? '' : `<p>${esc(t('fo.none'))}</p>`}${sec(t('fo.hot'), all.filter((x) => x.replies > 0))}${sec(t('fo.fresh'), all.filter((x) => x.isNew && !x.replies).sort((a, b) => b.last - a.last))}
-<section class="me"><p><small>${esc(t('fo.note'))} ${esc(t('fo.how'))} ${esc(t('fo.asOf', { date: read }))}</small></p><p class="go"><a href="${FORUM}" rel="noreferrer">${esc(t('fo.open'))}</a></p></section>`
+<section class="me"><p><small>${esc(t('fo.note'))} ${esc(t('fo.how'))} ${esc(t('fo.asOf', { date: read }))}</small></p><p class="go"><a href="${FORUM}" rel="noreferrer">${esc(t('fo.open'))}</a><a class="alt" href="${esc(base)}/forum.xml?c=${g}&amp;lang=${lang}">${esc(t('fo.feed'))}</a></p></section>`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
-${menuHead(base)}<style>${CSS}${READING_CSS}${FORUM_CSS}</style></head><body><main>
+<link rel="alternate" type="application/atom+xml" title="${esc(title)}" href="${esc(base)}/forum.xml?c=${g}&amp;lang=${lang}">${menuHead(base)}<style>${CSS}${READING_CSS}${FORUM_CSS}</style></head><body><main>
 ${pageBar(t, { base, lang, current: 'forum', here: g === 'tech' ? '/forum' : `/forum?c=${g}`, share: { url: `${url}?c=${g}&lang=${lang}&d=${today()}`, title } })}
 ${pageHead({ eyebrow: t('fo.nav'), title: t('fo.h1'), lede: esc(desc) })}
 ${body}

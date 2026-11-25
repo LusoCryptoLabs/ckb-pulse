@@ -19,7 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
-import { forumPage, forumJson, forumNow, forumBrief, loadForum, startForum } from './forum.mjs'
+import { forumPage, forumJson, forumNow, forumBrief, forumOf, forumFeed, loadForum, startForum } from './forum.mjs'
 import { landingPage, lastLine } from './landing.mjs'
 import { presentPage } from './present.mjs'
 import { feedPage } from './feed.mjs'
@@ -198,7 +198,7 @@ function readJson(req, max, done) {
 setInterval(() => { for (const c of [...clients, ...fiberClients]) c.write(': ping\n\n') }, 25e3).unref()
 // the same data for AI agents, as MCP tools (mcp.mjs)
 const lessonsMcpHandle = lessonsMcp(() => loadLessons(DATA_DIR))
-const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks },
+const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks, forum: (g) => { const d = forumNow(); return d ? forumJson(d, g) : null } },
   { extra: publicLessonTools(() => loadLessons(DATA_DIR, 'public-lessons.json')), note: PUBLIC_LESSONS_NOTE })
 
 function handle(req, res) {
@@ -259,7 +259,7 @@ function handle(req, res) {
   }
   if (url.pathname === '/sitemap.xml') {
     const b = baseOf(req), data = loadLessons(DATA_DIR, 'public-lessons.json'), many = data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length ? visible(data).lessons : []
-    const pages = ['/', '/live', '/digest?p=week', '/forum', '/impact', '/use', '/method', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
+    const pages = ['/', '/live', '/digest?p=week', '/forum', '/forum.xml', '/impact', '/use', '/method', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
     const loc = (p, at) => `<url><loc>${(b + p).replace(/&/g, '&amp;')}</loc>${at ? `<lastmod>${at}</lastmod>` : ''}</url>`
     res.writeHead(200, { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' })
     return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => loc(p)).join('\n')}\n${many.map((l) => loc(`/learned/${l.id}`, /^\d{4}-\d{2}-\d{2}$/.test(String(l.last_touched)) ? l.last_touched : '')).join('\n')}\n</urlset>\n`)
@@ -331,6 +331,10 @@ function handle(req, res) {
   if (url.pathname === '/forum') {
     hit('forum', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, forumPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/forum`, data: forumNow(), group: url.searchParams.get('c') }))
+  }
+  if (url.pathname === '/forum.xml') {
+    hit('forum', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': 'application/atom+xml; charset=utf-8', 'cache-control': 'public, max-age=900' }, forumFeed({ lang: langOf(url.searchParams), base: baseOf(req), data: forumNow(), group: url.searchParams.get('c') }))
   }
   if (url.pathname === '/api/forum') { const d = forumNow(); if (!d) { res.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end('{"status":"reading"}') } return sendJson(req, res, forumJson(d, url.searchParams.get('c'))) }
   if (url.pathname === '/method') {
@@ -427,7 +431,7 @@ function handle(req, res) {
   if (url.pathname === '/api/repo') {
     const d = repoDetail(url.searchParams.get('name') || '')
     if (!d) { res.writeHead(404, { 'content-type': 'application/json' }); return res.end('{"error":"not followed"}') }
-    return sendJson(req, res, { ...d, lessons: lessonsOf(loadLessons(DATA_DIR, 'public-lessons.json'), d.name) }) // what CKB learned from it, with credit
+    return sendJson(req, res, { ...d, forum: forumOf(forumNow(), d.name), lessons: lessonsOf(loadLessons(DATA_DIR, 'public-lessons.json'), d.name) }) // what CKB learned from it, with credit
   }
   // a suggested organisation or person: POST {"login"} starts a check, GET ?id= reads how it went
   if (url.pathname === '/api/propose' && req.method === 'POST') {
