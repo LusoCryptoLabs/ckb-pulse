@@ -181,6 +181,7 @@ h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.035em;font-w
 h2{font:500 11px var(--font-num,monospace);color:var(--mut);margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em}p.sub{color:var(--mut);margin:0 0 20px}
 nav.p{display:flex;flex-wrap:wrap;align-items:center;gap:6px}nav.p>a,nav.p>b{display:inline-block;padding:6px 13px;border:1px solid var(--edge);border-radius:999px;margin:0;text-decoration:none;font-size:14px}nav.p>b{background:var(--lime);color:var(--ink);font-weight:600}
 .kpis{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.kpis div{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:14px 16px}.kpis b{display:block;font:600 34px/1.15 var(--font-num,monospace);letter-spacing:-.02em;color:var(--lime)}.kpis span{color:var(--mut);font-size:14px}
+section.mo h3{font:600 15px var(--font-ui,sans-serif);letter-spacing:0;margin:18px 0 4px;color:var(--fg)}section.mo ol li{display:block}section.mo ol li>small{display:block;margin-top:2px;color:var(--mut)}
 .bars{display:flex;align-items:flex-end;gap:3px;height:70px;background:var(--surface);border:1px solid var(--edge);border-radius:18px;padding:10px}.bars i{flex:1;background:var(--fg);border-radius:3px 3px 0 0;min-height:2px}
 ol{padding-left:0;list-style:none;margin:0}ol li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--edge-soft)}ol li span{min-width:0;overflow-wrap:anywhere}ol li b{color:var(--lime);white-space:nowrap;font:600 14px var(--font-num,monospace)}ol li small{color:var(--mut);margin-left:8px}
 .medals li{border:1px solid var(--edge);background:var(--surface);border-radius:16px;padding:11px 14px;margin-bottom:8px;display:block}.medals small{display:block;color:var(--mut);margin:0}.medals strong{font-size:18px}
@@ -192,8 +193,15 @@ details.words{margin:0 0 6px;color:var(--mut);font-size:14px}details.words summa
 @media print{body{background:#fff;color:#111;background-image:none}.kpis div,.bars,.medals li,code{background:#f4f6ef;border-color:#ddd}a{color:#365c00}nav.p,footer .no-print,.eyebrow{display:none}h1 em{color:#365c00}}
 @media (pointer:coarse){nav.p>a,nav.p>b{min-height:44px;display:inline-flex;align-items:center}footer a{display:inline-block;min-width:44px;padding:13px 6px;text-align:center}}`
 
+// what changed this week against the one before: three short lists of facts, only when there is something to say
+export function momentumHtml(t, mo, link) {
+  if (!mo || !(mo.rising.length || mo.quiet.length || mo.released.length)) return ''
+  const rows = (title, list, line) => list.length ? `<h3>${esc(title)}</h3><ol>${list.slice(0, 6).map((r) => `<li><span>${link(r.repo)}</span><small>${esc(line(r))}</small></li>`).join('')}</ol>` : ''
+  return `<section class="mo"><h2>${esc(t('mo.title'))}</h2>${rows(t('mo.rising'), mo.rising, (r) => t('mo.line', { merged: r.merged, before: r.mergedBefore, people: r.people }))}${rows(t('mo.quiet'), mo.quiet, (r) => t('mo.quietline', { before: r.mergedBefore }))}${rows(t('mo.released'), mo.released, () => '')}<p><small>${esc(t('mo.note'))}</small></p></section>`
+}
+
 // the digest page for one period, in one language; news and trends come from the live state
-export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [], forum = null, now = Date.now() }) {
+export function digestPage({ period, lang, leaders, news, trends, groupOf, base, url, fixed = null, arrivals = [], rhythm = null, kept = [], forum = null, mo = null, now = Date.now() }) {
   const t = words(lang), L = leaders[period], s = L.stats
   const q = (p, l) => (fixed ? `${url.replace(/\/digest.*$/, '')}/digest/${fixed.label}?lang=${l}` : `${url}?p=${p}&lang=${l}`)
   const link = (name) => `<a href="${esc(base)}/?repo=${encodeURIComponent(name)}&lang=${lang}">${esc(short(name))}</a><small>${esc(t.group(groupOf(name)))}</small>`
@@ -231,6 +239,7 @@ ${L.commits.length ? `<section><h2>${esc(t('h.commits'))}</h2><ol>${L.commits.ma
 ${L.operators?.length ? `<section><h2>${esc(t('h.operators'))}</h2><p><small>${esc(t('op.list'))}</small></p><ol>${L.operators.map((r) => `<li><span>${person(r[0])} <em class="tag">${esc(t('tag.op'))}</em></span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}
 ${L.ai?.length ? `<section><h2>${esc(t('h.ai'))}</h2><p><small>${esc(t('ai.note'))}</small></p><ol>${L.ai.map((r) => `<li><span>${person(r[0])} <em class="tag">${esc(t('tag.ai'))}</em></span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}
 ${L.orgs.length ? `<section><h2>${esc(t('h.orgs'))}</h2><ol>${L.orgs.map((r) => `<li><span>${esc(t.group(r[0]))}</span><b>${esc(t.cnt('upd', r[1]))}</b></li>`).join('')}</ol></section>` : ''}</div>
+${period === 'week' && !fixed ? momentumHtml(t, mo, link) : ''}
 ${period === 'week' ? forumBriefHtml(t, forum, { base, lang }) : ''}
 ${news.length ? `<section><h2>${esc(t('n.list'))}</h2><ol>${news.slice(0, 10).map((n) => `<li><span>${link(n.name)}${n.desc ? `<br><small>${esc(n.desc.slice(0, 120))}</small>` : ''}</span></li>`).join('')}</ol></section>` : ''}
 ${arrivals.length ? `<section><h2>${esc(t('dg.arrived'))}</h2><p class="names">${arrivals.slice(0, 60).map(person).join(' · ')}${arrivals.length > 60 ? ` · ${esc(t('dg.more', { n: arrivals.length - 60 }))}` : ''}</p><p><small>${esc(t('dg.arrivedNote'))}</small></p></section>` : ''}

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { KIND_FAMILY } from './public/words.js'
+import { momentum } from './momentum.mjs'
 import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
 import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, TEXT_SEARCHES, README_CKB, isNoiseActor, isAutomaticAuthor, isOptedOut, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
@@ -983,6 +984,10 @@ function leaders(ev, now) {
 }
 // what the share cards need, without building the whole page state: highlights (kept a minute), a group, a person
 let hlCache = null
+export function momentumNow() {
+  const followed = followedNow(Date.now())
+  return momentum(state.events.filter((e) => followed(e.repo)))
+}
 export function highlightsNow() {
   const now = Date.now()
   if (hlCache && now - hlCache.at < 60e3) return hlCache.v
