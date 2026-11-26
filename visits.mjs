@@ -44,7 +44,7 @@ function dayRec(day) {
 // hash: a count has no one in it. Preview robots (X, Telegram, WhatsApp fetching a card) count apart, as bots, which is
 // how a share shows up before anyone clicks
 export const COUNTS = ['share_copy', 'share_x', 'share_telegram', 'share_whatsapp', 'share_image', 'share_native', 'badge_copy',
-  'card_highlights', 'card_repo', 'card_person', 'card_fiber', 'card_use', 'card_digest', 'card_lesson', 'api_check']
+  'card_highlights', 'card_repo', 'card_person', 'card_fiber', 'card_use', 'card_digest', 'card_lesson', 'api_check', 'support_ckb', 'support_btc', 'support_evm']
 export function count(name, ua, now = Date.now()) {
   if (!COUNTS.includes(name)) return false
   const d = dayRec(dayOf(now)), box = isBot(ua) ? (d.botCounts ||= {}) : (d.counts ||= {})

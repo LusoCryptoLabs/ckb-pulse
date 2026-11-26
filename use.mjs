@@ -109,6 +109,7 @@ ${FIBER_PAUSED ? '' : `- [Fiber map](${base}/fiber): Fiber nodes and public chan
 - [Compare projects](${base}/compare): two followed projects side by side over 30 days (a and b are owner/repo); /api/compare gives the same as JSON
 - [What you can do](${base}/use): every feature, for people
 - [How Pulse counts](${base}/method): what an update is, the caps, what is left out
+- [Support](${base}/support): what Pulse costs to run, and how to help cover it
 
 ## JSON API
 
