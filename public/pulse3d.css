@@ -601,3 +601,5 @@ html[lang].screen .pm-by-lcl img { width: 160px; }
 /* ?embed=1: the scene alone, inside the landing's frame: nothing to read, nothing to press, no pointer */
 .embed .top, .embed .now, .embed .screen-bar, .embed .skip { display: none !important; }
 .embed, .embed body { pointer-events: none; }
+.drawer .earned { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.drawer .earned img { display: block; max-width: 100%; height: auto; }

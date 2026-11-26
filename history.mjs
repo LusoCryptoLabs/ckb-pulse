@@ -118,6 +118,18 @@ export function personHistory(login, now = Date.now()) {
   }
   return first === Infinity ? null : { since: new Date(first * 1000).toISOString().slice(0, 7), active: months.size }
 }
+// every person the history knows, with the months they committed in, oldest first (for marks that are earned once)
+export function peopleMonths() {
+  const out = new Map()
+  for (const r of Object.values(H.repos)) for (const [w, login] of r.rows) {
+    if (isAutomaticAuthor(login) || blocked.has(login.toLowerCase())) continue
+    const k = login.toLowerCase()
+    let p = out.get(k); if (!p) out.set(k, (p = { login, months: new Set() }))
+    p.months.add(monthOf(w))
+  }
+  for (const p of out.values()) p.months = [...p.months].sort()
+  return out
+}
 // one repository: commits and developers per month
 export function repoMonths(full, months = 24) {
   const r = H.repos[full]

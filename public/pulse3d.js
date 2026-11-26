@@ -1324,10 +1324,18 @@ ${badgesFor(login, ['people', 'peopleCommits', 'reviewers', 'merged'])}<div clas
   // dated facts about this person, from the server: the first commit seen here, months with commits, reviews, accepted
   // pull requests, the last release. Facts, not levels
   if (flag !== 'ai') fetch(`api/person?login=${encodeURIComponent(login)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
-    if (!j?.marks?.length || $('drawer').hidden || $('drawer-body').querySelector('h2')?.firstChild?.textContent !== login) return
+    if (!(j?.marks?.length || j?.earned?.length) || $('drawer').hidden || $('drawer-body').querySelector('h2')?.firstChild?.textContent !== login) return
     const text = (m) => t('mk.' + m.id, { month: m.month ? monthName(m.month) : '', n: m.n, of: m.of, date: m.date ? new Date(m.date + 'T00:00:00Z').toLocaleDateString(t('locale'), { dateStyle: 'medium', timeZone: 'UTC' }) : '' })
     const el = document.createElement('div'); el.className = 'pills marks'; el.innerHTML = j.marks.map((m) => `<span>${esc(text(m))}</span>`).join('')
-    $('drawer-body').querySelector('.pills.kinds, .person')?.after(el)
+    const anchor = $('drawer-body').querySelector('.pills.kinds, .person')
+    if (j.marks.length) anchor?.after(el)
+    // what this person earned once and keeps: the emblem is the proof, a link to the work behind it when there is one
+    if (j.earned?.length) {
+      const box = document.createElement('div'); box.className = 'earned'
+      const lang = new URLSearchParams(location.search).get('lang') || document.documentElement.lang.slice(0, 2)
+      box.innerHTML = j.earned.map((m) => { const img = `<img src="badge/earned/${encodeURIComponent(login)}/${m.id}.svg?lang=${esc(lang)}" width="112" height="131" alt="${esc(t('em.t.' + m.id, { month: m.date.slice(0, 7) }))}" loading="lazy">`; return m.proof ? `<a href="${esc(m.proof)}" target="_blank" rel="noopener">${img}</a>` : img }).join('')
+      ;(el.isConnected ? el : anchor)?.after(box)
+    }
   }).catch(() => {})
   const s = sprites.get(login); if (s) flyTo(s.position.x * 0.6, s.position.z * 0.6, 22)
 }

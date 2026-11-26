@@ -5,7 +5,8 @@ import { EventEmitter } from 'node:events'
 import { gh, once, limits } from './github.mjs'
 import { KIND_FAMILY } from './public/words.js'
 import { momentum } from './momentum.mjs'
-import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory } from './history.mjs'
+import { loadAwards, scanAwards, earnedBy } from './awards.mjs'
+import { loadHistory, refreshHistory, trends, repoMonths, historyNames, forgetRepos, rhythm, personHistory, peopleMonths } from './history.mjs'
 import { loadOnchain, refreshOnchain, onchainOf, onchainRepos } from './onchain.mjs'
 import { ORGS, USERS, CODE_SEARCHES, SOURCE_SEARCHES, TOPIC_SEARCHES, TAGS, POLL, BLOCKED, FUNDED, AI_ACCOUNTS, AI_BIO, OPERATORS, VET_TOPICS, VET_TEXT, VET, CKB_CONTEXT, CKB_NOT, TEXT_SEARCHES, README_CKB, isNoiseActor, isAutomaticAuthor, isOptedOut, isAgentBranch, SCHEDULE_DAYS } from './config.mjs'
 
@@ -911,6 +912,9 @@ export async function followFunded(list = FUNDED) {
 export function start() {
   load()
   loadHistory(DATA)
+  loadAwards(DATA)
+  const award = () => { try { const n = scanAwards(state.events, [...peopleMonths().values()].filter((p) => !isAI(p.login))); if (n) console.log(`awards: ${n} new`) } catch (err) { console.warn('awards', err.message) } }
+  setTimeout(award, 20e3).unref(); setInterval(award, 30 * 60e3).unref()
   loadOnchain(DATA)
   forkFlags().catch((e) => console.warn('fork flags', e.message))
   ownerLoop().catch((e) => console.error('owner loop died', e))
@@ -984,6 +988,7 @@ function leaders(ev, now) {
 }
 // what the share cards need, without building the whole page state: highlights (kept a minute), a group, a person
 let hlCache = null
+export { earnedBy }
 export function momentumNow() {
   const followed = followedNow(Date.now())
   return momentum(state.events.filter((e) => followed(e.repo)))
@@ -1024,7 +1029,7 @@ export function personMarks(login) {
   if (reviews >= 5) marks.push({ id: 'reviewer', n: reviews })
   if (merged >= 1) marks.push({ id: 'merged', n: merged })
   if (release) marks.push({ id: 'released', date: release.slice(0, 10) })
-  return { login, marks }
+  return { login, marks, earned: earnedBy(login) }
 }
 export function personDetail(login) {
   const now = Date.now(), from = new Date(now - 7 * DAY).toISOString(), key = String(login).toLowerCase()
