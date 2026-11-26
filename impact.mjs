@@ -5,7 +5,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
-import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
+import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead, crumbs, countScript } from './digest.mjs'
 import { isOptedOut } from './config.mjs'
 import { today } from './public/menu.js'
 
@@ -185,7 +185,7 @@ export function impactPage({ lang, base, url, lib: id, data, now = Date.now() })
     const max = Math.max(1, ...r.trend.map((s) => s.n))
     const plain = r.using ? esc(t(r.using === 1 ? 'im.plain.1' : 'im.plain', { n: r.using, total: r.scanned, lib: lib.name, active: r.active })) : esc(t('im.none', { lib: lib.name }))
     body = `<p class="lede plain">${plain}</p>${isListed ? '' : `<p class="sub">${esc(t('im.unlisted', { lib: lib.name }))}</p>`}
-<div class="kpis"><div><b>${r.using}</b><span>${esc(t('im.k.using'))}</span></div><div><b>${r.active}</b><span>${esc(t('im.k.active'))}</span></div><div><b>${r.owners}</b><span>${esc(t('im.k.owners'))}</span></div></div>
+<div class="kpis"><div><b data-n="${r.using}">${r.using}</b><span>${esc(t('im.k.using'))}</span></div><div><b data-n="${r.active}">${r.active}</b><span>${esc(t('im.k.active'))}</span></div><div><b data-n="${r.owners}">${r.owners}</b><span>${esc(t('im.k.owners'))}</span></div></div>
 ${r.trend.length >= 3 ? `<section><h2>${esc(t('im.trend'))}</h2><div class="bars" role="img" aria-label="${esc(`${t('im.trend')}: ${r.trend.map((s) => `${s.d} ${s.n}`).join('; ')}`)}">${r.trend.map((s) => `<i title="${esc(s.d)}: ${s.n}" style="height:${Math.max(3, Math.round((s.n / max) * 100))}%"></i>`).join('')}</div>`
       + `<div class="axis ticks" aria-hidden="true"><span>${esc(new Date(r.trend[0].d).toLocaleDateString(t('locale'), { day: 'numeric', month: 'short', timeZone: 'UTC' }))}</span><span>${esc(new Date(r.trend.at(-1).d).toLocaleDateString(t('locale'), { day: 'numeric', month: 'short', timeZone: 'UTC' }))}</span></div>`
       + `<p class="sub">${esc(t('im.trend.since', { date: new Date(r.trend[0].d).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }))}</p></section>` : `<p class="sub">${esc(t('im.trend.wait', { date: new Date(r.trend[0]?.d || r.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }))}</p>`}
@@ -201,5 +201,5 @@ ${chips}
 ${body}
 <footer>${maker(t)}
 ${langLinks((l) => `${base}/impact?lib=${lib.id}&lang=${l}`)}</footer>
-</main>${menuScript(base)}</body></html>`
+</main>${menuScript(base)}${countScript('.kpis b[data-n]')}</body></html>`
 }

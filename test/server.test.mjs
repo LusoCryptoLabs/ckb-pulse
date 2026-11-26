@@ -77,7 +77,7 @@ test('/method answers in every language with every section', async () => {
 test('a kept digest week has its own page and card, an unknown one is a 404', async () => {
   const r = await get('/digest/2026-W46?lang=en')
   assert.equal(status(r), 200)
-  assert.ok(r.includes('<b>970</b>') && r.includes('The week 2026-W46'))
+  assert.ok(/<b[^>]*>970<\/b>/.test(r) && r.includes('The week 2026-W46'))
   assert.equal(status(await get('/digest/2025-W01')), 404)
   const png = await get('/og/digest.png?w=2026-W46')
   assert.equal(status(png), 200)

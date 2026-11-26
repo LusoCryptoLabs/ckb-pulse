@@ -23,8 +23,11 @@ section.use p{margin:8px 0}.go{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0
 .go a.alt{background:none;color:var(--lime);border:1px solid #4a4536}pre{background:var(--bg);border:1px solid var(--edge);border-radius:10px;padding:10px 12px;margin:8px 0;overflow-x:auto;user-select:all;-webkit-user-select:all}
 pre code{background:none;border:0;padding:0;font-size:13px;font-family:var(--font-num,monospace);overflow-wrap:normal;white-space:pre}ul.api,ul.tools{list-style:none;padding:0;margin:8px 0}ul.api li,ul.tools li{padding:6px 0;border-bottom:1px solid var(--edge-soft);overflow-wrap:anywhere}
 ul.api li:last-child,ul.tools li:last-child{border:0}ul.api span,ul.tools span{color:var(--mut)}h3{font-size:15px;margin:14px 0 4px;color:var(--mut)}blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid #62c9f5;color:var(--fg);background:var(--bg);border-radius:0 8px 8px 0}
-.badge img{display:block;margin:10px 0 4px;max-width:100%;height:auto}`
+.go button.cp{padding:7px 14px;border-radius:999px;border:1px solid var(--edge);background:var(--surface);color:var(--fg);font:700 14px var(--font-ui,sans-serif);cursor:pointer;min-height:44px}.badge img{display:block;margin:10px 0 4px;max-width:100%;height:auto}`
 
+// copies the text a button carries; where the browser will not, the command stays selectable above
+const COPY_SCRIPT = `<script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('button[data-cmd]');if(!b||!navigator.clipboard)return
+navigator.clipboard.writeText(b.dataset.cmd).then(function(){var w=b.textContent;b.textContent=b.dataset.done;setTimeout(function(){b.textContent=w},1600)}).catch(function(){})})</script>`
 export function usePage({ lang, base, url, img = '' }) {
   const t = words(lang), L = `lang=${lang}`
   const title = `CKB Pulse · ${t('use.title')}`, desc = t('use.lead')
@@ -40,7 +43,7 @@ export function usePage({ lang, base, url, img = '' }) {
     ['add', `<p>${esc(t('use.add.p'))}</p>${go([[`${base}/?tab=suggest&${L}`, 'use.add.a']])}`],
     ...(FIBER_PAUSED ? [] : [['fiber', `<p>${esc(t('use.fiber.p'))}</p>${go([[`${base}/fiber`, 'use.fiber.a']])}`]]),
     ['data', `<p>${esc(t('use.data.p'))}</p><ul class="api">${API.map(([p, k]) => `<li><code>${esc(base + p)}</code><br><span>${esc(t(k))}</span></li>`).join('')}</ul><p>${esc(t('use.api.open'))}</p>`],
-    ['ai', `<p>${esc(t('use.ai.p'))}</p><h3>${esc(t('use.ai.claude'))}</h3><pre><code>${esc(install(base))}</code></pre><h3>${esc(t('use.ai.other'))}</h3><pre><code>${esc(base)}/mcp</code></pre>
+    ['ai', `<p>${esc(t('use.ai.p'))}</p><div class="kpis"><div><b>${TOOL_INFO.length + LESSON_TOOL_INFO.length}</b><span>${esc(t('use.ai.k'))}</span></div></div><h3>${esc(t('use.ai.claude'))}</h3><pre><code>${esc(install(base))}</code></pre><p class="go"><button type="button" class="cp" data-cmd="${esc(install(base))}" data-done="${esc(t('use.ai.copied'))}">${esc(t('use.ai.copy'))}</button></p><h3>${esc(t('use.ai.other'))}</h3><pre><code>${esc(base)}/mcp</code></pre>
 <h3>${esc(t('use.ai.try'))}</h3><blockquote>${esc(t('use.ai.q'))}</blockquote><h3>${esc(t('use.ai.tools'))}</h3>
 <ul class="tools">${[...TOOL_INFO, ...LESSON_TOOL_INFO].map(({ name }) => `<li><code>${esc(name)}</code> <span>${esc(t('use.tool.' + name))}</span></li>`).join('')}</ul>
 <p>${esc(t('use.ai.llms', { url: `${base}/llms.txt` }))}</p>`],
@@ -60,7 +63,7 @@ ${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('use.nav'), null]] }), e
 ${groups.map(([g, ids]) => `<h2 class="grp" id="for-${g}">${esc(t('use.group.' + g))}</h2>
 ${ids.map((id) => `<section class="use" id="${id}"><h2>${esc(t(`use.${id}.h`))}</h2>${byId.get(id)}</section>`).join('\n')}`).join('\n')}
 ${pageFoot(t, url)}
-</main>${menuScript(base)}</body></html>`
+</main>${menuScript(base)}${COPY_SCRIPT}</body></html>`
 }
 
 // llms.txt (llmstxt.org): what an AI agent needs to use Pulse, in English

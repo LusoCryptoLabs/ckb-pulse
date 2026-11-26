@@ -3,7 +3,7 @@
 // came with a link to a project, a person, a period or a tab goes straight to the live view (server.mjs), and so does
 // any browser that has seen the welcome card before (the script below, which runs before anything is drawn).
 import { words } from './cards.mjs'
-import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead } from './digest.mjs'
+import { CSS, maker, langLinks, pageBar, menuHead, menuScript, pageHead, countScript } from './digest.mjs'
 import { today } from './public/menu.js'
 import { MIGRATE_SCRIPT } from './migrate.mjs'
 
@@ -94,9 +94,7 @@ export function ecgPath(bars, w = 1000, h = 80) {
   return d
 }
 // the numbers count up from nothing when the picture comes into view; the real number is in the page, and is the last thing written
-export const COUNT_SCRIPT = `<script>(function(){var els=document.querySelectorAll('.nums b[data-n]');if(!els.length||matchMedia('(prefers-reduced-motion: reduce)').matches||!('IntersectionObserver' in window))return
-var run=function(){els.forEach(function(e){var to=+e.dataset.n,t0=null;e.textContent='0';(function f(t){if(t0===null)t0=t;var k=Math.min(1,(t-t0)/1100);e.textContent=k<1?String(Math.round(to*(1-Math.pow(1-k,3)))):String(to);if(k<1)requestAnimationFrame(f)})(performance.now())})}
-var io=new IntersectionObserver(function(es){if(es[0].isIntersecting){io.disconnect();run()}});io.observe(els[0])})()</script>`
+export const COUNT_SCRIPT = countScript('.nums b[data-n]')
 
 // the picture of the live view: two stills (dark and light, whichever the page is in), and over them the live view itself when
 // the device can carry it: a wide screen, motion allowed, no data saver, and once the page is loaded and the picture is in view.

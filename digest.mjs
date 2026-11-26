@@ -47,6 +47,10 @@ nav.crumbs li[aria-current]{color:var(--fg);overflow:hidden;text-overflow:ellips
 @media (pointer:coarse){nav.crumbs a{padding:13px 0}details>summary{padding:11px 0}}
 @media print{nav.crumbs{display:none}}
 `
+// the numbers count up from nothing when they come into view; the real number is in the page, and is the last thing written
+export const countScript = (sel) => `<script>(function(){var els=document.querySelectorAll('${sel}');if(!els.length||matchMedia('(prefers-reduced-motion: reduce)').matches||!('IntersectionObserver' in window))return
+var run=function(){els.forEach(function(e){var to=+e.dataset.n,t0=null;e.textContent='0';(function f(t){if(t0===null)t0=t;var k=Math.min(1,(t-t0)/1100);e.textContent=k<1?String(Math.round(to*(1-Math.pow(1-k,3)))):String(to);if(k<1)requestAnimationFrame(f)})(performance.now())})}
+var io=new IntersectionObserver(function(es){if(es[0].isIntersecting){io.disconnect();run()}});io.observe(els[0])})()</script>`
 export function crumbs(t, { base, lang, trail }) {
   const at = (p) => `${base}${p}${p.includes('?') ? '&' : '?'}lang=${lang}`
   const items = [[t('bc.live'), '/live'], ...trail]
@@ -217,7 +221,7 @@ ${pageHead({ crumbs: crumbs(t, { base, lang, trail: fixed ? [[t('tab.top'), '/di
 <nav class="p">${(fixed ? [] : ['day', 'week', 'month']).map((p) => (p === period ? `<b>${esc(t('mode.' + p))}</b>` : `<a href="${esc(q(p, lang))}">${esc(t('mode.' + p))}</a>`)).join('')}</nav>
 <p class="sub">${esc(fixed ? t('dg.fixed', { label: fixed.label, date: new Date(fixed.at).toLocaleDateString(t('locale'), { dateStyle: 'long', timeZone: 'UTC' }) }) : t('dg.lead', { when: t('when.' + period), date: new Date().toLocaleDateString(t('locale'), { dateStyle: 'long' }) }))}</p>${fixed ? `<p class="sub no-print"><a href="${esc(base)}/digest?p=week&lang=${lang}">${esc(t('dg.nowWeek'))}</a></p>` : `<p class="sub no-print">${esc(t('dg.asof', { when: new Date(now).toLocaleString(t('locale'), { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) }))}${kept.length && period === 'week' ? ` ${esc(t('dg.cite'))} <a href="${esc(base)}/digest/${esc(kept[0])}?lang=${lang}">${esc(kept[0])}</a>` : ''}</p>`}
 <details class="words"><summary>${esc(t('dg.words.h'))}</summary><ul>${['update', 'commit', 'pr', 'review'].map((k) => `<li>${esc(t('dg.words.' + k))}</li>`).join('')}</ul><p><a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p></details>
-<div class="kpis"><div><b>${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b>${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
+<div class="kpis"><div><b data-n="${s.updates}">${s.updates}</b><span>${esc(t('k.updates'))}</span></div><div><b data-n="${s.people}">${s.people}</b><span>${esc(t('k.people'))}</span></div><div><b data-n="${s.projects}">${s.projects}</b><span>${esc(t('k.projects'))}</span></div></div>
 ${barsHtml(t, period, L.bars, now)}
 ${mixHtml(t, s.kinds)}
 ${medals.length ? `<section><h2>${esc(t('dg.medals'))}</h2><ol class="medals">${medals.map(([k, v]) => `<li><small>${esc(t(k))}</small><strong>${v}</strong></li>`).join('')}</ol></section>` : `<p>${esc(t('h.empty'))}</p>`}
@@ -236,7 +240,7 @@ ${period === 'week' && kept.length ? `<section class="no-print"><h2>${esc(t('dg.
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
 ${useLink(t, base, lang)}${maker(t)}
 ${langLinks((l) => q(period, l))}</footer>
-</main>${menuScript(base)}</body></html>`
+</main>${menuScript(base)}${countScript('.kpis b[data-n]')}</body></html>`
 }
 
 // ---------- the feed ----------
