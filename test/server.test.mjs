@@ -92,6 +92,20 @@ test('the support page answers, and the sitemap lists it', async () => {
   assert.ok((await raw('/sitemap.xml')).includes('/support'))
 })
 
+test('pages carry their canonical address and languages; noindex pages do not; the project routes answer', async () => {
+  const d = await get('/digest?p=month&theme=dark', 'pt-PT')
+  assert.ok(d.includes('<link rel="canonical" href="http://x/digest?p=month&amp;lang=pt">'), d.slice(0, 300))
+  assert.ok(d.includes('hreflang="x-default" href="http://x/digest?p=month"'))
+  assert.ok((await get('/?lang=en')).includes('"@type":"WebSite"'))
+  assert.ok(!(await get('/compare')).includes('rel="canonical"'))
+  const list = await get('/projects?lang=pt')
+  assert.equal(status(list), 200)
+  assert.ok(list.includes('Todos os projetos') && list.includes('<link rel="canonical" href="http://x/projects?lang=pt">'))
+  assert.equal(status(await get('/project/nobody/nothing')), 404)
+  assert.ok([400, 404].includes(status(await get('/project/%E0%A4%A/x'))))
+  assert.ok((await raw('/sitemap.xml')).includes('/projects'))
+})
+
 test('the funded page is gone for good: it and its JSON are plain 404s', async () => {
   for (const p of ['/funded?lang=pt', '/api/funded', '/og/funded.png']) assert.equal(status(await get(p)), 404, p)
 })
