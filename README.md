@@ -17,7 +17,7 @@ Node 20 or later. Two dependencies: resvg draws the share pictures, web-push sen
 
 ## Pages
 
-`/` the landing page, for a first visit that comes without a link (a browser that has seen the welcome card goes straight on, and so does any link to a project, a person, a period or a tab, which open the live view), `/live` the live page, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
+`/` the landing page, for a first visit that comes without a link (a browser that has seen the welcome card goes straight on, and so does any link to a project, a person, a period or a tab, which open the live view), `/live` the live page, `/digest` (and `/digest/2026-W46` for a week as it was kept), `/forum` (the Nervos Talk week), `/impact` (who builds on which library), `/compare` (two projects side by side), `/learned` (the CKB lessons), `/present` (one screen for a call), `/use`, `/method` (what is counted and what is not), `/feed.xml`, `/badge/*.svg`, `/mcp`, `/llms.txt` and `/privacy` (what is kept, and how to leave). Share pictures are at `/og/*.png`. English, 中文, Português: `?lang=` in the link, else the browser's.
 
 The landing shows the live view in a frame (`/live?embed=1`, the scene alone, nothing kept in the browser) once the page is loaded and the picture is in view, on a wide screen with motion allowed and no data saver; until then, and for everyone else, it shows a still of it in the look the page is in (`public/landing-dark.jpg` and `public/landing-light.jpg`, 1280 by 720, taken from the lab's own state with the scene in `?embed=1`). Under the picture, one line with the time and kind of the last update, from `GET /api/last?lang=` once a minute.
 
@@ -107,22 +107,24 @@ Every page wears the LusoCryptoLabs look: Ink and Paper, Grafite for what is qui
 
 ## Look
 
-Every page shares `public/theme.css`, which holds the colours as tokens for both versions. Archivo for words and Space Mono for numbers and small labels. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/digest`, `/use`) open with a small label, a large title with its key words lit, and one line under it.
+Every page shares `public/theme.css`, which holds the colours as tokens for both versions. Archivo for words and Space Mono for numbers and small labels. The fonts are served from `public/vendor/fonts` (latin subsets, SIL Open Font License, the licence texts beside them), so a visit asks no font host for anything; Chinese uses the system's faces. Reading pages (`/digest`, `/forum`, `/impact`, `/compare`, `/learned`, `/use`, `/method`) open with a small label, a large title with its key words lit, and one line under it.
 
 ## Menu
 
-Every page (the live page, `/digest`, `/use`) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. When there are two views they also sit side by side next to the name on wide screens (only the live page now). Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
+Every page (the live page and the reading pages) has the same menu, from `public/menu.js` and `public/menu.css`: see (live, the week's digest), keep up (notices, the feed), for builders (add a project, the badge, AI agents and the API), and what this is. When there are two views they also sit side by side next to the name on wide screens (only the live page now). Links that open the live page at a part of it: `/?tab=new`, `/?tab=notices`, `/?tab=suggest`, `/?about=1`.
 
 ## Share
 
-A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. So do `/fiber?net=mainnet|testnet` (the real graph) and `/use`, and a project created in the last 14 days carries a "new on CKB" ribbon. Each picture's address carries a stamp of what it draws (`v=`) and each shared link the day (`d=`), since X and Telegram keep a preview per address. The cards use the pages' fonts, from `fonts/`. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
+A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/name`) or a person (`?person=login`) opens the page on it, and its preview is a 1200 x 630 picture drawn by the server. So do `/fiber?net=mainnet|testnet` (the real graph) and `/use`, and a project created in the last 14 days carries a "new on CKB" ribbon. Tiles that show a number (the landing, `/digest`, `/impact`, `/forum`) count up to it when they come into view, in about a second; with reduced motion they show it at once. Each picture's address carries a stamp of what it draws (`v=`) and each shared link the day (`d=`), since X and Telegram keep a preview per address. The cards use the pages' fonts, from `fonts/`. Medals ignore bursts: per person, project and hour at most 10 updates count, and opening a branch never does.
 
 ## API
 
 - `GET /api/state`: repositories, highlights, 7 days of history; built at most once a minute, with an ETag (send `If-None-Match` for a 304 when nothing changed)
 - `GET /learned` and `GET /learned.json`: the CKB lessons a person has released, in the open and under CC BY 4.0 (the file is handed in by the private lessons repository; with no released lesson these routes do not exist). The rest of the lessons stay behind a key. `/learned` takes `q`, `area`, `concept`, `level`, `evidence` (`L0` to `L3`, `OWN` or `best`; `OWN` is a lesson the publisher's own account confirmed as owner of the source, which reads "checked by the owner" and is not in `best`, see `OWN_ACCOUNTS` in `config.mjs`), `sort` (`proof` or `new`) and `repo`; a search forgives one wrong letter and leaves out words like "how" and "the".
 - Every `GET /api/...` answer carries `access-control-allow-origin: *`: it is public data, readable from any website. The lessons search (`/lessons/api` and the `search_lessons` MCP tool) says how many lessons match (`count`) and where the next page starts (`nextOffset`, pass it as `offset`).
-- `GET /learned.xml`: an Atom feed with an entry for every lesson that changed, and one for every confirmation and every reproduction by a public test (id `.../learned/<id>#confirmed-<date>` or `#reproduced-<date>`), so a subscriber is told when a lesson earns its proof. `/learned` opens with what was new, confirmed or reproduced in the last 7 days.
+- `POST /api/check` with `{chunks: [{path, start, code}], limit}`: the released lessons that apply to that code, as hints to read; nothing is run and the code is not stored. At most 30 a minute for one address (429 after that)
+- `GET /api/person?login=`: dated facts about one person, for their card
+- `GET /learned.xml`: an Atom feed with an entry for every lesson that changed, and one for every confirmation and every reproduction by a public test (id `.../learned/<id>#confirmed-<date>` or `#reproduced-<date>`), so a subscriber is told when a lesson earns its proof. `/learned` opens with four tiles (lessons, projects, new this week, lessons with a test), then what was new, confirmed or reproduced in the last 7 days.
 - `GET /robots.txt` and `GET /sitemap.xml`: the pages and every released lesson, and nothing under `/lessons` or `/api/`. A wrong address answers a browser with a page that has a way on (404), and a program with `not found`.
 - `GET /api/last?lang=`: the last update as one line in the language, and its time, `{at, line}`
 - `GET /api/repo?name=owner/repo`: one repository, 30 days; the name in any case, the answer with the spelling kept
@@ -134,7 +136,7 @@ A link to a period's highlights (`?h=day|week|month`), a project (`?repo=owner/n
 - `GET /version.json`: the build the server runs, for the new-version notice
 - `POST /api/propose` with `{"login"}`, then `GET /api/propose?id=`: a suggestion and how its check went
 - `GET /digest?p=day|week|month&lang=`: the highlights as a page; `GET /feed.xml?lang=`: the Atom feed
-- `GET /forum?c=tech|funding|other|all&lang=`: the topics of Nervos Talk with a post in the last seven days, with replies, people, who opened them and the projects they name; `GET /api/forum?c=`: the same as JSON (503 `{"status":"reading"}` until the first reading). Read once an hour from the forum's public list of posts; titles, names, counts and links only (`forum.mjs`)
+- `GET /forum?c=tech|funding|other|all&lang=`: the topics of Nervos Talk with a post in the last seven days, with replies, people, who opened them and the projects they name; `GET /forum.xml`: its Atom feed; `GET /api/forum?c=`: the same as JSON (503 `{"status":"reading"}` until the first reading). Read once an hour from the forum's public list of posts; titles, names, counts and links only (`forum.mjs`)
 - `GET /compare?a=owner/repo&b=owner/repo&lang=`: two followed projects side by side over 30 days (updates by people and automatic, days with work, the share of the busiest day and of the top person, developers and commits of the last whole month, forum topics); `GET /api/compare?a=&b=`: the same as JSON (400 for a bad name, 404 when one is not followed). A bigger number is more work, not a better project
 - `GET /impact?lib=ccc|lumos|spore|ckb-std&lang=`: which of the projects Pulse follows depend on a CKB library, for the people who maintain it; `GET /api/impact?lib=`: the same as JSON (503 `{"status":"counting"}` until the first count). Read from the package.json (Cargo.toml for Rust) at the root of each public project, about twice a day, so a dependency kept in a sub-folder is missed and the real numbers are higher
 - `GET /badge/repo.svg?name=`, `/badge/person.svg?login=`, `/badge/ckb.svg`, each with `lang=`: badges
@@ -162,7 +164,12 @@ Its tools only read what Pulse already stores (no GitHub call), people only, ove
 - `person`: one person's projects, the areas and languages of those projects, and the kinds of updates they make
 - `who_works_on`: the people most active in an area or in the projects that match some words
 - `recent_updates`: the latest updates, everywhere, in one project or by one person
+- `forum_week`: the Nervos Talk topics with a post in the last seven days, with replies, people and the followed projects they link
+- `compare_projects`: two followed projects side by side over 30 days
+- `new_builders`: people whose first commit in a followed project is from the last days, in alphabetical order (a list of arrivals, not a ranking)
 - `trends`: developers, new developers and commits per month
+
+The released CKB lessons are on the same server, with five tools: `search_lessons`, `get_lesson`, `lessons_from_project`, `check_code` and `list_areas`.
 
 ## Another ecosystem
 
