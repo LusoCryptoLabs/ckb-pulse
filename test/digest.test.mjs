@@ -17,7 +17,7 @@ for (const lang of ['en', 'pt', 'zh']) {
     for (const p of ['day', 'week', 'month']) {
       const html = digestPage({ period: p, lang, leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' })
       assert.match(html, /^<!doctype html>/)
-      assert.match(html, /<b>120<\/b>/); assert.match(html, /ccc/); assert.match(html, /alice/)
+      assert.match(html, /<b[^>]*>120<\/b>/); assert.match(html, /ccc/); assert.match(html, /alice/)
       assert.match(html, /&lt;on&gt;/) // descriptions are text, not markup
       assert.doesNotMatch(html.replace(/<style>[\s\S]*?<\/style>/, ''), /\{\w+\}/)
       assert.match(html, /badge\/ckb\.svg/); assert.match(html, /feed\.xml/)
@@ -81,7 +81,7 @@ test('each kept week has an address that does not change, and the feed links to 
   assert.match(feed, /href="https:\/\/pulse\.example\/digest\/2026-W43\?lang=en"/)
   assert.match(feed, /href="https:\/\/pulse\.example\/digest\/2026-10-22\?lang=en"/)
   const page = digestPage({ period: 'week', lang: 'en', leaders: { week: { stats: weekByLabel('2026-W43').stats, repos: [], commits: [], people: [], orgs: [], bars: [] } }, news: [], trends: null, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest', fixed: { label: '2026-W43', at: weeks()[1].at } })
-  assert.match(page, /<b>970<\/b>/)
+  assert.match(page, /<b[^>]*>970<\/b>/)
   assert.match(page, /The week 2026-W43, kept on 26 October 2026/)
   assert.match(page, /og\/digest\.png\?w=2026-W43/)
   assert.ok(!page.includes('Earlier weeks'), 'no list when the page is not given the kept weeks')

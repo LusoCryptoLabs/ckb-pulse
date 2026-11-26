@@ -12,9 +12,10 @@ export function methodPage({ lang, base, url }) {
   const t = words(lang), title = `CKB Pulse · ${t('me.title')}`, desc = t('me.lead')
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
-${menuHead(base)}<style>${CSS}${READING_CSS}</style></head><body><main>
+${menuHead(base)}<style>${CSS}${READING_CSS}nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}nav.jump a{padding:8px 12px;border:1px solid var(--edge);color:var(--fg);text-decoration:none;font-size:13px;min-height:20px}</style></head><body><main>
 ${pageBar(t, { base, lang, current: '', here: '/method', share: { url: `${url}?lang=${lang}&d=${today()}`, title } })}
 ${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('me.nav'), null]] }), eyebrow: t('me.nav'), title: t('me.h1'), lede: esc(desc) })}
+<nav class="jump" aria-label="${esc(t('me.jump'))}">${PARTS.map((id) => `<a href="#${id}">${esc(t(`me.${id}.h`))}</a>`).join('')}</nav>
 ${PARTS.map((id) => `<section class="me" id="${id}"><h2>${esc(t(`me.${id}.h`))}</h2><p>${esc(t(`me.${id}.p`))}</p></section>`).join('\n')}
 <section class="me" id="privacy"><h2>${esc(t('pv.nav'))}</h2><p><a href="${esc(base)}/privacy?lang=${lang}">${esc(t('pv.title'))}</a></p></section>
 <section class="me" id="wrong"><h2>${esc(t('me.wrong.h'))}</h2><p>${esc(t('me.wrong.p'))}</p><p class="go"><a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('me.wrong.a'))}</a></p></section>

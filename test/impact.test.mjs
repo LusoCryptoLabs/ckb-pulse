@@ -110,7 +110,7 @@ test('the page says it in one sentence, in each language, and shows the numbers 
   for (const [lang, sentence] of Object.entries(want)) {
     const html = page(lang), plain = html.match(/<p class="lede plain">([\s\S]*?)<\/p>/)[1]
     assert.equal(plain, sentence, lang)
-    assert.match(html, /<b>4<\/b><span>/); assert.ok(html.includes('href="https://pulse.example/?repo=a%2Fweb&amp;lang=' + lang), lang)
+    assert.match(html, /<b[^>]*>4<\/b><span>/); assert.ok(html.includes('href="https://pulse.example/?repo=a%2Fweb&amp;lang=' + lang), lang)
     assert.doesNotMatch(text(html), /\b(im|use|m)\.[a-z]+\b/, `${lang}: a word shows its key`)
   }
 })

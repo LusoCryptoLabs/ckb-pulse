@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { words } from './cards.mjs'
 import { today } from './public/menu.js'
-import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
+import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, crumbs, countScript } from './digest.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 export const FORUM = 'https://talk.nervos.org'
@@ -191,7 +191,7 @@ export function forumPage({ lang, base, url, data, group }) {
   const s = data?.stats?.[g], all = (data?.topics || []).filter((x) => g === 'all' || x.group === g)
   const tabs = `<nav class="p">${['tech', 'funding', 'other', 'all'].map((k) => (k === g ? `<b>${esc(t('fo.g.' + k))}</b>` : `<a href="${esc(base)}/forum?c=${k}&amp;lang=${lang}">${esc(t('fo.g.' + k))}</a>`)).join('')}</nav>`
   const read = data ? new Date(data.at).toLocaleString(t('locale'), { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC' : ''
-  const body = !data ? `<p>${esc(t('fo.wait'))}</p>` : `${tabs}<div class="kpis four"><div><b>${s.topics}</b><span>${esc(t('fo.k.topics'))}</span></div><div><b>${s.fresh}</b><span>${esc(t('fo.k.new'))}</span></div><div><b>${s.posts}</b><span>${esc(t('fo.k.posts'))}</span></div><div><b>${s.people}</b><span>${esc(t('k.people'))}</span></div></div>
+  const body = !data ? `<p>${esc(t('fo.wait'))}</p>` : `${tabs}<div class="kpis four"><div><b data-n="${s.topics}">${s.topics}</b><span>${esc(t('fo.k.topics'))}</span></div><div><b data-n="${s.fresh}">${s.fresh}</b><span>${esc(t('fo.k.new'))}</span></div><div><b data-n="${s.posts}">${s.posts}</b><span>${esc(t('fo.k.posts'))}</span></div><div><b data-n="${s.people}">${s.people}</b><span>${esc(t('k.people'))}</span></div></div>
 ${all.length ? '' : `<p>${esc(t('fo.none'))}</p>`}${sec(t('fo.hot'), all.filter((x) => x.replies > 0))}${sec(t('fo.fresh'), all.filter((x) => x.isNew && !x.replies).sort((a, b) => b.last - a.last))}
 <section class="me"><p><small>${esc(t('fo.note'))} ${esc(t('fo.how'))} ${esc(t('fo.asOf', { date: read }))}</small></p><p class="go"><a href="${FORUM}" rel="noreferrer">${esc(t('fo.open'))}</a><a class="alt" href="${esc(base)}/forum.xml?c=${g}&amp;lang=${lang}">${esc(t('fo.feed'))}</a></p></section>`
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
@@ -201,5 +201,5 @@ ${pageBar(t, { base, lang, current: 'forum', here: g === 'tech' ? '/forum' : `/f
 ${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('fo.nav'), null]] }), eyebrow: t('fo.nav'), title: t('fo.h1'), lede: esc(desc) })}
 ${body}
 ${pageFoot(t, url)}
-</main>${menuScript(base)}</body></html>`
+</main>${menuScript(base)}${countScript('.kpis b[data-n]')}</body></html>`
 }
