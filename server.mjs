@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
+import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, momentumNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { initVisits, hit, visits, count, mcpUse } from './visits.mjs'
@@ -255,7 +255,7 @@ function handle(req, res) {
   if (url.pathname === '/digest') {
     hit('digest', ipOf(req), req.headers['user-agent'])
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
-    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, kept: keptWeeks(), leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, forum: forumBrief(forumNow()) }))
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, kept: keptWeeks(), leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), mo: period === 'week' ? momentumNow() : null, arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, forum: forumBrief(forumNow()) }))
   }
   // what a search engine may read, and every page worth finding: the pages, the lessons, nothing private
   if (url.pathname === '/robots.txt') {
