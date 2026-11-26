@@ -5,9 +5,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import crypto from 'node:crypto'
-import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, momentumNow, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
+import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, highlightsNow, momentumNow, earnedBy, groupOf, personDetail, bus, health, news, repoWeek, knownRepos, peopleEvents, projectsNow, personProfile, peopleIn, latestUpdates } from './pulse.mjs'
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
+import { earnedEmblem } from './emblem.mjs'
 import { initVisits, hit, visits, count, mcpUse } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, keptWeeks, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
@@ -411,6 +412,8 @@ function handle(req, res) {
     let svg = null
     if (url.pathname === '/badge/repo.svg') svg = repoBadge(repoWeek(q.get('name') || ''), lang)
     if (url.pathname === '/badge/person.svg') svg = personBadge(personDetail(q.get('login') || ''), lang, isAI(q.get('login') || ''))
+    const em = url.pathname.match(/^\/badge\/earned\/([A-Za-z0-9-]{1,39})\/(since|months6|merged)\.svg$/)
+    if (em) { const m = earnedBy(em[1]).find((x) => x.id === em[2]); if (m) svg = earnedEmblem(em[1], m, words(lang)) }
     if (url.pathname === '/badge/ckb.svg') svg = allBadge(highlightsNow().week.stats, lang)
     if (!svg) { res.writeHead(404); return res.end('not found') }
     hit('badge', ipOf(req), req.headers['user-agent'])
