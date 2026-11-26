@@ -13,10 +13,13 @@ export { COSTS }
 
 // Public addresses that receive. Each one was checked by its checksum (EIP-55 for the EVM one, bech32 for Bitcoin, the
 // CCC address decoder for CKB) before it was put here; test/support.test.mjs checks them again.
+// the three addresses the name lusocryptolabs.cell publishes on CKB (address.309, address.0, address.60), read from the
+// cellula.id resolver on 2026-11-26; a change in the name means a change here
+export const NAME = 'lusocryptolabs.cell'
 export const ADDRESSES = [
-  { id: 'ckb', count: 'support_ckb', address: 'ckb1qrgqep8saj8agswr30pls73hra28ry8jlnlc3ejzh3dl2ju7xxpjxqgqq8da5prc8vsadae2kmmrfs9m5h62l7ukfsakmxce' },
-  { id: 'btc', count: 'support_btc', address: 'bc1q5tle9mvtkpc8pp5ah3gmhg9jempdjcq0ngj8ek' },
-  { id: 'evm', count: 'support_evm', address: '0x4A923D635930F91B4A6fc4485E4107Cdc5a8DC32' },
+  { id: 'ckb', count: 'support_ckb', address: 'ckb1qrgqep8saj8agswr30pls73hra28ry8jlnlc3ejzh3dl2ju7xxpjxqgqq84qaw3d66c9tj0neq6qlgrwwp28uqv68g2jky8h' },
+  { id: 'btc', count: 'support_btc', address: 'bc1p9l2qc3ckhgzephxaguxh50j9dmvs9pzk9a0dw9ff626q45kdesushwvj06' },
+  { id: 'evm', count: 'support_evm', address: '0x2634c914e9e3c06dE09EB76f1d7Def37EEC47880' },
 ]
 
 const PAGE_CSS = `.kpis.three div{min-width:150px}.kpis.three span{display:block}
@@ -38,6 +41,7 @@ ${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('sp.nav'), null]] }), ey
 <p>${esc(t('sp.cost.p'))}</p></section>
 <section class="me" id="give"><h2>${esc(t('sp.give.h'))}</h2><p>${esc(t('sp.give.p'))}</p>
 ${ADDRESSES.map((a) => `<div class="addr"><h3>${esc(t(`sp.${a.id}.h`))}</h3><p>${esc(t(`sp.${a.id}.p`))}</p><pre><code>${esc(a.address)}</code></pre><button type="button" data-count="${a.count}" data-copy="${esc(a.address)}" data-copied="${esc(t('sp.copied'))}">${esc(t('sp.copy'))}</button></div>`).join('\n')}
+<p>${esc(t('sp.name', { name: NAME })).replace(esc(NAME), `<a href="https://lusocryptolabs.cellula.id/" target="_blank" rel="noopener"><b>${esc(NAME)}</b></a>`)}</p>
 <p>${esc(t('sp.check'))}</p></section>
 <section class="me" id="goes"><h2>${esc(t('sp.goes.h'))}</h2><p>${esc(t('sp.goes.p'))}</p></section>
 ${pageFoot(t, url, { ask: false })}

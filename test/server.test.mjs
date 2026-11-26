@@ -88,7 +88,7 @@ test('a kept digest week has its own page and card, an unknown one is a 404', as
 test('the support page answers, and the sitemap lists it', async () => {
   const r = await raw('/support?lang=pt')
   assert.equal(status(r), 200)
-  assert.ok(r.includes('bc1q5tle9mvtkpc8pp5ah3gmhg9jempdjcq0ngj8ek'))
+  assert.ok(r.includes('bc1p9l2qc3ckhgzephxaguxh50j9dmvs9pzk9a0dw9ff626q45kdesushwvj06'))
   assert.ok((await raw('/sitemap.xml')).includes('/support'))
 })
 

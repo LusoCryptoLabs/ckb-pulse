@@ -20,8 +20,8 @@ test('the three receiving addresses are well formed and their checksums hold', (
   const by = Object.fromEntries(ADDRESSES.map((a) => [a.id, a.address]))
   assert.deepEqual(Object.keys(by).sort(), ['btc', 'ckb', 'evm'])
   assert.ok(by.ckb.startsWith('ckb1') && bechOk(by.ckb), 'CKB mainnet address, checksum')
-  assert.ok(by.btc.startsWith('bc1q') && bechOk(by.btc), 'Bitcoin mainnet address, checksum')
-  // the EIP-55 case checksum needs keccak, which Pulse does not carry: it was checked once by hand, with @noble/hashes, when the address was given
+  assert.ok(by.btc.startsWith('bc1') && bechOk(by.btc), 'Bitcoin mainnet address, checksum')
+  // the EIP-55 case checksum needs keccak, which Pulse does not carry: it was checked once by hand, with @noble/hashes, on 2026-11-26
   assert.match(by.evm, /^0x[0-9a-fA-F]{40}$/)
 })
 
