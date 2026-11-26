@@ -150,3 +150,9 @@ test('a card drawn is counted by kind', async () => {
   await fetch(url('/og/digest.png?w=2026-W46'), { headers: { 'user-agent': 'Twitterbot/1.0' } }) // a link preview
   assert.equal((await visits()).total.botCounts.card_digest, before + 1)
 })
+
+test('the Search Console file answers as Google wrote it', async () => {
+  const r = await raw('/google600ab8d0daf96aa2.html')
+  assert.equal(status(r), 200)
+  assert.ok(r.includes('google-site-verification: google600ab8d0daf96aa2.html'), r.slice(-120))
+})
