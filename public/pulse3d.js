@@ -1333,7 +1333,18 @@ ${badgesFor(login, ['people', 'peopleCommits', 'reviewers', 'merged'])}<div clas
     if (j.earned?.length) {
       const box = document.createElement('div'); box.className = 'earned'
       const lang = new URLSearchParams(location.search).get('lang') || document.documentElement.lang.slice(0, 2)
-      box.innerHTML = j.earned.map((m) => { const img = `<img src="badge/earned/${encodeURIComponent(login)}/${m.id}.svg?lang=${esc(lang)}" width="112" height="131" alt="${esc(t('em.t.' + m.id, { month: m.date.slice(0, 7) }))}" loading="lazy">`; return m.proof ? `<a href="${esc(m.proof)}" target="_blank" rel="noopener">${img}</a>` : img }).join('')
+      const src = (m, w) => `badge/earned/${encodeURIComponent(login)}/${m.id}.svg?lang=${esc(lang)}`
+      const title = (m) => t('em.t.' + m.id, { month: m.date.slice(0, 7) })
+      box.innerHTML = j.earned.map((m) => `<button type="button" class="emb" data-id="${m.id}" aria-label="${esc(title(m))}"><img src="${src(m)}" width="112" height="131" alt="" loading="lazy"></button>`).join('')
+      // a tap on an emblem shows it large, with its date and the work behind it
+      box.addEventListener('click', (ev) => {
+        const m = j.earned.find((x) => x.id === ev.target.closest('.emb')?.dataset.id); if (!m) return
+        let d = document.getElementById('emblem-dialog')
+        if (!d) { d = document.createElement('dialog'); d.id = 'emblem-dialog'; d.addEventListener('click', (e) => { if (e.target === d) d.close() }); document.body.append(d) }
+        d.innerHTML = `<button type="button" class="x" aria-label="${esc(t('em.close'))}">×</button><img src="${src(m)}" alt="${esc(title(m))}"><p class="note">${esc(t('em.note'))}</p>${m.proof ? `<a href="${esc(m.proof)}" target="_blank" rel="noopener">${esc(t('em.proof'))} ↗</a>` : ''}`
+        d.querySelector('.x').addEventListener('click', () => d.close())
+        d.showModal()
+      })
       ;(el.isConnected ? el : anchor)?.after(box)
     }
   }).catch(() => {})
