@@ -117,3 +117,10 @@ test('the digest says the community pace in the three languages, as a pace and n
     assert.doesNotMatch(html.replace(/<style>[\s\S]*?<\/style>/, ''), /\{\w+\}/)
   }
 })
+
+test('the end of the digest says what Pulse costs and links to the support page, and stays out of print', () => {
+  for (const [lang, said] of [['en', 'Pulse is free to read. Keeping the server and the AI assistant running costs up to 50 USD a month.'], ['pt', 'O Pulse é grátis. Manter o servidor e o assistente de IA custa até 50 USD por mês.']]) {
+    const html = digestPage({ period: 'week', lang, leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' })
+    assert.ok(html.includes(`<p class="no-print">${said} <a href="https://pulse.example/support?lang=${lang}">`), lang)
+  }
+})
