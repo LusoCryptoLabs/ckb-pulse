@@ -85,12 +85,8 @@ test('a kept digest week has its own page and card, an unknown one is a 404', as
   assert.equal(status(await get('/og/digest.png?w=2025-W01')), 404)
 })
 
-test('the funded page is gone: old links go to the live page, the JSON answers 410', async () => {
-  const r = await get('/funded?lang=pt')
-  assert.equal(status(r), 301)
-  assert.match(r, /location: \//i)
-  assert.equal(status(await get('/api/funded')), 410)
-  assert.equal(status(await get('/og/funded.png')), 404)
+test('the funded page is gone for good: it and its JSON are plain 404s', async () => {
+  for (const p of ['/funded?lang=pt', '/api/funded', '/og/funded.png']) assert.equal(status(await get(p)), 404, p)
 })
 
 test('/api/person answers with dated facts, and refuses a bad login', async () => {
