@@ -511,9 +511,9 @@ function feedItem(w, isNew) {
   const r = repos[w.r]
   const title = w.title ? `<div class="title">${w.url ? `<a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a>` : esc(w.title)}</div>` : ''
   const did = t('v.' + w.k, { repo: `<button type="button" class="repo" data-repo="${w.r}">${esc(short(r.name))}</button>` })
-  return `<li class="${isNew ? 'new' : ''}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"><div><div class="what"><b>${esc(actors[w.a][0])}</b> ${did}</div>${title}<div class="meta"><i class="k" ${dataF(w.k)} style="background-color:${kvar(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
+  return `<li class="${isNew ? 'new' : ''}"><button type="button" class="who" data-person="${w.a}" aria-label="${esc(actors[w.a][0])}"><img src="${esc(avatarUrl(w.a))}" alt="" loading="lazy"></button><div><div class="what"><button type="button" class="actor" data-person="${w.a}">${esc(actors[w.a][0])}</button> ${did}</div>${title}<div class="meta"><i class="k" ${dataF(w.k)} style="background-color:${kvar(w.k)}"></i>${T.mode === 'live' || T.mode === 'done' ? ago(w.t) : fmtDay(w.t)} · ${esc(gname(r.group))}</div></div></li>`
 }
-$('feed').addEventListener('click', (e) => { const r = e.target.closest('[data-repo]'); if (r) openRepo(+r.dataset.repo) })
+$('feed').addEventListener('click', (e) => { const r = e.target.closest('[data-repo]'); if (r) return openRepo(+r.dataset.repo); const p = e.target.closest('[data-person]'); if (p) openPerson(+p.dataset.person) })
 function showTab(name) {
   for (const x of document.querySelectorAll('.tabs [data-tab]')) { x.setAttribute('aria-selected', String(x.dataset.tab === name)); x.tabIndex = x.dataset.tab === name ? 0 : -1 }
   for (const p of document.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== name
