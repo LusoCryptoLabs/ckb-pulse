@@ -603,3 +603,12 @@ html[lang].screen .pm-by-lcl img { width: 160px; }
 .embed, .embed body { pointer-events: none; }
 .drawer .earned { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .drawer .earned img { display: block; max-width: 100%; height: auto; }
+.drawer .earned .emb { padding: 0; border: 0; background: none; cursor: zoom-in; line-height: 0; }
+.drawer .earned .emb:focus-visible { outline: 2px solid var(--fg, #f0ece2); outline-offset: 3px; }
+#emblem-dialog { border: 1px solid var(--edge, #444); background: var(--bg, #121212); color: var(--fg, #f0ece2); padding: 46px 18px 16px; max-width: min(92vw, 340px); text-align: center; border-radius: 0; }
+#emblem-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+#emblem-dialog img { display: block; width: min(100%, 300px); height: auto; margin: 0 auto 12px; }
+#emblem-dialog p { margin: 4px 0; }
+#emblem-dialog .note { color: var(--mut, #8a857b); font-size: 13px; }
+#emblem-dialog a { display: inline-block; margin-top: 10px; color: var(--lime, #f0ece2); }
+#emblem-dialog .x { position: absolute; top: 0; right: 0; width: 44px; height: 44px; font-size: 24px; background: none; border: 0; color: inherit; cursor: pointer; }
