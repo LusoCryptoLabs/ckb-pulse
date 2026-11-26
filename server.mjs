@@ -256,9 +256,6 @@ function handle(req, res) {
     const q = url.searchParams, period = PERIODS.includes(q.get('p')) ? q.get('p') : 'week', lang = langOf(q, req)
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, digestPage({ period, lang, kept: keptWeeks(), leaders: highlightsNow(), news: news(), trends: trends(knownRepos()), rhythm: rhythm(), arrivals: period === 'month' ? arrivals(30) : [], groupOf, base: baseOf(req), url: `${baseOf(req)}/digest`, forum: forumBrief(forumNow()) }))
   }
-  // the page of the DAO grants was taken out on 2026-11-18: old links go to the live page, the JSON is gone
-  if (url.pathname === '/funded') { res.writeHead(301, { location: '/', 'cache-control': 'public, max-age=3600' }); return res.end() }
-  if (url.pathname === '/api/funded') { res.writeHead(410, { 'content-type': 'application/json' }); return res.end('{"error":"removed"}') }
   // what a search engine may read, and every page worth finding: the pages, the lessons, nothing private
   if (url.pathname === '/robots.txt') {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' })
