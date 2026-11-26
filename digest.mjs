@@ -95,7 +95,7 @@ export function mixHtml(t, kinds) {
 }
 // the page that lists everything Pulse does, linked from the other pages' footers
 export const useLink = (t, base, lang) => `<p><a href="${esc(base)}/use?lang=${lang}">${esc(t('use.nav'))}</a> · <a href="${esc(base)}/method?lang=${lang}">${esc(t('me.nav'))}</a></p>`
-export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a></p>`
+export const maker = (t) => `<p><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a> · <a href="/support">${esc(t('sp.link'))}</a></p>`
 // the same page in each language, at the foot of every page; the page says how to address itself
 export const langLinks = (hrefOf) => `<p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(hrefOf(l))}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p>`
 // the foot the plain pages share: who made it, and the language links

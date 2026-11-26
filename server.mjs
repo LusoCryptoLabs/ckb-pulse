@@ -19,6 +19,7 @@ import { etag, notModified, shared } from './cache.mjs'
 import { makeMcp, mcpHttp, TOOL_INFO } from './mcp.mjs'
 import { usePage, llmsTxt } from './use.mjs'
 import { methodPage } from './method.mjs'
+import { supportPage } from './support.mjs'
 import { forumPage, forumJson, forumNow, forumBrief, forumOf, forumFeed, loadForum, startForum } from './forum.mjs'
 import { comparePage, compareJson, metricsOf, REPO } from './compare.mjs'
 import { landingPage, lastLine } from './landing.mjs'
@@ -263,7 +264,7 @@ function handle(req, res) {
   }
   if (url.pathname === '/sitemap.xml') {
     const b = baseOf(req), data = loadLessons(DATA_DIR, 'public-lessons.json'), many = data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length ? visible(data).lessons : []
-    const pages = ['/', '/live', '/digest?p=week', '/forum', '/forum.xml', '/impact', '/use', '/method', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
+    const pages = ['/', '/live', '/digest?p=week', '/forum', '/forum.xml', '/impact', '/use', '/method', '/support', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
     const loc = (p, at) => `<url><loc>${(b + p).replace(/&/g, '&amp;')}</loc>${at ? `<lastmod>${at}</lastmod>` : ''}</url>`
     res.writeHead(200, { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' })
     return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => loc(p)).join('\n')}\n${many.map((l) => loc(`/learned/${l.id}`, /^\d{4}-\d{2}-\d{2}$/.test(String(l.last_touched)) ? l.last_touched : '')).join('\n')}\n</urlset>\n`)
@@ -355,6 +356,11 @@ function handle(req, res) {
   if (url.pathname === '/method') {
     hit('method', ipOf(req), req.headers['user-agent'])
     return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, methodPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/method` }))
+  }
+  // what Pulse costs to run, and how to help: a page, no account
+  if (url.pathname === '/support') {
+    hit('support', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, supportPage({ lang: langOf(url.searchParams, req), base: baseOf(req), url: `${baseOf(req)}/support` }))
   }
   // what is kept about visitors and about people on the page, and how to ask to leave
   if (url.pathname === '/privacy') {
