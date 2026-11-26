@@ -101,6 +101,7 @@ export const maker = (t, { ask = true } = {}) => `${ask ? `<div class="ask no-pr
 export const langLinks = (hrefOf) => `<p class="langs no-print">${['en', 'zh', 'pt'].map((l) => `<a href="${esc(hrefOf(l))}" lang="${l === 'zh' ? 'zh-CN' : l}">${{ en: 'English', zh: '中文', pt: 'Português' }[l]}</a>`).join('')}</p>`
 // the foot the plain pages share: who made it, and the language links
 export const pageFoot = (t, url, o) => `<footer>${maker(t, o)}
+<p class="no-print"><a href="/projects?lang=${esc(String(t('locale')).slice(0, 2))}">${esc(t('pj.all'))}</a></p>
 ${langLinks((l) => `${url}?lang=${l}`)}</footer>`
 // the cards of the two reading pages, method and privacy
 export const READING_CSS = `section.me{background:var(--surface);border:1px solid var(--edge);border-radius:20px;padding:14px 18px;margin:14px 0}section.me h2{margin:0 0 4px;font:600 19px var(--font-ui,sans-serif);letter-spacing:-.01em;color:var(--fg);text-transform:none}section.me p{margin:6px 0}

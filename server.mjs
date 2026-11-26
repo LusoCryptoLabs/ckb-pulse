@@ -31,6 +31,8 @@ import { impactPage, impactNow, impactOf, loadImpact, startImpact, shownLibs, LI
 import { lessonsPage, lessonPage, startPage, glossaryPage, reviewPage, lessonsFeed, withdrawnPage, notFoundPage, confirmedByOthers, lessonsApi, lessonsMcp, publicLessonTools, PUBLIC_LESSONS_NOTE, lessonsOf, checkChunks, CHECK_LIMIT, visible, access, cookieOf, loadLessons } from './lessons.mjs'
 import { privacyPage } from './privacy.mjs'
 import { withStamp } from './og.mjs'
+import { withSeo } from './seo.mjs'
+import { projectPage, projectsPage, projectPath, indexable } from './project.mjs'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'public')
 const PORT = +(process.env.PORT || 8080)
@@ -145,6 +147,11 @@ const squeeze = (buf, enc) => enc === 'br' ? zlib.brotliCompressSync(buf, { para
 // already holds that version gets a 304 with no body
 const packed = new Map()
 function sendText(req, res, status, headers, body, key) {
+  // a page that may be indexed gets its canonical address and its other languages (seo.mjs)
+  if (status === 200 && !key && typeof body === 'string' && /^text\/html/.test(headers['content-type'] || '') && !/noindex/.test(headers['x-robots-tag'] || '')) {
+    const u = new URL(req.url, 'http://x')
+    body = withSeo(body, { base: baseOf(req), pathname: u.pathname, query: u.searchParams })
+  }
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(body)
   let e = key && packed.get(key)
   if (!e) { e = { tag: etag(buf) }; if (key) packed.set(key, e) }
@@ -210,6 +217,14 @@ const compare = (x, y) => { const a = detailFor(x), b = detailFor(y); return a &
 const mcp = makeMcp({ highlights: highlightsNow, news, projects: projectsNow, project: repoDetail, person: personProfile, peopleIn, updates: latestUpdates, trends: () => trends(knownRepos()), arrivals, marks: personMarks, compare, forum: (g) => { const d = forumNow(); return d ? forumJson(d, g) : null } },
   { extra: publicLessonTools(() => loadLessons(DATA_DIR, 'public-lessons.json')), note: PUBLIC_LESSONS_NOTE })
 
+// the projects the sitemap lists: reading every project's detail takes most of a second (measured 2026-11-26 on the
+// stored data, 404 projects), so the list is made at most once an hour
+let indexedAt = 0, indexedList = []
+const indexedProjects = (now = Date.now()) => {
+  if (now - indexedAt > 3600e3 || !indexedList.length) { indexedList = projectsNow().map((r) => ({ r, d: repoDetail(r.name) })).filter(({ d }) => d && indexable(d)).map(({ r, d }) => ({ r: { lastAt: r.lastAt }, d: { name: d.name } })); indexedAt = now }
+  return indexedList
+}
+
 function handle(req, res) {
   let url
   try { url = new URL(req.url, 'http://x') } catch { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('bad request') }
@@ -265,10 +280,12 @@ function handle(req, res) {
   }
   if (url.pathname === '/sitemap.xml') {
     const b = baseOf(req), data = loadLessons(DATA_DIR, 'public-lessons.json'), many = data?.version === 1 && Array.isArray(data.lessons) && data.lessons.length ? visible(data).lessons : []
-    const pages = ['/', '/live', '/digest?p=week', '/forum', '/forum.xml', '/impact', '/use', '/method', '/support', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
+    const pages = ['/', '/live', '/digest?p=week', '/forum', '/forum.xml', '/impact', '/projects', '/use', '/method', '/support', '/privacy', ...(many.length ? ['/learned', '/learned/start', '/learned/glossary', '/learned/review'] : [])]
     const loc = (p, at) => `<url><loc>${(b + p).replace(/&/g, '&amp;')}</loc>${at ? `<lastmod>${at}</lastmod>` : ''}</url>`
+    // the projects worth indexing (project.mjs), with the day of their last work by people
+    const projects = indexedProjects()
     res.writeHead(200, { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' })
-    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => loc(p)).join('\n')}\n${many.map((l) => loc(`/learned/${l.id}`, /^\d{4}-\d{2}-\d{2}$/.test(String(l.last_touched)) ? l.last_touched : '')).join('\n')}\n</urlset>\n`)
+    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => loc(p)).join('\n')}\n${projects.map(({ r, d }) => loc(projectPath(d.name), r.lastAt ? r.lastAt.slice(0, 10) : '')).join('\n')}\n${many.map((l) => loc(`/learned/${l.id}`, /^\d{4}-\d{2}-\d{2}$/.test(String(l.last_touched)) ? l.last_touched : '')).join('\n')}\n</urlset>\n`)
   }
   // everything Pulse does, for people and for AI agents
   if (url.pathname === '/use') {
@@ -322,6 +339,24 @@ function handle(req, res) {
     }
   }
 
+  // a page per followed project, and the list of them all (project.mjs); an unknown project falls through to the 404
+  if (url.pathname === '/projects') {
+    hit('projects', ipOf(req), req.headers['user-agent'])
+    return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, projectsPage({ lang: langOf(url.searchParams, req), base: baseOf(req), rows: projectsNow() }))
+  }
+  const pj = url.pathname.match(/^\/project\/([^/]+)\/([^/]+)$/)
+  if (pj) {
+    let name = ''
+    try { name = `${decodeURIComponent(pj[1])}/${decodeURIComponent(pj[2])}` } catch {}
+    const d = REPO.test(name) ? repoDetail(name) : null
+    if (d) {
+      // GitHub's spelling is the one address: another case goes there
+      if (d.name !== name) { res.writeHead(301, { location: `${projectPath(d.name)}${url.search}`, 'cache-control': 'public, max-age=3600' }); return res.end() }
+      hit('project', ipOf(req), req.headers['user-agent'])
+      const lang = langOf(url.searchParams, req), b = baseOf(req), lessons = lessonsOf(loadLessons(DATA_DIR, 'public-lessons.json'), d.name)
+      return sendText(req, res, 200, { 'content-type': TYPES['.html'], 'cache-control': 'public, max-age=300', vary: LANG_VARY }, projectPage({ lang, base: b, d, forum: forumOf(forumNow(), d.name), lessons, img: `${b}${withStamp(`/og/repo.png?name=${encodeURIComponent(d.name)}`, d)}&lang=${lang}` }))
+    }
+  }
   // which of the projects Pulse follows depend on a CKB library: a page for the people who maintain it, and the same as JSON
   if (url.pathname === '/impact') {
     hit('impact', ipOf(req), req.headers['user-agent'])
