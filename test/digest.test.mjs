@@ -117,3 +117,10 @@ test('the digest says the community pace in the three languages, as a pace and n
     assert.doesNotMatch(html.replace(/<style>[\s\S]*?<\/style>/, ''), /\{\w+\}/)
   }
 })
+
+test('the end of the digest asks to help keep Pulse free and links to the support page, and stays out of print', () => {
+  for (const [lang, said] of [['en', 'Like Pulse? Find it useful? Help keep it free.'], ['pt', 'Gostas do Pulse? Achas útil? Ajuda a mantê-lo grátis.']]) {
+    const html = digestPage({ period: 'week', lang, leaders, news, trends, groupOf, base: 'https://pulse.example', url: 'https://pulse.example/digest' })
+    assert.ok(html.includes(`<p class="no-print">${said} <a href="https://pulse.example/support?lang=${lang}">`), lang)
+  }
+})

@@ -238,6 +238,7 @@ ${cur?.devs ? `<section><h2>${esc(t('t.title'))}</h2><p>${esc(t('t.line', { devs
 ${period === 'week' && kept.length ? `<section class="no-print"><h2>${esc(t('dg.earlier'))}</h2><p class="names">${kept.map((k) => (fixed && fixed.label === k ? `<b>${esc(k)}</b>` : `<a href="${esc(base)}/digest/${esc(k)}?lang=${lang}">${esc(k)}</a>`)).join(' · ')}</p></section>` : ''}
 <footer><p>${esc(t('h.note'))} ${esc(t('dg.about'))}</p><p class="no-print">${esc(t('dg.feed'))} <a href="${esc(base)}/feed?lang=${lang}">feed.xml</a></p>
 <p class="no-print">${esc(t('dg.badge'))}<br><img src="${esc(base)}/badge/ckb.svg?lang=${lang}" alt="" height="20"><br><code>[![CKB Pulse](${esc(base)}/badge/ckb.svg)](${esc(base)}/)</code></p>
+<p class="no-print">${esc(t('dg.support'))} <a href="${esc(base)}/support?lang=${lang}">${esc(t('sp.link'))}</a></p>
 ${useLink(t, base, lang)}${maker(t)}
 ${langLinks((l) => q(period, l))}</footer>
 </main>${menuScript(base)}${countScript('.kpis b[data-n]')}</body></html>`

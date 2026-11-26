@@ -2,13 +2,14 @@
 // cookie, nothing about who gave. A click on Copy is counted by name only (menu.js, data-count), as every button is.
 import { words } from './cards.mjs'
 import { today } from './public/menu.js'
+import { COSTS, COST_TOTAL } from './costs.mjs'
 import { CSS, READING_CSS, pageFoot, pageBar, menuHead, menuScript, pageHead, crumbs } from './digest.mjs'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 
 // The limits set for Pulse, in US dollars a month: the AI that reads commits for the lessons, and the server. They are
 // limits, not what was spent, and the time of the people who run it is not counted.
-export const COSTS = { api: 25, server: 25 }
+export { COSTS }
 
 // Public addresses that receive. Each one was checked by its checksum (EIP-55 for the EVM one, bech32 for Bitcoin, the
 // CCC address decoder for CKB) before it was put here; test/support.test.mjs checks them again.
@@ -26,7 +27,7 @@ const PAGE_CSS = `.kpis.three div{min-width:150px}.kpis.three span{display:block
 
 export function supportPage({ lang, base, url }) {
   const t = words(lang), title = `CKB Pulse · ${t('sp.title')}`, desc = t('sp.lead')
-  const total = COSTS.api + COSTS.server
+  const total = COST_TOTAL
   return `<!doctype html><html lang="${lang === 'zh' ? 'zh-CN' : lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:site_name" content="CKB Pulse"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}">
 ${menuHead(base)}<style>${CSS}${READING_CSS}${PAGE_CSS}</style></head><body><main>
