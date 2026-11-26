@@ -40,6 +40,8 @@ test('the support page shows the limits and the three addresses, in each languag
   assert.ok(supportPage({ lang: 'pt', base, url: `${base}/support` }).includes('Apoiar o'))
 })
 
-test('every page footer links to the support page', () => {
-  assert.ok(methodPage({ lang: 'en', base, url: `${base}/method` }).includes('<a href="/support">Support</a>'))
+test('a reading page footer asks and links to the support page, and the support page does not link to itself', () => {
+  assert.ok(methodPage({ lang: 'en', base, url: `${base}/method` }).includes('<div class="ask no-print"><p><b>Like Pulse? Find it useful?</b> Help keep it free.</p><a class="btn" href="/support?lang=en">Support <span aria-hidden="true">→</span></a></div>'))
+  assert.ok(methodPage({ lang: 'pt', base, url: `${base}/method` }).includes('<a class="btn" href="/support?lang=pt">Apoiar <span aria-hidden="true">→</span></a>'))
+  assert.ok(!supportPage({ lang: 'en', base, url: `${base}/support` }).includes('Like Pulse?'), 'no ask on the page that is the ask')
 })

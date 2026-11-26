@@ -40,6 +40,6 @@ ${pageHead({ crumbs: crumbs(t, { base, lang, trail: [[t('sp.nav'), null]] }), ey
 ${ADDRESSES.map((a) => `<div class="addr"><h3>${esc(t(`sp.${a.id}.h`))}</h3><p>${esc(t(`sp.${a.id}.p`))}</p><pre><code>${esc(a.address)}</code></pre><button type="button" data-count="${a.count}" data-copy="${esc(a.address)}" data-copied="${esc(t('sp.copied'))}">${esc(t('sp.copy'))}</button></div>`).join('\n')}
 <p>${esc(t('sp.check'))}</p></section>
 <section class="me" id="goes"><h2>${esc(t('sp.goes.h'))}</h2><p>${esc(t('sp.goes.p'))}</p></section>
-${pageFoot(t, url)}
+${pageFoot(t, url, { ask: false })}
 </main>${menuScript(base)}</body></html>`
 }
