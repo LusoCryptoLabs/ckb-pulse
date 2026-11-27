@@ -42,7 +42,7 @@ export function menuHtml(t, { base = '', lang = 'en', current = '', here = '', l
   return `<details class="pmenu"><summary class="pm-btn" aria-label="${esc(t('m.menu'))}" title="${esc(t('m.menu'))}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
 <div class="pm-panel" role="menu">${GROUPS.map(([g, rows]) => `<div class="pm-group pm-${g.slice(2)}"><p>${esc(t(g))}</p>${rows.map(row).join('')}</div>`).join('')}
 <div class="pm-foot"><a data-act="about" href="${esc(href(base, '/?about=1', lang))}">${esc(t('m.about'))}</a><a href="${esc(href(base, '/use', lang))}">${esc(t('m.all'))}</a><a href="${esc(href(base, '/method', lang))}">${esc(t('me.nav'))}</a><a href="${esc(href(base, '/privacy', lang))}">${esc(t('pv.nav'))}</a><span class="pm-langs">${langs}</span>${looks}
-<span class="pm-by"><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('m.issue'))}</a></span></div></div></details>`
+<span class="pm-by"><a href="https://lusocryptolabs.com">${esc(t('by'))}</a> · <a href="https://x.com/lusocryptolabs">X</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse">GitHub</a> · <a href="mailto:hello@lusocryptolabs.com">hello@lusocryptolabs.com</a> · <a href="https://github.com/LusoCryptoLabs/ckb-pulse/issues/new">${esc(t('m.issue'))}</a></span></div></div></details>`
 }
 
 // sharing, the same everywhere: copy the link, X, Telegram, WhatsApp, and the picture the link shows. The link carries
