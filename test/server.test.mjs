@@ -161,3 +161,10 @@ test('every page foot and the site data carry the contact email', async () => {
   for (const p of ['/method?lang=en', '/projects?lang=pt', '/support?lang=zh']) assert.ok((await get(p)).includes('href="mailto:hello@lusocryptolabs.com"'), p)
   assert.ok((await get('/?lang=en')).includes('"email":"hello@lusocryptolabs.com"'))
 })
+
+test('a page that says it opened makes its browser a person for the day, once', async () => {
+  const before = (await visits()).days.at(-1).people
+  for (let i = 0; i < 2; i++) assert.equal((await fetch(url('/api/here'), { method: 'POST', headers: { 'user-agent': HUMAN } })).status, 204)
+  await fetch(url('/api/here'), { method: 'POST', headers: { 'user-agent': 'curl/8.0' } })
+  assert.equal((await visits()).days.at(-1).people, before + 1)
+})

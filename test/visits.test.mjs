@@ -37,15 +37,16 @@ test('monitors and previews count apart, as bots', () => {
 })
 
 test('a person reading three pages counts once on the site, and the count stays after the day ends', async () => {
-  const { hit, visits } = await import('../visits.mjs')
+  const { hit, here, visits } = await import('../visits.mjs')
   const t0 = Date.parse('2031-03-03T10:00:00Z'), ua = 'Mozilla/5.0 people-test'
-  for (const page of ['pulse', 'learned', 'digest']) hit(page, '203.0.113.7', ua, t0)
-  hit('pulse', '203.0.113.8', ua, t0)
+  for (const page of ['pulse', 'learned', 'digest']) { hit(page, '203.0.113.7', ua, t0); here('203.0.113.7', ua, t0) }
+  hit('pulse', '203.0.113.8', ua, t0); here('203.0.113.8', ua, t0)
   const day = (v) => v.days.find((d) => d.day === '2031-03-03')
   assert.equal(day(visits(1, t0)).people, 2)
   hit('pulse', '203.0.113.9', ua, t0 + 864e5) // the next day drops the hashes of this one
   const after = day(visits(2, t0 + 864e5))
   assert.equal(after.people, 2)
+  assert.equal(after.browsers, 2)
   assert.equal(after.visitors.pulse, 2)
 })
 
@@ -62,4 +63,26 @@ test('MCP use: methods and tools per day, probes apart, callers counted once and
   assert.deepEqual([m.methods['tools/call'], m.tools.repo_detail, m.probeTools.pulse_overview, m.callers], [4, 2, 1, 2])
   mcpUse('initialize', '', '198.51.100.9', agent, t0 + 864e5)
   assert.equal(day(visits(2, t0 + 864e5)).callers, 2)
+})
+
+test('a page asked for with a browser name is not a person until the page says it opened, and the other Google crawlers are bots', async () => {
+  const { hit, here, visits } = await import('../visits.mjs')
+  const t0 = Date.parse('2033-05-05T10:00:00Z'), chrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36'
+  for (let i = 1; i <= 5; i++) hit('project', `47.79.201.${i}`, chrome, t0) // scrapers: the page only, no script run
+  hit('project', '198.51.100.20', chrome, t0); here('198.51.100.20', chrome, t0); here('198.51.100.20', chrome, t0)
+  const other = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.8103.78 Mobile Safari/537.36 (compatible; GoogleOther)'
+  hit('project', '66.249.74.40', other, t0); here('66.249.74.40', other, t0)
+  const d = visits(1, t0).days[0]
+  assert.equal(d.people, 1)
+  assert.equal(d.browsers, 6)
+  assert.equal(d.bots.project, 1)
+})
+
+test('a day kept from before the fix shows its old number as browsers and no people', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'visits-'))
+  fs.writeFileSync(path.join(dir, 'visits.json'), JSON.stringify({ days: { '2034-01-01': { views: { pulse: 9 }, visitors: { pulse: 7 }, people: 7 } } }))
+  initVisits(dir)
+  const d = visits(1, Date.parse('2034-01-01T12:00:00Z')).days[0]
+  assert.equal(d.people, null)
+  assert.equal(d.browsers, 7)
 })

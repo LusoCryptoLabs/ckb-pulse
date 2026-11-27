@@ -81,6 +81,8 @@ export function barHtml(t, { base = '', lang = 'en', current = '', here = '', sh
 
 // in a browser: one menu open at a time, closed by a tap outside it, by Escape, or by following one of its links
 if (typeof document !== 'undefined') {
+  // the page opened in a browser: this is what makes a visitor count as a person (visits.mjs), not the page request
+  try { navigator.sendBeacon('/api/here') } catch {}
   // choosing a language on a plain page is remembered: the pages reached without ?lang= open in it
   document.addEventListener('click', (e) => {
     const a = e.target.closest?.('a[lang]')
