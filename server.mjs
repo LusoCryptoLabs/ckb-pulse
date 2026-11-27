@@ -9,7 +9,7 @@ import { personMarks, isAI, start, snapshot, repoDetail, propose, proposal, high
 import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { earnedEmblem } from './emblem.mjs'
-import { initVisits, hit, visits, count, mcpUse } from './visits.mjs'
+import { initVisits, hit, here, visits, count, mcpUse } from './visits.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, keptWeeks, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, pageCard, words, rasterise } from './cards.mjs'
@@ -419,6 +419,10 @@ function handle(req, res) {
       count('api_check', req.headers['user-agent'])
       sendJson(req, res, { about: 'Lessons that apply to the changed lines. Hints to read, not proof: nothing is run, and the code is not stored.', count: lessons.length, lessons })
     })
+  }
+  // a page that opened in a browser: the visitor counts as a person for the day (visits.mjs)
+  if (url.pathname === '/api/here' && req.method === 'POST') {
+    here(ipOf(req), req.headers['user-agent']); res.writeHead(204, { 'cache-control': 'no-store' }); return res.end()
   }
   // a share channel used or a button pressed, as a count and nothing else (a beacon: no answer needed)
   if (url.pathname === '/api/count' && req.method === 'POST') {

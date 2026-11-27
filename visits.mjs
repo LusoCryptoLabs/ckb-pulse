@@ -2,16 +2,19 @@
 // address and the browser, kept only for that day; the salt is dropped with the day, so no hash can be checked later.
 // Kept in DATA_DIR/visits.json for 90 days: `/api/visits` reads the last 30. Monitors, link previews and scripts
 // count apart, as bots: on 2026-10-26 they made 1997 views of the page while its script was fetched 26 times.
+// A person is a browser whose page said it opened (`here`, sent by menu.js): on 2026-11-27, 3500 addresses asked for
+// pages with a browser's name and only 153 loaded the page's style or script; the rest were scrapers on cloud servers.
+// `browsers` keeps the old number, every address that asked with a browser's name, so the two can be compared.
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
 const KEEP_DAYS = 90
 let file = '', dirty = false
-let V = { days: {} } // day -> { salt, views: { page: n }, seen: { page: [hash] }, bots: { page: n } }
+let V = { days: {} } // day -> { salt, views: { page: n }, seen: { page: [hash] }, here: [hash], bots: { page: n } }
 
 // what is not a person reading: uptime checks, crawlers, link previews, scripts, headless browsers
-const BOT = /bot|crawl|spider|slurp|preview|uptime|monitor|sentinel|curl|wget|python|^node|go-http|java\/|okhttp|axios|headless|lighthouse|facebookexternalhit|whatsapp|embedly/i
+const BOT = /bot|crawl|spider|slurp|preview|uptime|monitor|sentinel|curl|wget|python|^node|go-http|java\/|okhttp|axios|headless|lighthouse|facebookexternalhit|whatsapp|embedly|googleother|google-|bytespider|scrap/i
 export const isBot = (ua) => !ua || BOT.test(ua)
 
 export function initVisits(dir) {
@@ -34,7 +37,7 @@ function dayRec(day) {
     // older days keep their counts and lose their salt and hashes
     for (const [k, r] of Object.entries(V.days)) {
       if (k === day) continue
-      if (r.salt) { delete r.salt; r.visitors = Object.fromEntries(Object.entries(r.seen || {}).map(([p, l]) => [p, l.length])); r.people = peopleOf(r.seen); delete r.seen; if (r.mcp && Array.isArray(r.mcp.callers)) r.mcp.callers = r.mcp.callers.length }
+      if (r.salt) { delete r.salt; r.visitors = Object.fromEntries(Object.entries(r.seen || {}).map(([p, l]) => [p, l.length])); r.browsers = peopleOf(r.seen); r.readers = (r.here || []).length; delete r.seen; delete r.here; if (r.mcp && Array.isArray(r.mcp.callers)) r.mcp.callers = r.mcp.callers.length }
       if (Date.now() - Date.parse(k) > KEEP_DAYS * 864e5) delete V.days[k]
     }
   }
@@ -73,22 +76,32 @@ export function mcpUse(method, tool, ip, ua, now = Date.now()) {
 }
 const mcpOf = (m) => (m ? { methods: m.methods, tools: m.tools, probeTools: m.probeTools, callers: Array.isArray(m.callers) ? m.callers.length : m.callers } : null)
 
+const visitor = (d, ip, ua) => crypto.createHash('sha256').update(`${d.salt}|${ip || ''}|${ua || ''}`).digest('hex').slice(0, 16)
 // one request to a page; ip and ua as the proxy gives them
 export function hit(page, ip, ua, now = Date.now()) {
   const d = dayRec(dayOf(now))
   if (isBot(ua)) { (d.bots ||= {})[page] = (d.bots[page] || 0) + 1; dirty = true; return }
   d.views[page] = (d.views[page] || 0) + 1
-  const h = crypto.createHash('sha256').update(`${d.salt}|${ip || ''}|${ua || ''}`).digest('hex').slice(0, 16)
+  const h = visitor(d, ip, ua)
   const seen = d.seen[page] || (d.seen[page] = [])
   if (!seen.includes(h)) seen.push(h)
   dirty = true
 }
+// a page that opened in a browser says so once (menu.js): that browser is a person for the day
+export function here(ip, ua, now = Date.now()) {
+  if (isBot(ua)) return
+  const d = dayRec(dayOf(now)), h = visitor(d, ip, ua), list = (d.here ||= [])
+  if (!list.includes(h)) { list.push(h); dirty = true }
+}
+// people for a day: those whose page said it opened; null for days before 2026-11-27, which only have browsers
+const readersOf = (r) => (r.here ? r.here.length : r.readers ?? null)
+const browsersOf = (r) => (r.seen ? peopleOf(r.seen) : r.browsers ?? r.people ?? null)
 // the last n days, oldest first: views and visitors per page, and the totals
 export function visits(n = 30, now = Date.now()) {
   const days = []
   for (let i = n - 1; i >= 0; i--) {
     const day = dayOf(now - i * 864e5), r = V.days[day]
-    days.push({ day, mcp: mcpOf(r?.mcp), people: r ? (r.seen ? peopleOf(r.seen) : r.people ?? null) : 0, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
+    days.push({ day, mcp: mcpOf(r?.mcp), people: r ? readersOf(r) : 0, browsers: r ? browsersOf(r) : 0, counts: r?.counts || {}, botCounts: r?.botCounts || {}, views: r?.views || {}, visitors: r ? (r.seen ? Object.fromEntries(Object.entries(r.seen).map(([p, l]) => [p, l.length])) : r.visitors || {}) : {}, bots: r?.bots || {} })
   }
   const total = { views: {}, visitors: {}, bots: {}, counts: {}, botCounts: {} }
   for (const d of days) for (const k of ['views', 'visitors', 'bots', 'counts', 'botCounts']) for (const [p, v] of Object.entries(d[k])) total[k][p] = (total[k][p] || 0) + v
