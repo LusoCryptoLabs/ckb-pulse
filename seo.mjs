@@ -32,7 +32,7 @@ export const siteLd = (base) => `<script type="application/ld+json">${JSON.strin
   '@context': 'https://schema.org',
   '@graph': [
     { '@type': 'WebSite', '@id': `${base}/#site`, name: 'CKB Pulse', url: `${base}/`, inLanguage: ['en', 'pt', 'zh-Hans'], publisher: { '@id': 'https://lusocryptolabs.com/#org' } },
-    { '@type': 'Organization', '@id': 'https://lusocryptolabs.com/#org', name: 'LusoCryptoLabs', url: 'https://lusocryptolabs.com', sameAs: ['https://x.com/lusocryptolabs', 'https://github.com/LusoCryptoLabs'] },
+    { '@type': 'Organization', '@id': 'https://lusocryptolabs.com/#org', name: 'LusoCryptoLabs', url: 'https://lusocryptolabs.com', email: 'hello@lusocryptolabs.com', sameAs: ['https://x.com/lusocryptolabs', 'https://github.com/LusoCryptoLabs'] },
   ],
 }).replace(/</g, '\\u003c')}</script>`
 

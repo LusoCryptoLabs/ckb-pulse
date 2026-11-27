@@ -156,3 +156,8 @@ test('the Search Console file answers as Google wrote it', async () => {
   assert.equal(status(r), 200)
   assert.ok(r.includes('google-site-verification: google600ab8d0daf96aa2.html'), r.slice(-120))
 })
+
+test('every page foot and the site data carry the contact email', async () => {
+  for (const p of ['/method?lang=en', '/projects?lang=pt', '/support?lang=zh']) assert.ok((await get(p)).includes('href="mailto:hello@lusocryptolabs.com"'), p)
+  assert.ok((await get('/?lang=en')).includes('"email":"hello@lusocryptolabs.com"'))
+})
