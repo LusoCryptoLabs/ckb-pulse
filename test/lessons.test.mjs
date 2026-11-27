@@ -838,3 +838,17 @@ test('check: a name only in a lesson example ties nothing', async () => {
   assert.deepEqual(checkCode(L, 'val xs = listOf(1, 2)'), [])
   assert.equal(checkCode(L, 'client.setScripts(listOf(s))').length, 1, 'control: two names of the lesson')
 })
+
+test('the visits page opens with the key, shows people per day and is unknown without it', async () => {
+  await withServer({ LESSONS_KEY: KEY }, { 'lessons.json': JSON.stringify(DATA) }, async (port) => {
+    const nothing = await get(port, '/no-such-page-here')
+    const shut = await get(port, '/lessons/visits')
+    assert.equal(shut.status, nothing.status); assert.equal(shut.body, nothing.body)
+    const r = await get(port, `/lessons/visits?k=${KEY}`)
+    const open = await get(port, '/lessons/visits', { cookie: String(r.headers['set-cookie']).split(';')[0] })
+    assert.equal(open.status, 200)
+    assert.ok(open.body.includes('Pessoas por dia') && open.body.includes('<svg'))
+    assert.match(String(open.headers['cache-control']), /private, no-store/)
+    assert.equal(open.headers['x-robots-tag'], 'noindex')
+  })
+})

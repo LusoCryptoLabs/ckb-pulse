@@ -10,6 +10,7 @@ import { trends, repoRows, arrivals, rhythm } from './history.mjs'
 import { repoBadge, personBadge, allBadge } from './badge.mjs'
 import { earnedEmblem } from './emblem.mjs'
 import { initVisits, hit, here, visits, count, mcpUse } from './visits.mjs'
+import { statsPage } from './stats.mjs'
 import { loadDigests, startDigest, digestPage, feedXml, weekByLabel, weekLeaders, keptWeeks, THEME_SCRIPT, LOOK_META } from './digest.mjs'
 import { limits } from './github.mjs'
 import { highlightsCard, repoCard, personCard, fiberCard, useCard, lessonCard, pageCard, words, rasterise } from './cards.mjs'
@@ -330,6 +331,7 @@ function handle(req, res) {
       const priv = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex', vary: 'cookie, authorization, accept-language' }
       if (url.pathname === '/lessons/mcp') return mcpHttp(req, res, lessonsMcpHandle, b, '/lessons')
       if (url.pathname === '/lessons/api') { const r = lessonsApi(data, url, b); res.writeHead(r.status, { 'content-type': 'application/json', ...priv }); return res.end(JSON.stringify(r.json)) }
+      if (url.pathname === '/lessons/visits') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, statsPage({ base: b, v: visits(30) }))
       if (url.pathname === '/lessons/glossary') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, glossaryPage({ lang, base: b, url: `${b}/lessons/glossary`, data }))
       if (url.pathname === '/lessons/review') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, reviewPage({ lang, base: b, url: `${b}/lessons/review`, data }))
       if (url.pathname === '/lessons/start') return sendText(req, res, 200, { 'content-type': TYPES['.html'], ...priv }, startPage({ lang, base: b, url: `${b}/lessons/start`, data }))
