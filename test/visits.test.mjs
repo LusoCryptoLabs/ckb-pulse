@@ -86,3 +86,10 @@ test('a day kept from before the fix shows its old number as browsers and no peo
   assert.equal(d.people, null)
   assert.equal(d.browsers, 7)
 })
+
+test('a new day with no person yet says 0 people, not no count', async () => {
+  const { hit, visits } = await import('../visits.mjs')
+  const t0 = Date.parse('2035-06-06T10:00:00Z')
+  hit('project', '47.79.201.9', 'Mozilla/5.0 Chrome/156.0.0.0', t0)
+  assert.equal(visits(1, t0).days[0].people, 0)
+})

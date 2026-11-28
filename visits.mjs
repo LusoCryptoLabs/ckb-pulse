@@ -33,7 +33,7 @@ const dayOf = (now) => new Date(now).toISOString().slice(0, 10)
 function dayRec(day) {
   let d = V.days[day]
   if (!d) {
-    d = V.days[day] = { salt: crypto.randomBytes(16).toString('hex'), views: {}, seen: {} }
+    d = V.days[day] = { salt: crypto.randomBytes(16).toString('hex'), views: {}, seen: {}, here: [] }
     // older days keep their counts and lose their salt and hashes
     for (const [k, r] of Object.entries(V.days)) {
       if (k === day) continue
